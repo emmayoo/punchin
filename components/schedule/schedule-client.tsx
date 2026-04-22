@@ -14,13 +14,11 @@ import { ScheduleSlotForm } from "@/components/schedule/schedule-slot-form";
 import { ScheduleWeekGrid } from "@/components/schedule/schedule-week-grid";
 import { SchedulePerson } from "@/components/schedule/schedule-types";
 import {
-  SCHEDULE_PEOPLE_KEY,
   WEEKDAY_LABELS,
   addDays,
   dateKey,
   fromDateInput,
   parseTimeHHMM,
-  randomId,
   startOfWeek,
   toMinutes,
   weekLabel,
@@ -30,46 +28,12 @@ import { Shift } from "@/types/work";
 
 export function ScheduleClient() {
   const [shifts, setShifts] = useState<Shift[]>([]);
-  const [people, setPeople] = useState<SchedulePerson[]>(() => {
-    if (typeof window === "undefined") {
-      return [];
-    }
-    const raw = window.localStorage.getItem(SCHEDULE_PEOPLE_KEY);
-    if (!raw) {
-      return [];
-    }
-    try {
-      const parsed = JSON.parse(raw) as SchedulePerson[];
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    } catch {
-      // ignore broken local storage value
-    }
-    return [];
-  });
+  const [people, setPeople] = useState<SchedulePerson[]>([]);
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [weekday, setWeekday] = useState(0);
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("13:00");
-  const [selectedPersonId, setSelectedPersonId] = useState(() => {
-    if (typeof window === "undefined") {
-      return "";
-    }
-    const raw = window.localStorage.getItem(SCHEDULE_PEOPLE_KEY);
-    if (!raw) {
-      return "";
-    }
-    try {
-      const parsed = JSON.parse(raw) as SchedulePerson[];
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed[0].id;
-      }
-    } catch {
-      // ignore broken local storage value
-    }
-    return "";
-  });
+  const [selectedPersonId, setSelectedPersonId] = useState("");
   const [newPersonName, setNewPersonName] = useState("");
   const [newPersonPhone, setNewPersonPhone] = useState("");
   const [newPersonColor, setNewPersonColor] = useState("#22c55e");
@@ -97,20 +61,44 @@ export function ScheduleClient() {
     const list = await workApi.getSchedule();
     setShifts(list);
   };
-
-  useEffect(() => {
-    window.localStorage.setItem(SCHEDULE_PEOPLE_KEY, JSON.stringify(people));
-  }, [people]);
+  const loadPeople = async () => {
+    const list = await workApi.getSchedulePeople();
+    const mapped: SchedulePerson[] = list.map((item) => ({
+      id: item.id,
+      name: item.name,
+      employeePhone: item.employeePhone,
+      color: item.color,
+    }));
+    setPeople(mapped);
+    setSelectedPersonId((prev) =>
+      prev && mapped.some((person) => person.id === prev)
+        ? prev
+        : (mapped[0]?.id ?? ""),
+    );
+  };
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       await workApi.init();
-      const list = await workApi.getSchedule();
+      const [scheduleList, peopleList] = await Promise.all([
+        workApi.getSchedule(),
+        workApi.getSchedulePeople(),
+      ]);
       if (!mounted) {
         return;
       }
-      setShifts(list);
+      setShifts(scheduleList);
+      const mapped: SchedulePerson[] = peopleList.map((item) => ({
+        id: item.id,
+        name: item.name,
+        employeePhone: item.employeePhone,
+        color: item.color,
+      }));
+      setPeople(mapped);
+      if (mapped.length > 0) {
+        setSelectedPersonId((prev) => (prev ? prev : mapped[0].id));
+      }
       setLoading(false);
     })();
     return () => {
@@ -205,7 +193,7 @@ export function ScheduleClient() {
     setBusy(false);
   };
 
-  const addPerson = () => {
+  const addPerson = async () => {
     if (!newPersonName.trim()) {
       setMessage("사람 이름을 입력해주세요.");
       return;
@@ -219,20 +207,19 @@ export function ScheduleClient() {
       setMessage("이미 등록된 핸드폰 번호입니다.");
       return;
     }
-    const created: SchedulePerson = {
-      id: randomId("person"),
+    const created = await workApi.createSchedulePerson({
       name: newPersonName.trim(),
       employeePhone: phone,
       color: newPersonColor,
-    };
-    setPeople((prev) => [...prev, created]);
+    });
+    await loadPeople();
     setSelectedPersonId(created.id);
     setNewPersonName("");
     setNewPersonPhone("");
-    setMessage(`${created.name} 담당자를 추가했습니다.`);
+    setMessage(`${created.name} 직원을 추가했습니다.`);
   };
 
-  const updatePerson = (
+  const updatePerson = async (
     personId: string,
     payload: Pick<SchedulePerson, "name" | "employeePhone" | "color">,
   ) => {
@@ -253,34 +240,23 @@ export function ScheduleClient() {
       setMessage("이미 등록된 핸드폰 번호입니다.");
       return;
     }
-    setPeople((prev) =>
-      prev.map((person) =>
-        person.id === personId
-          ? {
-              ...person,
-              name,
-              employeePhone: phone,
-              color: payload.color,
-            }
-          : person,
-      ),
-    );
+    await workApi.updateSchedulePerson(personId, {
+      name,
+      employeePhone: phone,
+      color: payload.color,
+    });
+    await loadPeople();
     setMessage("직원 정보를 수정했습니다.");
   };
 
-  const deletePerson = (personId: string) => {
-    setPeople((prev) => {
-      if (prev.length <= 1) {
-        setMessage("직원은 최소 1명 이상 필요합니다.");
-        return prev;
-      }
-      const next = prev.filter((person) => person.id !== personId);
-      if (selectedPersonId === personId && next.length > 0) {
-        setSelectedPersonId(next[0].id);
-      }
-      setMessage("직원을 삭제했습니다.");
-      return next;
-    });
+  const deletePerson = async (personId: string) => {
+    if (people.length <= 1) {
+      setMessage("직원은 최소 1명 이상 필요합니다.");
+      return;
+    }
+    await workApi.deleteSchedulePerson(personId);
+    await loadPeople();
+    setMessage("직원을 삭제했습니다.");
   };
 
   const applyWeekPicker = () => {

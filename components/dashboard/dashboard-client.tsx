@@ -14,6 +14,7 @@ export function DashboardClient() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<
     "checkin" | "checkout" | null
   >(null);
@@ -63,10 +64,18 @@ export function DashboardClient() {
       return;
     }
     setBusy(true);
-    await workApi.checkInCurrent(data.session);
-    await refresh();
-    setBusy(false);
-    setConfirmAction(null);
+    setActionError(null);
+    try {
+      await workApi.checkInCurrent(data.session);
+      await refresh();
+      setConfirmAction(null);
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "출근 처리 중 오류가 발생했습니다.",
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleCheckOut = async () => {
@@ -74,10 +83,18 @@ export function DashboardClient() {
       return;
     }
     setBusy(true);
-    await workApi.checkOutCurrent(data.activePunch.id);
-    await refresh();
-    setBusy(false);
-    setConfirmAction(null);
+    setActionError(null);
+    try {
+      await workApi.checkOutCurrent(data.activePunch.id);
+      await refresh();
+      setConfirmAction(null);
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "퇴근 처리 중 오류가 발생했습니다.",
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
   if (!data) {
@@ -127,6 +144,9 @@ export function DashboardClient() {
             </button>
           </>
         )}
+        {actionError ? (
+          <p className="text-xs text-rose-300">{actionError}</p>
+        ) : null}
       </section>
 
       {data.todayEvents.length > 0 ? (

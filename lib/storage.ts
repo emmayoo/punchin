@@ -36,39 +36,13 @@ function write<T>(key: string, value: T): void {
   window.localStorage.setItem(key, JSON.stringify(value));
 }
 
-function todayAt(hour: number): string {
-  const now = new Date();
-  now.setHours(hour, 0, 0, 0);
-  return now.toISOString();
-}
-
 function seedIfNeeded(): void {
   const employees = read<Employee[]>(EMPLOYEE_KEY, []);
   if (employees.length > 0) {
     return;
   }
-  const seededEmployees: Employee[] = [
-    { id: id("emp"), name: "민지", phone: "01012341234" },
-    { id: id("emp"), name: "도윤", phone: "01055556666" },
-  ];
-  const seededShifts: Shift[] = [
-    {
-      id: id("shift"),
-      employeePhone: "01012341234",
-      employeeName: "민지",
-      startAt: todayAt(9),
-      endAt: todayAt(15),
-    },
-    {
-      id: id("shift"),
-      employeePhone: "01055556666",
-      employeeName: "도윤",
-      startAt: todayAt(15),
-      endAt: todayAt(22),
-    },
-  ];
-  write(EMPLOYEE_KEY, seededEmployees);
-  write(SHIFT_KEY, seededShifts);
+  write(EMPLOYEE_KEY, []);
+  write(SHIFT_KEY, []);
   write(PUNCH_KEY, []);
 }
 

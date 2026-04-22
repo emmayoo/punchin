@@ -23,6 +23,7 @@ import {
   updateShift,
   upsertEmployee,
 } from "@/lib/storage";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { durationHours, isToday, isWithinWeek, startOfWeek } from "@/lib/time";
 import { CalendarEvent, Employee, PunchRecord, Shift } from "@/types/work";
 
@@ -48,6 +49,13 @@ export type RangeWorkStatRow = {
   details: RangeWorkDetail[];
 };
 
+export type SchedulePersonRecord = {
+  id: string;
+  name: string;
+  employeePhone: string;
+  color: string;
+};
+
 export type DashboardData = {
   session: Employee | null;
   shifts: Shift[];
@@ -61,39 +69,6 @@ export type DashboardData = {
   myTodayHours: number;
   myTodayRecords: PunchRecord[];
 };
-
-function buildSampleTodayShifts(nowIso: string): Shift[] {
-  const base = new Date(nowIso);
-  const setTime = (hour: number, minute: number): string => {
-    const date = new Date(base);
-    date.setHours(hour, minute, 0, 0);
-    return date.toISOString();
-  };
-
-  return [
-    {
-      id: "sample-1",
-      employeeName: "민지",
-      employeePhone: "01011112222",
-      startAt: setTime(9, 0),
-      endAt: setTime(13, 30),
-    },
-    {
-      id: "sample-2",
-      employeeName: "도윤",
-      employeePhone: "01033334444",
-      startAt: setTime(14, 0),
-      endAt: setTime(18, 0),
-    },
-    {
-      id: "sample-3",
-      employeeName: "서준",
-      employeePhone: "01055556666",
-      startAt: setTime(18, 30),
-      endAt: setTime(22, 0),
-    },
-  ];
-}
 
 function normalizePhone(input: string): string {
   return input.replace(/\D/g, "").slice(0, 11);
@@ -109,6 +84,52 @@ function wait(ms = 80): Promise<void> {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms);
   });
+}
+
+function mapEmployeeRow(row: Record<string, unknown>): Employee {
+  return {
+    id: String(row.id),
+    phone: String(row.phone),
+    name: String(row.name),
+  };
+}
+
+function mapShiftRow(row: Record<string, unknown>): Shift {
+  return {
+    id: String(row.id),
+    employeePhone: String(row.employee_phone),
+    employeeName: String(row.employee_name),
+    startAt: String(row.start_at),
+    endAt: String(row.end_at),
+  };
+}
+
+function mapPunchRow(row: Record<string, unknown>): PunchRecord {
+  return {
+    id: String(row.id),
+    employeePhone: String(row.employee_phone),
+    employeeName: String(row.employee_name),
+    checkedInAt: String(row.checked_in_at),
+    checkedOutAt: row.checked_out_at ? String(row.checked_out_at) : null,
+  };
+}
+
+function mapEventRow(row: Record<string, unknown>): CalendarEvent {
+  return {
+    id: String(row.id),
+    date: String(row.date),
+    title: String(row.title),
+    color: String(row.color),
+  };
+}
+
+function mapSchedulePersonRow(row: Record<string, unknown>): SchedulePersonRecord {
+  return {
+    id: String(row.id),
+    name: String(row.name),
+    employeePhone: String(row.phone),
+    color: String(row.color ?? "#22c55e"),
+  };
 }
 
 class LocalWorkApi {
@@ -256,17 +277,72 @@ class LocalWorkApi {
     return getShifts();
   }
 
+  async getSchedulePeople(): Promise<SchedulePersonRecord[]> {
+    const rows = getEmployees().map((employee) => ({
+      id: employee.id,
+      name: employee.name,
+      employeePhone: employee.phone,
+      color: "#22c55e",
+    }));
+    await wait();
+    return rows;
+  }
+
+  async createSchedulePerson(input: {
+    name: string;
+    employeePhone: string;
+    color: string;
+  }): Promise<SchedulePersonRecord> {
+    const employee = upsertEmployee(normalizePhone(input.employeePhone), input.name.trim());
+    await wait();
+    return {
+      id: employee.id,
+      name: employee.name,
+      employeePhone: employee.phone,
+      color: input.color,
+    };
+  }
+
+  async updateSchedulePerson(
+    personId: string,
+    input: { name: string; employeePhone: string; color: string },
+  ): Promise<SchedulePersonRecord | null> {
+    const normalized = normalizePhone(input.employeePhone);
+    const employee =
+      getEmployees().find((item) => item.id === personId) ??
+      getEmployees().find((item) => item.phone === normalized) ??
+      null;
+    if (!employee) {
+      await wait();
+      return null;
+    }
+    const updated = updateEmployeeName(employee.phone, input.name.trim());
+    await wait();
+    if (!updated) {
+      return null;
+    }
+    return {
+      id: updated.id,
+      name: updated.name,
+      employeePhone: normalized,
+      color: input.color,
+    };
+  }
+
+  async deleteSchedulePerson(personId: string): Promise<void> {
+    // local fallback keeps legacy behavior (no employee delete API yet)
+    await wait();
+    void personId;
+  }
+
   /**
-   * 타임라인용 오늘 근무 목록.
-   * 실제 데이터가 없으면 샘플을 내려주며, 추후 백엔드 엔드포인트로 대체하기 쉽도록 API 레이어에 둔다.
+   * 타임라인용 오늘 근무 목록 (실데이터만 사용).
    */
   async getTimelineShifts(nowIso: string, shifts: Shift[]): Promise<Shift[]> {
+    void nowIso;
     const today = shifts.filter((shift) => isToday(shift.startAt));
     await wait();
-    if (today.length > 0) {
-      return today;
-    }
-    return buildSampleTodayShifts(nowIso);
+    return today;
   }
 
   async createShift(shift: Omit<Shift, "id">): Promise<Shift> {
@@ -282,7 +358,9 @@ class LocalWorkApi {
 
   async updateShift(
     shiftId: string,
-    payload: Partial<Pick<Shift, "employeeName" | "employeePhone" | "startAt" | "endAt">>,
+    payload: Partial<
+      Pick<Shift, "employeeName" | "employeePhone" | "startAt" | "endAt">
+    >,
   ): Promise<Shift | null> {
     const updated = updateShift(shiftId, payload);
     await wait();
@@ -329,7 +407,10 @@ class LocalWorkApi {
     return { rows, totalHours };
   }
 
-  async getRangeWorkStats(startDate: string, endDate: string): Promise<{
+  async getRangeWorkStats(
+    startDate: string,
+    endDate: string,
+  ): Promise<{
     rows: RangeWorkStatRow[];
     totalSeconds: number;
   }> {
@@ -384,7 +465,8 @@ class LocalWorkApi {
         ...row,
         details: row.details.sort(
           (a, b) =>
-            new Date(b.checkedInAt).getTime() - new Date(a.checkedInAt).getTime(),
+            new Date(b.checkedInAt).getTime() -
+            new Date(a.checkedInAt).getTime(),
         ),
       }))
       .sort((a, b) => b.totalSeconds - a.totalSeconds);
@@ -394,4 +476,620 @@ class LocalWorkApi {
   }
 }
 
-export const workApi = new LocalWorkApi();
+class SupabaseWorkApi {
+  private supabase = getSupabaseBrowserClient();
+
+  async init(): Promise<void> {
+    await this.seedIfNeeded();
+    await wait();
+  }
+
+  private todayAt(hour: number): string {
+    const now = new Date();
+    now.setHours(hour, 0, 0, 0);
+    return now.toISOString();
+  }
+
+  private async seedIfNeeded(): Promise<void> {
+    try {
+      const { count } = await this.supabase
+        .from("employees")
+        .select("id", { count: "exact", head: true });
+      if ((count ?? 0) > 0) {
+        return;
+      }
+
+      await this.supabase.from("employees").insert(
+        [
+          { phone: "01012341234", name: "민지" },
+          { phone: "01055556666", name: "도윤" },
+        ] as never,
+      );
+
+      await this.supabase.from("shifts").insert(
+        [
+          {
+            employee_phone: "01012341234",
+            employee_name: "민지",
+            start_at: this.todayAt(9),
+            end_at: this.todayAt(15),
+          },
+          {
+            employee_phone: "01055556666",
+            employee_name: "도윤",
+            start_at: this.todayAt(15),
+            end_at: this.todayAt(22),
+          },
+        ] as never,
+      );
+    } catch (error) {
+      console.warn("Supabase seed skipped:", error);
+    }
+  }
+
+  private async ensureAuthUser(): Promise<void> {
+    const {
+      data: { session },
+    } = await this.supabase.auth.getSession();
+    if (session) {
+      return;
+    }
+    await this.supabase.auth.signInAnonymously();
+  }
+
+  private async setAuthPhone(phone: string): Promise<void> {
+    await this.ensureAuthUser();
+    await this.supabase.auth.updateUser({
+      data: { phone },
+    });
+  }
+
+  private async getSessionEmployeeFromAuth(): Promise<Employee | null> {
+    await this.ensureAuthUser();
+    const {
+      data: { user },
+    } = await this.supabase.auth.getUser();
+    const phone = String(user?.user_metadata?.phone ?? "").trim();
+    if (!phone) {
+      return null;
+    }
+    const { data } = await this.supabase
+      .from("employees")
+      .select("*")
+      .eq("phone", phone)
+      .maybeSingle();
+    return data ? mapEmployeeRow(data as Record<string, unknown>) : null;
+  }
+
+  private async getEmployeesRemote(): Promise<Employee[]> {
+    const { data } = await this.supabase
+      .from("employees")
+      .select("*")
+      .order("created_at", { ascending: false });
+    return (data ?? []).map((row) =>
+      mapEmployeeRow(row as Record<string, unknown>),
+    );
+  }
+
+  private async getShiftsRemote(): Promise<Shift[]> {
+    const { data } = await this.supabase
+      .from("shifts")
+      .select("*")
+      .order("start_at", { ascending: true });
+    return (data ?? []).map((row) =>
+      mapShiftRow(row as Record<string, unknown>),
+    );
+  }
+
+  private async getPunchesRemote(): Promise<PunchRecord[]> {
+    const { data } = await this.supabase
+      .from("punch_records")
+      .select("*")
+      .order("checked_in_at", { ascending: false });
+    return (data ?? []).map((row) =>
+      mapPunchRow(row as Record<string, unknown>),
+    );
+  }
+
+  private async getCalendarEventsRemote(): Promise<CalendarEvent[]> {
+    const { data } = await this.supabase
+      .from("calendar_events")
+      .select("*")
+      .order("date", { ascending: true });
+    return (data ?? []).map((row) =>
+      mapEventRow(row as Record<string, unknown>),
+    );
+  }
+
+  async login(phone: string): Promise<Employee> {
+    const normalized = normalizePhone(phone);
+    await this.ensureAuthUser();
+    await this.setAuthPhone(normalized);
+    const { data: existing } = await this.supabase
+      .from("employees")
+      .select("*")
+      .eq("phone", normalized)
+      .maybeSingle();
+    const employee = existing
+      ? mapEmployeeRow(existing as Record<string, unknown>)
+      : (() => {
+          const name = `직원-${normalized.slice(-4)}`;
+          return { id: "", phone: normalized, name };
+        })();
+
+    if (!existing) {
+      const { data: created } = await this.supabase
+        .from("employees")
+        .insert({ phone: employee.phone, name: employee.name } as never)
+        .select("*")
+        .single();
+      if (created) {
+        await wait();
+        return mapEmployeeRow(created as Record<string, unknown>);
+      }
+    }
+    await wait();
+    return employee;
+  }
+
+  async getEmployeeByPhone(phone: string): Promise<Employee | null> {
+    const normalized = normalizePhone(phone);
+    const { data } = await this.supabase
+      .from("employees")
+      .select("*")
+      .eq("phone", normalized)
+      .maybeSingle();
+    await wait();
+    return data ? mapEmployeeRow(data as Record<string, unknown>) : null;
+  }
+
+  async registerFirstProfile(phone: string, name: string): Promise<Employee> {
+    const normalized = normalizePhone(phone);
+    await this.ensureAuthUser();
+    await this.setAuthPhone(normalized);
+    const { data: upserted } = await this.supabase
+      .from("employees")
+      .upsert(
+        {
+          phone: normalized,
+          name: name.trim(),
+        } as never,
+        { onConflict: "phone" },
+      )
+      .select("*")
+      .single();
+    const employee = upserted
+      ? mapEmployeeRow(upserted as Record<string, unknown>)
+      : { id: "", phone: normalized, name: name.trim() };
+    await wait();
+    return employee;
+  }
+
+  async updateMyProfileName(
+    phone: string,
+    name: string,
+  ): Promise<Employee | null> {
+    const normalized = normalizePhone(phone);
+    const { data } = await this.supabase
+      .from("employees")
+      .update({ name: name.trim() } as never)
+      .eq("phone", normalized)
+      .select("*")
+      .maybeSingle();
+    if (data) {
+      const updated = mapEmployeeRow(data as Record<string, unknown>);
+      await wait();
+      return updated;
+    }
+    await wait();
+    return null;
+  }
+
+  async logout(): Promise<void> {
+    await this.supabase.auth.signOut();
+    clearSession();
+    await wait();
+  }
+
+  async checkInCurrent(session: Employee): Promise<void> {
+    await this.ensureAuthUser();
+    await this.setAuthPhone(session.phone);
+    const { data: active } = await this.supabase
+      .from("punch_records")
+      .select("id")
+      .eq("employee_phone", session.phone)
+      .is("checked_out_at", null)
+      .maybeSingle();
+    if (!active) {
+      const { error } = await this.supabase.from("punch_records").insert({
+        employee_phone: session.phone,
+        employee_name: session.name,
+        checked_in_at: new Date().toISOString(),
+        checked_out_at: null,
+      } as never);
+      if (error) {
+        throw new Error(`출근 처리 실패: ${error.message}`);
+      }
+    }
+    await wait();
+  }
+
+  async checkOutCurrent(recordId: string): Promise<void> {
+    await this.ensureAuthUser();
+    const { error } = await this.supabase
+      .from("punch_records")
+      .update({ checked_out_at: new Date().toISOString() } as never)
+      .eq("id", recordId);
+    if (error) {
+      throw new Error(`퇴근 처리 실패: ${error.message}`);
+    }
+    await wait();
+  }
+
+  async getDashboard(): Promise<DashboardData> {
+    const session = await this.getSessionEmployeeFromAuth();
+    const [shifts, punchRecords, events] = await Promise.all([
+      this.getShiftsRemote(),
+      this.getPunchesRemote(),
+      this.getCalendarEventsRemote(),
+    ]);
+    const todayPunches = punchRecords.filter((record) =>
+      isToday(record.checkedInAt),
+    );
+    const todayEvents = events
+      .filter((event) => event.date === toDateKey(new Date()))
+      .sort((a, b) => a.title.localeCompare(b.title));
+    const nowMs = Date.now();
+
+    const activePunch = session
+      ? (punchRecords.find(
+          (record) =>
+            record.employeePhone === session.phone &&
+            record.checkedOutAt === null,
+        ) ?? null)
+      : null;
+    const todayShift = session
+      ? (shifts.find(
+          (shift) =>
+            shift.employeePhone === session.phone && isToday(shift.startAt),
+        ) ?? null)
+      : null;
+    const currentWorker =
+      shifts.find(
+        (shift) =>
+          new Date(shift.startAt).getTime() <= nowMs &&
+          new Date(shift.endAt).getTime() >= nowMs,
+      ) ?? null;
+    const nextWorker =
+      shifts.find((shift) => new Date(shift.startAt).getTime() > nowMs) ?? null;
+    const myTodayRecords = session
+      ? todayPunches
+          .filter((record) => record.employeePhone === session.phone)
+          .sort(
+            (a, b) =>
+              new Date(a.checkedInAt).getTime() -
+              new Date(b.checkedInAt).getTime(),
+          )
+      : [];
+    const myTodayHours = myTodayRecords.reduce((sum, record) => {
+      const endAt = record.checkedOutAt ?? new Date(nowMs).toISOString();
+      return sum + durationHours(record.checkedInAt, endAt);
+    }, 0);
+
+    await wait();
+    return {
+      session,
+      shifts,
+      punchRecords,
+      todayPunches,
+      todayEvents,
+      activePunch,
+      currentWorker,
+      nextWorker,
+      todayShift,
+      myTodayHours,
+      myTodayRecords,
+    };
+  }
+
+  async getHistory(): Promise<PunchRecord[]> {
+    const punches = await this.getPunchesRemote();
+    await wait();
+    return punches;
+  }
+
+  async getCalendarEvents(): Promise<CalendarEvent[]> {
+    const events = await this.getCalendarEventsRemote();
+    await wait();
+    return events;
+  }
+
+  async createCalendarEvent(
+    event: Omit<CalendarEvent, "id">,
+  ): Promise<CalendarEvent> {
+    const { data } = await this.supabase
+      .from("calendar_events")
+      .insert({
+        date: event.date,
+        title: event.title.trim(),
+        color: event.color,
+      } as never)
+      .select("*")
+      .single();
+    await wait();
+    return data
+      ? mapEventRow(data as Record<string, unknown>)
+      : { id: "", ...event };
+  }
+
+  async updateCalendarEvent(
+    eventId: string,
+    payload: Partial<Pick<CalendarEvent, "title" | "color">>,
+  ): Promise<CalendarEvent | null> {
+    const { data } = await this.supabase
+      .from("calendar_events")
+      .update({
+        ...(payload.title !== undefined ? { title: payload.title.trim() } : {}),
+        ...(payload.color !== undefined ? { color: payload.color } : {}),
+      } as never)
+      .eq("id", eventId)
+      .select("*")
+      .maybeSingle();
+    await wait();
+    return data ? mapEventRow(data as Record<string, unknown>) : null;
+  }
+
+  async deleteCalendarEvent(eventId: string): Promise<void> {
+    await this.supabase.from("calendar_events").delete().eq("id", eventId);
+    await wait();
+  }
+
+  async getSchedule(): Promise<Shift[]> {
+    const shifts = await this.getShiftsRemote();
+    await wait();
+    return shifts;
+  }
+
+  async getSchedulePeople(): Promise<SchedulePersonRecord[]> {
+    const { data } = await this.supabase
+      .from("employees")
+      .select("id,name,phone,color")
+      .order("created_at", { ascending: false });
+    await wait();
+    return (data ?? []).map((row) =>
+      mapSchedulePersonRow(row as Record<string, unknown>),
+    );
+  }
+
+  async createSchedulePerson(input: {
+    name: string;
+    employeePhone: string;
+    color: string;
+  }): Promise<SchedulePersonRecord> {
+    const normalized = normalizePhone(input.employeePhone);
+    const { data } = await this.supabase
+      .from("employees")
+      .upsert(
+        {
+          name: input.name.trim(),
+          phone: normalized,
+          color: input.color,
+        } as never,
+        { onConflict: "phone" },
+      )
+      .select("id,name,phone,color")
+      .single();
+    await wait();
+    return data
+      ? mapSchedulePersonRow(data as Record<string, unknown>)
+      : {
+          id: "",
+          name: input.name.trim(),
+          employeePhone: normalized,
+          color: input.color,
+        };
+  }
+
+  async updateSchedulePerson(
+    personId: string,
+    input: { name: string; employeePhone: string; color: string },
+  ): Promise<SchedulePersonRecord | null> {
+    const normalized = normalizePhone(input.employeePhone);
+    const { data } = await this.supabase
+      .from("employees")
+      .update({
+        name: input.name.trim(),
+        phone: normalized,
+        color: input.color,
+      } as never)
+      .eq("id", personId)
+      .select("id,name,phone,color")
+      .maybeSingle();
+    await wait();
+    return data ? mapSchedulePersonRow(data as Record<string, unknown>) : null;
+  }
+
+  async deleteSchedulePerson(personId: string): Promise<void> {
+    await this.supabase.from("employees").delete().eq("id", personId);
+    await wait();
+  }
+
+  async getTimelineShifts(nowIso: string, shifts: Shift[]): Promise<Shift[]> {
+    void nowIso;
+    const today = shifts.filter((shift) => isToday(shift.startAt));
+    await wait();
+    return today;
+  }
+
+  async createShift(shift: Omit<Shift, "id">): Promise<Shift> {
+    const { data } = await this.supabase
+      .from("shifts")
+      .insert({
+        employee_phone: shift.employeePhone,
+        employee_name: shift.employeeName,
+        start_at: shift.startAt,
+        end_at: shift.endAt,
+      } as never)
+      .select("*")
+      .single();
+    await wait();
+    return data
+      ? mapShiftRow(data as Record<string, unknown>)
+      : { id: "", ...shift };
+  }
+
+  async createShifts(shifts: Omit<Shift, "id">[]): Promise<void> {
+    if (shifts.length === 0) {
+      return;
+    }
+    await this.supabase.from("shifts").insert(
+      shifts.map((shift) => ({
+        employee_phone: shift.employeePhone,
+        employee_name: shift.employeeName,
+        start_at: shift.startAt,
+        end_at: shift.endAt,
+      })) as never,
+    );
+    await wait();
+  }
+
+  async updateShift(
+    shiftId: string,
+    payload: Partial<
+      Pick<Shift, "employeeName" | "employeePhone" | "startAt" | "endAt">
+    >,
+  ): Promise<Shift | null> {
+    const { data } = await this.supabase
+      .from("shifts")
+      .update({
+        ...(payload.employeeName !== undefined
+          ? { employee_name: payload.employeeName }
+          : {}),
+        ...(payload.employeePhone !== undefined
+          ? { employee_phone: payload.employeePhone }
+          : {}),
+        ...(payload.startAt !== undefined ? { start_at: payload.startAt } : {}),
+        ...(payload.endAt !== undefined ? { end_at: payload.endAt } : {}),
+      } as never)
+      .eq("id", shiftId)
+      .select("*")
+      .maybeSingle();
+    await wait();
+    return data ? mapShiftRow(data as Record<string, unknown>) : null;
+  }
+
+  async deleteShift(shiftId: string): Promise<void> {
+    await this.supabase.from("shifts").delete().eq("id", shiftId);
+    await wait();
+  }
+
+  async getWeeklyStats(): Promise<{
+    rows: WeeklyStatRow[];
+    totalHours: number;
+  }> {
+    const weekStart = startOfWeek(new Date());
+    const punches = await this.getPunchesRemote();
+    const map = new Map<string, WeeklyStatRow>();
+    for (const record of punches) {
+      if (
+        !record.checkedOutAt ||
+        !isWithinWeek(record.checkedInAt, weekStart)
+      ) {
+        continue;
+      }
+      const key = record.employeePhone;
+      const current = map.get(key) ?? {
+        phone: record.employeePhone,
+        name: record.employeeName,
+        totalHours: 0,
+        shiftCount: 0,
+      };
+      current.totalHours += durationHours(
+        record.checkedInAt,
+        record.checkedOutAt,
+      );
+      current.shiftCount += 1;
+      map.set(key, current);
+    }
+    const rows = [...map.values()].sort((a, b) => b.totalHours - a.totalHours);
+    const totalHours = rows.reduce((sum, row) => sum + row.totalHours, 0);
+    await wait();
+    return { rows, totalHours };
+  }
+
+  async getRangeWorkStats(
+    startDate: string,
+    endDate: string,
+  ): Promise<{
+    rows: RangeWorkStatRow[];
+    totalSeconds: number;
+  }> {
+    const start = new Date(`${startDate}T00:00:00`);
+    const end = new Date(`${endDate}T23:59:59.999`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      await wait();
+      return { rows: [], totalSeconds: 0 };
+    }
+    if (start.getTime() > end.getTime()) {
+      await wait();
+      return { rows: [], totalSeconds: 0 };
+    }
+
+    const punches = await this.getPunchesRemote();
+    const map = new Map<string, RangeWorkStatRow>();
+    for (const record of punches) {
+      if (!record.checkedOutAt) {
+        continue;
+      }
+      const checkedInMs = new Date(record.checkedInAt).getTime();
+      const checkedOutMs = new Date(record.checkedOutAt).getTime();
+      if (Number.isNaN(checkedInMs) || Number.isNaN(checkedOutMs)) {
+        continue;
+      }
+      const clippedStart = Math.max(checkedInMs, start.getTime());
+      const clippedEnd = Math.min(checkedOutMs, end.getTime());
+      if (clippedEnd <= clippedStart) {
+        continue;
+      }
+      const workedSeconds = Math.floor((clippedEnd - clippedStart) / 1000);
+      const key = record.employeePhone;
+      const current = map.get(key) ?? {
+        phone: record.employeePhone,
+        name: record.employeeName,
+        totalSeconds: 0,
+        workCount: 0,
+        details: [],
+      };
+      current.totalSeconds += workedSeconds;
+      current.workCount += 1;
+      current.details.push({
+        recordId: record.id,
+        checkedInAt: new Date(clippedStart).toISOString(),
+        checkedOutAt: new Date(clippedEnd).toISOString(),
+        workedSeconds,
+      });
+      map.set(key, current);
+    }
+    const rows = [...map.values()]
+      .map((row) => ({
+        ...row,
+        details: row.details.sort(
+          (a, b) =>
+            new Date(b.checkedInAt).getTime() -
+            new Date(a.checkedInAt).getTime(),
+        ),
+      }))
+      .sort((a, b) => b.totalSeconds - a.totalSeconds);
+    const totalSeconds = rows.reduce((sum, row) => sum + row.totalSeconds, 0);
+    await wait();
+    return { rows, totalSeconds };
+  }
+}
+
+const hasSupabaseEnv =
+  Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
+  Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+
+export const workApi = hasSupabaseEnv
+  ? new SupabaseWorkApi()
+  : new LocalWorkApi();

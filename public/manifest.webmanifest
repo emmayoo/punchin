@@ -2,16 +2,24 @@
   "name": "PunchIn",
   "short_name": "PunchIn",
   "description": "근무 스케줄 기반 출퇴근 PWA",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",
   "lang": "ko-KR",
   "icons": [
     {
-      "src": "/window.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/icons/icon.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/apple-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
       "purpose": "any"
     }
   ]

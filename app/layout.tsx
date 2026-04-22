@@ -17,6 +17,15 @@ export const metadata: Metadata = {
   title: "PunchIn - 스케줄 펀치",
   description: "휴대폰 번호로 빠르게 출퇴근을 기록하는 PWA",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/icons/icon.png",
+    apple: "/icons/apple-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "PunchIn",
+  },
 };
 
 export default function RootLayout({
@@ -26,7 +35,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="ko"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full bg-neutral-950 text-neutral-100">

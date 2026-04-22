@@ -1,0 +1,179 @@
+"use client";
+
+import { FirstProfileForm } from "@/components/onboarding/first-profile-form";
+import { FullscreenModal } from "@/components/overlay/fullscreen-modal";
+import { DashboardData, workApi } from "@/lib/api/work-api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+
+function normalizeTailDigits(input: string): string {
+  return input.replace(/\D/g, "").slice(0, 8);
+}
+
+function formatTailDigits(input: string): string {
+  const digits = normalizeTailDigits(input);
+  if (digits.length <= 4) {
+    return digits;
+  }
+  return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+}
+
+export function AuthClient() {
+  const router = useRouter();
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [phoneTail, setPhoneTail] = useState("");
+  const [profileName, setProfileName] = useState("");
+  const [pendingPhone, setPendingPhone] = useState<string | null>(null);
+  const [needFirstProfile, setNeedFirstProfile] = useState(false);
+  const [phoneFocused, setPhoneFocused] = useState(false);
+  const phoneInputRef = useRef<HTMLInputElement>(null);
+  const activeSlot = Math.min(phoneTail.length, 7);
+
+  const refresh = useCallback(async () => {
+    const dashboard = await workApi.getDashboard();
+    setData(dashboard);
+    if (dashboard.session) {
+      setPhoneTail(dashboard.session.phone.slice(3, 11));
+    }
+    return dashboard;
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      await workApi.init();
+      if (!mounted) {
+        return;
+      }
+      const dashboard = await refresh();
+      if (!mounted) {
+        return;
+      }
+      if (dashboard.session) {
+        router.replace("/");
+        return;
+      }
+      setLoading(false);
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [refresh, router]);
+
+  const handleLogin = async () => {
+    const tailDigits = normalizeTailDigits(phoneTail);
+    if (tailDigits.length !== 8) {
+      return;
+    }
+    const phone = `010${tailDigits}`;
+    setBusy(true);
+    const existing = await workApi.getEmployeeByPhone(phone);
+    if (!existing) {
+      setPendingPhone(phone);
+      setNeedFirstProfile(true);
+      setBusy(false);
+      return;
+    }
+    await workApi.login(phone);
+    router.replace("/");
+  };
+
+  const handleCompleteFirstProfile = async () => {
+    if (!pendingPhone || !profileName.trim()) {
+      return;
+    }
+    setBusy(true);
+    await workApi.registerFirstProfile(pendingPhone, profileName);
+    router.replace("/");
+  };
+
+  if (loading || !data) {
+    return <p className="text-sm text-neutral-400">불러오는 중...</p>;
+  }
+
+  return (
+    <main className="flex flex-1 flex-col gap-8 p-4">
+      <section className="space-y-3">
+        <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">
+          PunchIn
+        </p>
+        <h1 className="text-3xl font-semibold tracking-tight text-white">
+          스케줄 펀치
+        </h1>
+        <p className="text-sm text-neutral-400">
+          스케줄을 확인하고 출퇴근을 기록하세요.
+        </p>
+      </section>
+
+      <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+        <h2 className="text-sm font-medium text-white">핸드폰 번호</h2>
+        <div
+          onClick={() => phoneInputRef.current?.focus()}
+          className="relative flex items-center transition-colors"
+        >
+          <span className="pr-1 text-sm text-neutral-300">010</span>
+          <span className="px-1 text-neutral-500">-</span>
+          <div className="flex items-center gap-1">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <span
+                key={`left-${index}`}
+                className={`flex h-8 w-6.5 items-center justify-center rounded-md border bg-black/20 text-sm font-medium text-neutral-100 transition-colors ${
+                  phoneFocused && activeSlot === index
+                    ? "border-white"
+                    : "border-white/12"
+                }`}
+              >
+                {phoneTail[index] ?? ""}
+              </span>
+            ))}
+            <span className="px-1 text-neutral-500">-</span>
+            {Array.from({ length: 4 }).map((_, index) => (
+              <span
+                key={`right-${index}`}
+                className={`flex h-8 w-6.5 items-center justify-center rounded-md border bg-black/20 text-sm font-medium text-neutral-100 transition-colors ${
+                  phoneFocused && activeSlot === index + 4
+                    ? "border-white"
+                    : "border-white/12"
+                }`}
+              >
+                {phoneTail[index + 4] ?? ""}
+              </span>
+            ))}
+          </div>
+          <input
+            ref={phoneInputRef}
+            value={formatTailDigits(phoneTail)}
+            onChange={(event) =>
+              setPhoneTail(normalizeTailDigits(event.target.value))
+            }
+            onFocus={() => setPhoneFocused(true)}
+            onBlur={() => setPhoneFocused(false)}
+            inputMode="numeric"
+            autoComplete="tel-national"
+            aria-label="휴대폰 번호 뒤 8자리 입력"
+            className="absolute inset-0 opacity-0"
+          />
+        </div>
+        <button
+          onClick={handleLogin}
+          disabled={busy || phoneTail.length !== 8}
+          className="w-full rounded-xl bg-white px-4 py-2 text-sm font-semibold text-neutral-950 transition-transform active:scale-[0.99] disabled:opacity-60"
+        >
+          {busy ? "처리 중..." : "다음"}
+        </button>
+      </section>
+
+      <FullscreenModal open={needFirstProfile}>
+        <FirstProfileForm
+          phone={pendingPhone ?? ""}
+          name={profileName}
+          busy={busy}
+          onNameChange={setProfileName}
+          onSubmit={handleCompleteFirstProfile}
+        />
+      </FullscreenModal>
+    </main>
+  );
+}

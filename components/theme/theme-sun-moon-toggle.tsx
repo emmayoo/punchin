@@ -6,7 +6,7 @@ import { startTransition, useEffect, useState } from "react";
 
 /**
  * `resolvedTheme` 기준으로 라이트(해)·다크(달)를 고릅니다.
- * localStorage(`punchin-theme`)에 값이 있으면 그대로, 없으면 `ThemeProvider`의 system 동작을 따릅니다.
+ * `THEME_STORAGE_KEY`(lib/theme)와 동일 키 — 저장값이 있으면 따르고, 없으면 시스템.
  */
 export function ThemeSunMoonToggle() {
   const { theme, setTheme, resolvedTheme } = useTheme();

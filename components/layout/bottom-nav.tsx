@@ -15,7 +15,7 @@ export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 border-t border-[var(--app-border)] bg-[var(--app-backdrop)] backdrop-blur-sm supports-[backdrop-filter]:bg-[var(--app-nav)]">
+    <nav className="fixed inset-x-0 bottom-0 border-t border-(--app-border) bg-(--app-backdrop) backdrop-blur-sm supports-backdrop-filter:bg-(--app-nav)">
       <ul className="mx-auto grid w-full max-w-3xl grid-cols-5 px-3 py-3">
         {items.map((item) => {
           const active = pathname === item.href;

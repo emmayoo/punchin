@@ -1,5 +1,6 @@
 "use client";
 
+import { THEME_STORAGE_KEY } from "@/lib/theme";
 import { ThemeProvider } from "next-themes";
 import type { ReactNode } from "react";
 
@@ -9,7 +10,7 @@ export function AppThemeProvider({ children }: { children: ReactNode }) {
       attribute="class"
       defaultTheme="system"
       enableSystem
-      storageKey="punchin-theme"
+      storageKey={THEME_STORAGE_KEY}
       disableTransitionOnChange
     >
       {children}

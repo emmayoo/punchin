@@ -5,8 +5,9 @@ import "./globals.css";
 import { AppThemeProvider } from "@/components/providers/app-theme-provider";
 import { AppToaster } from "@/components/providers/app-toaster";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
+import { buildThemeInitScriptBody } from "@/lib/theme";
 
-const THEME_STORAGE_KEY = "punchin-theme";
+const THEME_INIT_SCRIPT = buildThemeInitScriptBody();
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,6 +18,12 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+const bodyClassName = [
+  geistSans.variable,
+  geistMono.variable,
+  "min-h-dvh antialiased text-foreground",
+].join(" ");
 
 export const metadata: Metadata = {
   title: "PunchIn - 스케줄 펀치",
@@ -40,32 +47,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" suppressHydrationWarning>
-      <head>
+      <body className={bodyClassName}>
         <Script
           id="punchin-theme-init"
           strategy="beforeInteractive"
-        >{`
-(function () {
-  var k = ${JSON.stringify(THEME_STORAGE_KEY)};
-  var d = document.documentElement;
-  try {
-    var t = localStorage.getItem(k);
-    d.classList.remove("light", "dark");
-    if (t === "light" || t === "dark") {
-      d.classList.add(t);
-    } else {
-      d.classList.add(
-        window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
-      );
-    }
-  } catch (e) {
-    d.classList.add("light");
-  }
-})();`}</Script>
-      </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} min-h-dvh antialiased text-[var(--foreground)]`}
-      >
+          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+        />
         <AppThemeProvider>
           <AppToaster />
           <ServiceWorkerRegister />

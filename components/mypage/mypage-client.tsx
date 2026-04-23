@@ -3,6 +3,7 @@
 import { TabPageShell } from "@/components/layout/tab-page-shell";
 import { DashboardData, workApi } from "@/lib/api/work-api";
 import { formatPhoneNumber } from "@/lib/phone";
+import { toast } from "@/lib/toast";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ThemeSunMoonToggle } from "@/components/theme/theme-sun-moon-toggle";
@@ -57,6 +58,7 @@ export function MyPageClient() {
     await workApi.updateMyProfileName(data.session.phone, name.trim());
     await refresh();
     setBusy(false);
+    toast.success("프로필을 저장했습니다.");
   };
 
   if (!data?.session) {

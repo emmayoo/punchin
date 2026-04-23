@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import { AppThemeProvider } from "@/components/providers/app-theme-provider";
+import { AppToaster } from "@/components/providers/app-toaster";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 
 const THEME_STORAGE_KEY = "punchin-theme";
@@ -66,6 +67,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} min-h-dvh antialiased text-[var(--foreground)]`}
       >
         <AppThemeProvider>
+          <AppToaster />
           <ServiceWorkerRegister />
           {children}
         </AppThemeProvider>

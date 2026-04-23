@@ -1,6 +1,7 @@
 "use client";
 
 import { formatPhoneNumber } from "@/lib/phone";
+import { toast } from "@/lib/toast";
 
 type FirstProfileFormProps = {
   phone: string;
@@ -29,7 +30,7 @@ export function FirstProfileForm({
       <div className="flex flex-col items-center gap-2">
         <div
           className="flex h-24 w-24 items-center justify-center rounded-full border border-dashed border-zinc-300/90 bg-zinc-100/80 dark:border-white/20 dark:bg-neutral-950/70"
-          onClick={() => alert("프로필 업로드 기능을 연결할 예정입니다.")}
+          onClick={() => toast.message("프로필 사진은 곧 연결될 예정이에요.")}
         >
           <p className="text-xs text-zinc-500 dark:text-neutral-400">프로필</p>
         </div>

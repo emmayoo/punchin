@@ -24,6 +24,7 @@ import {
   weekLabel,
 } from "@/components/schedule/schedule-utils";
 import { workApi } from "@/lib/api/work-api";
+import { toast } from "@/lib/toast";
 import { Shift } from "@/types/work";
 
 export function ScheduleClient() {
@@ -43,7 +44,6 @@ export function ScheduleClient() {
   const [copyTargetDate, setCopyTargetDate] = useState(() =>
     dateKey(addDays(startOfWeek(new Date()), 7)),
   );
-  const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [exportingImage, setExportingImage] = useState(false);
@@ -162,11 +162,11 @@ export function ScheduleClient() {
   const createSlot = async () => {
     const person = people.find((item) => item.id === selectedPersonId);
     if (!person) {
-      setMessage("담당자를 선택해주세요.");
+      toast.error("담당자를 선택해주세요.");
       return;
     }
     if (toMinutes(endTime) <= toMinutes(startTime)) {
-      setMessage("종료 시간이 시작 시간보다 늦어야 합니다.");
+      toast.error("종료 시간이 시작 시간보다 늦어야 합니다.");
       return;
     }
 
@@ -187,7 +187,7 @@ export function ScheduleClient() {
       endAt: end.toISOString(),
     });
     await loadSchedule();
-    setMessage(
+    toast.success(
       `${WEEKDAY_LABELS[weekday]} ${startTime}-${endTime} ${person.name} 스케줄을 추가했습니다.`,
     );
     setBusy(false);
@@ -195,16 +195,16 @@ export function ScheduleClient() {
 
   const addPerson = async () => {
     if (!newPersonName.trim()) {
-      setMessage("사람 이름을 입력해주세요.");
+      toast.error("사람 이름을 입력해주세요.");
       return;
     }
     const phone = normalizePhone(newPersonPhone);
     if (phone.length < 10) {
-      setMessage("핸드폰 번호를 정확히 입력해주세요.");
+      toast.error("핸드폰 번호를 정확히 입력해주세요.");
       return;
     }
     if (people.some((person) => person.employeePhone === phone)) {
-      setMessage("이미 등록된 핸드폰 번호입니다.");
+      toast.error("이미 등록된 핸드폰 번호입니다.");
       return;
     }
     const created = await workApi.createSchedulePerson({
@@ -216,7 +216,7 @@ export function ScheduleClient() {
     setSelectedPersonId(created.id);
     setNewPersonName("");
     setNewPersonPhone("");
-    setMessage(`${created.name} 직원을 추가했습니다.`);
+    toast.success(`${created.name} 직원을 추가했습니다.`);
   };
 
   const updatePerson = async (
@@ -225,19 +225,19 @@ export function ScheduleClient() {
   ) => {
     const name = payload.name.trim();
     if (!name) {
-      setMessage("사람 이름을 입력해주세요.");
+      toast.error("사람 이름을 입력해주세요.");
       return;
     }
     const phone = normalizePhone(payload.employeePhone);
     if (phone.length < 10) {
-      setMessage("핸드폰 번호를 정확히 입력해주세요.");
+      toast.error("핸드폰 번호를 정확히 입력해주세요.");
       return;
     }
     const duplicated = people.some(
       (person) => person.id !== personId && person.employeePhone === phone,
     );
     if (duplicated) {
-      setMessage("이미 등록된 핸드폰 번호입니다.");
+      toast.error("이미 등록된 핸드폰 번호입니다.");
       return;
     }
     await workApi.updateSchedulePerson(personId, {
@@ -246,23 +246,23 @@ export function ScheduleClient() {
       color: payload.color,
     });
     await loadPeople();
-    setMessage("직원 정보를 수정했습니다.");
+    toast.success("직원 정보를 수정했습니다.");
   };
 
   const deletePerson = async (personId: string) => {
     if (people.length <= 1) {
-      setMessage("직원은 최소 1명 이상 필요합니다.");
+      toast.error("직원은 최소 1명 이상 필요합니다.");
       return;
     }
     await workApi.deleteSchedulePerson(personId);
     await loadPeople();
-    setMessage("직원을 삭제했습니다.");
+    toast.success("직원을 삭제했습니다.");
   };
 
   const applyWeekPicker = () => {
     const parsed = fromDateInput(pickerDate);
     if (!parsed) {
-      setMessage("날짜를 선택해주세요.");
+      toast.error("날짜를 선택해주세요.");
       return;
     }
     setWeekStart(startOfWeek(parsed));
@@ -286,18 +286,18 @@ export function ScheduleClient() {
   const copyCurrentWeekToTarget = async () => {
     const parsed = fromDateInput(copyTargetDate);
     if (!parsed) {
-      setMessage("복사할 주를 선택해주세요.");
+      toast.error("복사할 주를 선택해주세요.");
       return;
     }
 
     const targetWeekStart = startOfWeek(parsed);
     if (targetWeekStart.getTime() < nextWeekStartDate.getTime()) {
-      setMessage("오늘 기준 다음 주부터 선택할 수 있습니다.");
+      toast.error("오늘 기준 다음 주부터 선택할 수 있습니다.");
       return;
     }
 
     if (weekShifts.length === 0) {
-      setMessage("복사할 스케줄이 없습니다.");
+      toast.error("복사할 스케줄이 없습니다.");
       return;
     }
 
@@ -322,7 +322,7 @@ export function ScheduleClient() {
     await loadSchedule();
     setCopying(false);
     setCopyModalOpen(false);
-    setMessage(
+    toast.success(
       `${weekLabel(weekStart)} 스케줄을 ${weekLabel(targetWeekStart)}로 복사했습니다.`,
     );
   };
@@ -345,16 +345,16 @@ export function ScheduleClient() {
     }
     const person = people.find((item) => item.id === editPersonId);
     if (!person) {
-      setMessage("담당자를 선택해주세요.");
+      toast.error("담당자를 선택해주세요.");
       return;
     }
     if (toMinutes(editEndTime) <= toMinutes(editStartTime)) {
-      setMessage("종료 시간이 시작 시간보다 늦어야 합니다.");
+      toast.error("종료 시간이 시작 시간보다 늦어야 합니다.");
       return;
     }
     const baseDate = fromDateInput(editDate);
     if (!baseDate) {
-      setMessage("날짜를 선택해주세요.");
+      toast.error("날짜를 선택해주세요.");
       return;
     }
 
@@ -375,7 +375,7 @@ export function ScheduleClient() {
     await loadSchedule();
     setEditingShiftBusy(false);
     setShiftEditOpen(false);
-    setMessage("스케줄을 수정했습니다.");
+    toast.success("스케줄을 수정했습니다.");
   };
 
   const deleteEditingShift = async () => {
@@ -387,7 +387,7 @@ export function ScheduleClient() {
     await loadSchedule();
     setEditingShiftBusy(false);
     setShiftEditOpen(false);
-    setMessage("스케줄을 삭제했습니다.");
+    toast.success("스케줄을 삭제했습니다.");
   };
 
   const downloadScheduleImage = async () => {
@@ -396,7 +396,6 @@ export function ScheduleClient() {
       return;
     }
     setExportingImage(true);
-    setMessage(null);
     try {
       const dataUrl = await toPng(el, {
         cacheBust: true,
@@ -410,8 +409,9 @@ export function ScheduleClient() {
       a.href = dataUrl;
       a.download = `스케줄_${dateKey(weekStart)}.png`;
       a.click();
+      toast.success("스케줄 이미지를 저장했습니다.");
     } catch {
-      setMessage("이미지를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+      toast.error("이미지를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setExportingImage(false);
     }
@@ -515,10 +515,6 @@ export function ScheduleClient() {
         onUpdatePerson={updatePerson}
         onDeletePerson={deletePerson}
       />
-
-      {message && (
-        <p className="text-sm text-zinc-600 dark:text-neutral-300">{message}</p>
-      )}
 
       <WeekPickerModal
         open={weekPickerOpen}

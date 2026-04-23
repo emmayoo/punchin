@@ -27,13 +27,13 @@ export function HistoryMonthPickerModal({
   return (
     <FullscreenModal open={open}>
       <div className="space-y-3">
-        <h2 className="text-base font-semibold text-white">연/월 선택</h2>
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-white">연/월 선택</h2>
         <div className="grid grid-cols-2 gap-2">
           <select
             size={8}
             value={String(selectedYear)}
             onChange={(event) => onChangeYear(Number(event.target.value))}
-            className="rounded-xl border border-white/10 bg-neutral-900 p-2 text-sm text-neutral-100 outline-none"
+            className="rounded-xl border border-zinc-200/90 bg-white p-2 text-sm text-zinc-900 outline-none dark:border-white/10 dark:bg-neutral-900 dark:text-neutral-100"
           >
             {YEARS.map((year) => (
               <option key={year} value={year}>
@@ -45,7 +45,7 @@ export function HistoryMonthPickerModal({
             size={8}
             value={String(selectedMonth)}
             onChange={(event) => onChangeMonth(Number(event.target.value))}
-            className="rounded-xl border border-white/10 bg-neutral-900 p-2 text-sm text-neutral-100 outline-none"
+            className="rounded-xl border border-zinc-200/90 bg-white p-2 text-sm text-zinc-900 outline-none dark:border-white/10 dark:bg-neutral-900 dark:text-neutral-100"
           >
             {MONTHS.map((month) => (
               <option key={month} value={month}>
@@ -57,13 +57,13 @@ export function HistoryMonthPickerModal({
         <div className="flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="rounded-lg border border-white/20 px-3 py-2 text-sm text-neutral-200"
+            className="rounded-lg border border-zinc-200/90 px-3 py-2 text-sm text-zinc-800 dark:border-white/20 dark:text-neutral-200"
           >
             취소
           </button>
           <button
             onClick={onConfirm}
-            className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-neutral-950"
+            className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-semibold text-white dark:bg-white dark:text-neutral-950"
           >
             적용
           </button>

@@ -118,8 +118,7 @@ export function DailyShiftTimeline({
       })
       .filter((item): item is ActualTimelineItem => item !== null)
       .sort(
-        (a, b) =>
-          new Date(a.startAt).getTime() - new Date(b.startAt).getTime(),
+        (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime(),
       );
   }, [punches, nowIso]);
 
@@ -153,15 +152,19 @@ export function DailyShiftTimeline({
           }명`;
 
   return (
-    <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+    <section className="space-y-3 rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-xs text-neutral-500">오늘 근무 타임라인</p>
-          <p className="mt-1 text-xs text-neutral-300">{activeLabel}</p>
+          <p className="text-xs text-zinc-500 dark:text-neutral-500">
+            오늘 근무 타임라인
+          </p>
+          <p className="mt-1 text-xs text-zinc-600 dark:text-neutral-300">
+            {activeLabel}
+          </p>
         </div>
         <button
           onClick={scrollToNow}
-          className="rounded-lg border border-white/20 px-3 py-1.5 text-xs text-neutral-200 transition-colors hover:border-white/40"
+          className="rounded-lg border border-zinc-300/90 px-3 py-1.5 text-xs text-zinc-700 transition-colors hover:border-zinc-400 dark:border-white/20 dark:text-neutral-200 dark:hover:border-white/40"
         >
           현재
         </button>
@@ -169,19 +172,19 @@ export function DailyShiftTimeline({
 
       <div
         ref={viewportRef}
-        className="overflow-x-auto rounded-xl border border-white/10 bg-neutral-950/60 px-5 py-3"
+        className="overflow-x-auto rounded-xl border border-zinc-200/90 bg-zinc-100/80 px-5 py-3 dark:border-white/10 dark:bg-neutral-950/60"
       >
         <div className="relative" style={{ width: `${TIMELINE_WIDTH}px` }}>
-          <div className="relative h-7 border-b border-white/10">
+          <div className="relative h-7 border-b border-zinc-200/80 dark:border-white/10">
             {Array.from({ length: 25 }).map((_, hour) => {
               const left = (hour / 24) * TIMELINE_WIDTH;
               return (
                 <div
                   key={`tick-${hour}`}
-                  className="absolute top-0 h-full border-l border-white/10"
+                  className="absolute top-0 h-full border-l border-zinc-200/80 dark:border-white/10"
                   style={{ left: `${left}px` }}
                 >
-                  <span className="absolute -top-0.5 -translate-x-1/2 text-[10px] text-neutral-500">
+                  <span className="absolute -top-0.5 -translate-x-1/2 text-[10px] text-zinc-500 dark:text-neutral-500">
                     {String(hour).padStart(2, "0")}:00
                   </span>
                 </div>
@@ -232,7 +235,7 @@ export function DailyShiftTimeline({
               return (
                 <div
                   key={`actual-${shift.id}`}
-                  className="absolute rounded-md border border-emerald-300/45 bg-emerald-300/20 px-2 py-1 text-[11px] text-emerald-100"
+                  className="absolute rounded-md border border-emerald-300/45 bg-emerald-300/20 px-2 py-1 text-[11px] text-emerald-900 dark:text-emerald-100"
                   style={{
                     left: `${left}px`,
                     width: `${width}px`,
@@ -242,11 +245,11 @@ export function DailyShiftTimeline({
                     shift.ongoing ? " (근무 중)" : ""
                   }`}
                 >
-                  <p className="truncate">
+                  <p className="truncate ">
                     {shift.employeeName}
                     {shift.ongoing ? " · 근무 중" : ""}
                   </p>
-                  <p className="truncate text-[10px] text-emerald-200">
+                  <p className="truncate text-[10px]">
                     {hhmm(shift.startAt)}-{hhmm(shift.endAt)}
                   </p>
                 </div>

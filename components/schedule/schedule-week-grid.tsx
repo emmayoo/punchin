@@ -106,20 +106,20 @@ export function ScheduleWeekGrid({
   });
 
   return (
-    <div className="overflow-x-auto border border-white/10">
+    <div className="overflow-x-auto border border-zinc-200/90 dark:border-white/10">
       <div className="relative min-w-[760px]">
         <div ref={scheduleGridRef}>
-          <div className="grid grid-cols-[3rem_repeat(7,minmax(0,1fr))] border-b border-white/10 bg-white/5">
-            <div className="px-1.5 py-1.5 text-[11px] text-neutral-300">
+          <div className="grid grid-cols-[3rem_repeat(7,minmax(0,1fr))] border-b border-zinc-200/90 bg-zinc-100/80 dark:border-white/10 dark:bg-white/5">
+            <div className="px-1.5 py-1.5 text-[11px] text-zinc-600 dark:text-neutral-300">
               시간
             </div>
             {weekDays.map((day) => (
               <div
                 key={day.label}
-                className="border-l border-white/10 px-1.5 py-1.5 text-[11px] text-neutral-200"
+                className="border-l border-zinc-200/90 px-1.5 py-1.5 text-[11px] text-zinc-800 dark:border-white/10 dark:text-neutral-200"
               >
                 {day.label}
-                <span className="ml-1 text-neutral-500">
+                <span className="ml-1 text-zinc-500 dark:text-neutral-500">
                   {new Intl.DateTimeFormat("ko-KR", {
                     month: "numeric",
                     day: "numeric",
@@ -130,11 +130,11 @@ export function ScheduleWeekGrid({
           </div>
 
           <div className="grid grid-cols-[3rem_repeat(7,minmax(0,1fr))]">
-            <div className="relative border-r border-white/10">
+            <div className="relative border-r border-zinc-200/90 dark:border-white/10">
               {DISPLAY_HOURS.map((hour) => (
                 <div
                   key={`label-${hour}`}
-                  className="absolute left-0 right-0 border-t border-white/10 px-1.5 text-[10px] text-neutral-500"
+                  className="absolute left-0 right-0 border-t border-zinc-200/80 px-1.5 text-[10px] text-zinc-500 dark:border-white/10 dark:text-neutral-500"
                   style={{ top: `${hour * HOUR_ROW_HEIGHT}px` }}
                 >
                   {`${String(hour).padStart(2, "0")}:00`}
@@ -169,13 +169,13 @@ export function ScheduleWeekGrid({
               return (
                 <div
                   key={dayKey}
-                  className="relative border-l border-white/10"
+                  className="relative border-l border-zinc-200/90 dark:border-white/10"
                   style={{ height: `${DAY_COLUMN_HEIGHT}px` }}
                 >
                   {Array.from({ length: 24 }, (_, hour) => (
                     <div
                       key={`${dayKey}-line-${hour}`}
-                      className="absolute left-0 right-0 border-t border-white/10"
+                      className="absolute left-0 right-0 border-t border-zinc-200/80 dark:border-white/10"
                       style={{ top: `${hour * HOUR_ROW_HEIGHT}px` }}
                     />
                   ))}
@@ -197,7 +197,7 @@ export function ScheduleWeekGrid({
                     return (
                       <div
                         key={`${segment.shift.id}-${segment.startMin}-${segment.endMin}-${segment.laneIndex}`}
-                        className="absolute rounded-md border px-1 py-1 text-[10px] font-medium leading-tight cursor-pointer hover:ring-1 hover:ring-white/40"
+                        className="absolute cursor-pointer rounded-md border px-1 py-1 text-[10px] font-medium leading-tight hover:ring-1 hover:ring-zinc-400/50 dark:hover:ring-white/40"
                         style={{
                           top: `${top}px`,
                           height: `${height}px`,
@@ -210,7 +210,7 @@ export function ScheduleWeekGrid({
                         title={`${segment.shift.employeeName} ${timeLabel}`}
                       >
                         <div>{segment.shift.employeeName}</div>
-                        <div className="text-[11px] text-neutral-200/90">
+                        <div className="text-[11px] text-zinc-800/90 dark:text-neutral-200/90">
                           {timeLabel}
                         </div>
                       </div>

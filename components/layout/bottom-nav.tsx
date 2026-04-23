@@ -8,14 +8,14 @@ const items = [
   { href: "/history", label: "이력" },
   { href: "/schedule", label: "스케줄" },
   { href: "/stats", label: "통계" },
-  { href: "/mypage", label: "MY" },
+  { href: "/mypage", label: "설정" },
 ];
 
 export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 border-t border-white/10 bg-neutral-950/95 backdrop-blur-sm">
+    <nav className="fixed inset-x-0 bottom-0 border-t border-[var(--app-border)] bg-[var(--app-backdrop)] backdrop-blur-sm supports-[backdrop-filter]:bg-[var(--app-nav)]">
       <ul className="mx-auto grid w-full max-w-3xl grid-cols-5 px-3 py-3">
         {items.map((item) => {
           const active = pathname === item.href;
@@ -25,8 +25,8 @@ export function BottomNav() {
                 href={item.href}
                 className={`flex items-center justify-center rounded-xl px-3 py-2 text-sm transition-colors ${
                   active
-                    ? "bg-white text-neutral-950"
-                    : "text-neutral-400 hover:text-white"
+                    ? "bg-zinc-900 text-white dark:bg-white dark:text-neutral-950"
+                    : "text-zinc-600 hover:text-zinc-900 dark:text-neutral-400 dark:hover:text-white"
                 }`}
               >
                 {item.label}

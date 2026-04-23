@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
+import { AppThemeProvider } from "@/components/providers/app-theme-provider";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
+
+const THEME_STORAGE_KEY = "punchin-theme";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,13 +38,37 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="ko"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full bg-neutral-950 text-neutral-100">
-        <ServiceWorkerRegister />
-        {children}
+    <html lang="ko" suppressHydrationWarning>
+      <head>
+        <Script
+          id="punchin-theme-init"
+          strategy="beforeInteractive"
+        >{`
+(function () {
+  var k = ${JSON.stringify(THEME_STORAGE_KEY)};
+  var d = document.documentElement;
+  try {
+    var t = localStorage.getItem(k);
+    d.classList.remove("light", "dark");
+    if (t === "light" || t === "dark") {
+      d.classList.add(t);
+    } else {
+      d.classList.add(
+        window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+      );
+    }
+  } catch (e) {
+    d.classList.add("light");
+  }
+})();`}</Script>
+      </head>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} min-h-dvh antialiased text-[var(--foreground)]`}
+      >
+        <AppThemeProvider>
+          <ServiceWorkerRegister />
+          {children}
+        </AppThemeProvider>
       </body>
     </html>
   );

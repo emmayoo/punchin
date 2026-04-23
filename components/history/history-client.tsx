@@ -102,7 +102,7 @@ export function HistoryClient() {
     >
       {() => (
         <>
-          <section className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <section className="rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
             <HistoryCalendarHeader
               monthLabel={monthLabel(monthDate)}
               onPrev={() =>

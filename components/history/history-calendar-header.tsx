@@ -23,14 +23,17 @@ export function HistoryCalendarHeader({
         <button
           type="button"
           onClick={onPrev}
-          className="inline-flex items-center justify-center rounded-lg border border-white/20 px-2 py-1 text-neutral-200"
+          className="inline-flex items-center justify-center rounded-lg border border-zinc-300/90 px-2 py-1 text-zinc-700 dark:border-white/20 dark:text-neutral-200"
           aria-label="이전 달"
         >
           <ChevronLeft className="h-4 w-4" strokeWidth={2} aria-hidden />
         </button>
       </div>
       <div>
-        <button onClick={onOpenPicker} className="text-md text-white">
+        <button
+          onClick={onOpenPicker}
+          className="text-md text-zinc-900 dark:text-white"
+        >
           {monthLabel}
         </button>
       </div>
@@ -44,7 +47,7 @@ export function HistoryCalendarHeader({
         <button
           type="button"
           onClick={onNext}
-          className="inline-flex items-center justify-center rounded-lg border border-white/20 px-2 py-1 text-neutral-200"
+          className="inline-flex items-center justify-center rounded-lg border border-zinc-300/90 px-2 py-1 text-zinc-700 dark:border-white/20 dark:text-neutral-200"
           aria-label="다음 달"
         >
           <ChevronRight className="h-4 w-4" strokeWidth={2} aria-hidden />

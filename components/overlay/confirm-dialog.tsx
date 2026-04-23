@@ -28,20 +28,24 @@ export function ConfirmDialog({
   const confirmClass =
     tone === "danger"
       ? "bg-rose-400 text-rose-950 hover:bg-rose-300"
-      : "bg-white text-neutral-950 hover:bg-neutral-200";
+      : "bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-neutral-950 dark:hover:bg-neutral-200";
 
   return (
     <FullscreenModal open={open}>
       <div className="space-y-4">
         <div className="space-y-1">
-          <h2 className="text-base font-semibold text-white">{title}</h2>
-          <p className="text-sm text-neutral-400">{description}</p>
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-white">
+            {title}
+          </h2>
+          <p className="text-sm text-zinc-600 dark:text-neutral-400">
+            {description}
+          </p>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={onCancel}
             disabled={busy}
-            className="rounded-xl border border-white/20 px-4 py-2 text-sm font-medium text-neutral-200 disabled:opacity-60"
+            className="rounded-xl border border-zinc-200/90 px-4 py-2 text-sm font-medium text-zinc-800 disabled:opacity-60 dark:border-white/20 dark:text-neutral-200"
           >
             {cancelText}
           </button>

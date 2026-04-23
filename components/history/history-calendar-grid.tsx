@@ -21,7 +21,7 @@ export function HistoryCalendarGrid({
 }: HistoryCalendarGridProps) {
   return (
     <>
-      <div className="mb-2 grid grid-cols-7 gap-2 text-[11px] text-neutral-500">
+      <div className="mb-2 grid grid-cols-7 gap-2 text-[11px] text-zinc-500 dark:text-neutral-500">
         {WEEKDAY_LABELS.map((day) => (
           <p key={day} className="text-center">
             {day}
@@ -41,11 +41,15 @@ export function HistoryCalendarGrid({
             <Link
               key={dateKey}
               href={`/history/${dateKey}`}
-              className={`h-20 border bg-neutral-900/50 p-1 transition-colors hover:border-white/30 ${
-                dateKey === todayKey ? "border-rose-400" : "border-white/10"
+              className={`h-20 border bg-zinc-100/80 p-1 transition-colors hover:border-zinc-400 dark:bg-neutral-900/50 dark:hover:border-white/30 ${
+                dateKey === todayKey
+                  ? "border-rose-500 dark:border-rose-400"
+                  : "border-zinc-200/90 dark:border-white/10"
               }`}
             >
-              <p className="text-xs font-medium text-white">{date.getDate()}</p>
+              <p className="text-xs font-medium text-zinc-900 dark:text-white">
+                {date.getDate()}
+              </p>
               {dayEvents.length > 0 ? (
                 <p
                   className="mt-1 truncate text-[11px]"
@@ -55,7 +59,7 @@ export function HistoryCalendarGrid({
                 </p>
               ) : null}
               {names.length > 0 ? (
-                <p className="mt-1 truncate text-[11px] text-neutral-300">
+                <p className="mt-1 truncate text-[11px] text-zinc-600 dark:text-neutral-300">
                   {`${names.length} 명`}
                 </p>
               ) : null}

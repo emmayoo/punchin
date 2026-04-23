@@ -19,6 +19,9 @@ function formatSecondsToHms(seconds: number): string {
   return `${hh}:${mm}:${ss}`;
 }
 
+const inputClass =
+  "w-full rounded-xl border border-zinc-200/90 bg-white px-2 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-white/15 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-white/35";
+
 export function StatsClient() {
   const [rows, setRows] = useState<RangeWorkStatRow[]>([]);
   const [expandedPhones, setExpandedPhones] = useState<string[]>([]);
@@ -69,30 +72,30 @@ export function StatsClient() {
       bodyClassName="gap-5"
       loading={loading}
     >
-      <section className="grid grid-cols-[1fr_1fr] gap-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+      <section className="grid grid-cols-[1fr_1fr] gap-3 rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
         <label className="space-y-1">
-          <span className="text-xs text-neutral-400">시작일</span>
+          <span className="text-xs text-zinc-600 dark:text-neutral-400">시작일</span>
           <input
             type="date"
             value={startDate}
             onChange={(event) => setStartDate(event.target.value)}
-            className="w-full rounded-xl border border-white/15 bg-neutral-900 px-2 py-2 text-sm text-neutral-100 outline-none focus:border-white/35"
+            className={inputClass}
           />
         </label>
         <label className="space-y-1">
-          <span className="text-xs text-neutral-400">종료일</span>
+          <span className="text-xs text-zinc-600 dark:text-neutral-400">종료일</span>
           <input
             type="date"
             value={endDate}
             onChange={(event) => setEndDate(event.target.value)}
-            className="w-full rounded-xl border border-white/15 bg-neutral-900 px-2 py-2 text-sm text-neutral-100 outline-none focus:border-white/35"
+            className={inputClass}
           />
         </label>
       </section>
 
       <section className="space-y-2">
         {!invalidRange && rows.length === 0 ? (
-          <p className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-neutral-400">
+          <p className="rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 text-sm text-zinc-600 dark:border-white/10 dark:bg-white/5 dark:text-neutral-400">
             선택한 기간의 완료된 근무 기록이 없습니다.
           </p>
         ) : null}
@@ -102,7 +105,7 @@ export function StatsClient() {
               return (
                 <article
                   key={row.phone}
-                  className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                  className="rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5"
                 >
                   <button
                     type="button"
@@ -110,36 +113,38 @@ export function StatsClient() {
                     className="flex w-full items-center justify-between text-left"
                   >
                     <div>
-                      <p className="text-sm font-medium text-white">
+                      <p className="text-sm font-medium text-zinc-900 dark:text-white">
                         {row.name}
                       </p>
-                      <p className="text-xs text-neutral-400">{row.phone}</p>
+                      <p className="text-xs text-zinc-600 dark:text-neutral-400">
+                        {row.phone}
+                      </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-right">
-                        <p className="text-lg font-semibold text-white">
+                        <p className="text-lg font-semibold text-zinc-900 dark:text-white">
                           {formatSecondsToHms(row.totalSeconds)}
                         </p>
-                        <p className="text-xs text-neutral-500">
+                        <p className="text-xs text-zinc-500 dark:text-neutral-500">
                           근무 {row.workCount}회
                         </p>
                       </div>
                       {open ? (
-                        <ChevronUp className="h-4 w-4 text-neutral-300" />
+                        <ChevronUp className="h-4 w-4 text-zinc-500 dark:text-neutral-300" />
                       ) : (
-                        <ChevronDown className="h-4 w-4 text-neutral-300" />
+                        <ChevronDown className="h-4 w-4 text-zinc-500 dark:text-neutral-300" />
                       )}
                     </div>
                   </button>
 
                   {open ? (
-                    <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
+                    <div className="mt-3 space-y-2 border-t border-zinc-200/90 pt-3 dark:border-white/10">
                       {row.details.map((detail) => (
                         <div
                           key={detail.recordId}
-                          className="rounded-xl border border-white/10 bg-black/20 px-3 py-2"
+                          className="rounded-xl border border-zinc-200/80 bg-zinc-100/80 px-3 py-2 dark:border-white/10 dark:bg-black/20"
                         >
-                          <p className="text-xs text-neutral-300">
+                          <p className="text-xs text-zinc-600 dark:text-neutral-300">
                             {new Intl.DateTimeFormat("ko-KR", {
                               year: "numeric",
                               month: "2-digit",
@@ -160,7 +165,7 @@ export function StatsClient() {
                               hour12: false,
                             }).format(new Date(detail.checkedOutAt))}
                           </p>
-                          <p className="mt-1 text-sm font-medium text-white">
+                          <p className="mt-1 text-sm font-medium text-zinc-900 dark:text-white">
                             근무시간 {formatSecondsToHms(detail.workedSeconds)}
                           </p>
                         </div>

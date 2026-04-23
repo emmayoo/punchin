@@ -90,52 +90,58 @@ export function AuthClient() {
   };
 
   if (loading || !data) {
-    return <p className="text-sm text-neutral-400">불러오는 중...</p>;
+    return (
+      <p className="text-sm text-zinc-600 dark:text-neutral-400">불러오는 중...</p>
+    );
   }
 
   return (
     <main className="flex flex-1 flex-col gap-8 p-4">
       <section className="space-y-3">
-        <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">
+        <p className="text-xs uppercase tracking-[0.18em] text-zinc-500 dark:text-neutral-500">
           PunchIn
         </p>
-        <h1 className="text-3xl font-semibold tracking-tight text-white">
+        <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-white">
           스케줄 펀치
         </h1>
-        <p className="text-sm text-neutral-400">
+        <p className="text-sm text-zinc-600 dark:text-neutral-400">
           스케줄을 확인하고 출퇴근을 기록하세요.
         </p>
       </section>
 
-      <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-        <h2 className="text-sm font-medium text-white">핸드폰 번호</h2>
+      <section className="space-y-3 rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
+        <h2 className="text-sm font-medium text-zinc-900 dark:text-white">
+          핸드폰 번호
+        </h2>
         <div
           onClick={() => phoneInputRef.current?.focus()}
           className="relative flex items-center transition-colors"
         >
-          <span className="pr-1 text-sm text-neutral-300">010</span>
-          <span className="px-1 text-neutral-500">-</span>
+          <span className="pr-1 text-sm text-zinc-700 dark:text-neutral-300">
+            010
+          </span>
+          <span className="px-1 text-zinc-500 dark:text-neutral-500">-</span>
           <div className="flex items-center gap-1">
             {Array.from({ length: 4 }).map((_, index) => (
               <span
                 key={`left-${index}`}
-                className={`flex h-8 w-6.5 items-center justify-center rounded-md border bg-black/20 text-sm font-medium text-neutral-100 transition-colors ${
+                className={`flex h-8 w-6.5 items-center justify-center rounded-md border bg-zinc-200/50 text-sm font-medium text-zinc-800 transition-colors dark:bg-black/20 dark:text-neutral-100 ${
                   phoneFocused && activeSlot === index
-                    ? "border-white"
-                    : "border-white/12"
+                    ? "border-zinc-500 dark:border-white"
+                    : "border-zinc-300/90 dark:border-white/12"
                 }`}
               >
                 {phoneTail[index] ?? ""}
               </span>
             ))}
-            <span className="px-1 text-neutral-500">-</span>
+            <span className="px-1 text-zinc-500 dark:text-neutral-500">-</span>
             {Array.from({ length: 4 }).map((_, index) => (
               <span
                 key={`right-${index}`}
-                className={`flex h-8 w-6.5 items-center justify-center rounded-md border bg-black/20 text-sm font-medium text-neutral-100 transition-colors ${
+                className={`flex h-8 w-6.5 items-center justify-center rounded-md border bg-zinc-200/50 text-sm font-medium text-zinc-800 transition-colors dark:bg-black/20 dark:text-neutral-100 ${
                   phoneFocused && activeSlot === index + 4
-                    ? "border-white"
-                    : "border-white/12"
+                    ? "border-zinc-500 dark:border-white"
+                    : "border-zinc-300/90 dark:border-white/12"
                 }`}
               >
                 {phoneTail[index + 4] ?? ""}

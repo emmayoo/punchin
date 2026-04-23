@@ -117,10 +117,12 @@ export function DashboardClient() {
       bodyClassName="gap-8"
       loading={!showDashboard}
     >
-      <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
-        <h2 className="text-sm font-medium text-white flex items-center justify-between gap-2">
+      <section className="space-y-3 rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
+        <h2 className="text-sm font-medium text-zinc-900 dark:text-white flex items-center justify-between gap-2">
           <span>{data.session?.name ?? "사용자"}님, 반가워요 ✋</span>
-          <span className="text-xs text-neutral-500">{todayLabel}</span>
+          <span className="text-xs text-zinc-500 dark:text-neutral-500">
+            {todayLabel}
+          </span>
         </h2>
         {!data.activePunch ? (
           <button
@@ -132,7 +134,7 @@ export function DashboardClient() {
           </button>
         ) : (
           <>
-            <p className="text-sm text-neutral-300">
+            <p className="text-sm text-zinc-600 dark:text-neutral-300">
               출근 시작: {formatDateTime(data.activePunch.checkedInAt)}
             </p>
             <button
@@ -150,16 +152,22 @@ export function DashboardClient() {
       </section>
 
       {data.todayEvents.length > 0 ? (
-        <section className="rounded-2xl border border-amber-300/30 bg-amber-200/10 p-4">
+        <section className="rounded-2xl border border-amber-400/40 bg-amber-100/50 p-4 dark:border-amber-300/30 dark:bg-amber-200/10">
           <div className="flex items-center gap-2">
-            <BellRing className="h-4 w-4 text-amber-200" aria-hidden />
-            <p className="text-sm font-semibold text-amber-100">
+            <BellRing
+              className="h-4 w-4 text-amber-600 dark:text-amber-200"
+              aria-hidden
+            />
+            <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
               오늘 이벤트 ({data.todayEvents.length}건)
             </p>
           </div>
           <ul className="mt-2 space-y-1">
             {data.todayEvents.map((event) => (
-              <li key={event.id} className="text-sm text-amber-50/95">
+              <li
+                key={event.id}
+                className="text-sm text-amber-900/90 dark:text-amber-50/95"
+              >
                 <span
                   className="mr-2 inline-block h-2 w-2 rounded-full align-middle"
                   style={{ backgroundColor: event.color }}
@@ -173,12 +181,17 @@ export function DashboardClient() {
       ) : null}
 
       <section className="grid gap-3">
-        <article className="rounded-2xl border border-white/10 bg-white/5 p-4">
-          <p className="text-xs text-neutral-500">오늘 출퇴근 기록</p>
+        <article className="rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
+          <p className="text-xs text-zinc-500 dark:text-neutral-500">
+            오늘 출퇴근 기록
+          </p>
           {data.myTodayRecords.length > 0 ? (
             <div className="mt-2 space-y-1">
               {data.myTodayRecords.map((record) => (
-                <p key={record.id} className="text-sm text-neutral-100">
+                <p
+                  key={record.id}
+                  className="text-sm text-zinc-800 dark:text-neutral-100"
+                >
                   {formatTime(record.checkedInAt)} -{" "}
                   {record.checkedOutAt
                     ? formatTime(record.checkedOutAt)
@@ -187,10 +200,14 @@ export function DashboardClient() {
               ))}
             </div>
           ) : (
-            <p className="mt-1 text-sm text-neutral-400">오늘 기록 없음</p>
+            <p className="mt-1 text-sm text-zinc-600 dark:text-neutral-400">
+              오늘 기록 없음
+            </p>
           )}
-          <p className="mt-3 text-xs text-neutral-500">오늘 총 근무시간</p>
-          <p className="text-lg font-semibold text-white">
+          <p className="mt-3 text-xs text-zinc-500 dark:text-neutral-500">
+            오늘 총 근무시간
+          </p>
+          <p className="text-lg font-semibold text-zinc-900 dark:text-white">
             {formatDuration24h(data.myTodayHours)}
           </p>
         </article>

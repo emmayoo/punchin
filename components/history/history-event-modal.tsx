@@ -30,32 +30,34 @@ export function HistoryEventModal({
   return (
     <FullscreenModal open={open}>
       <div className="space-y-3">
-        <h2 className="text-base font-semibold text-white">{title}</h2>
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-white">
+          {title}
+        </h2>
         {includeDateField ? (
           <input
             type="date"
             value={dateValue}
             onChange={(event) => onDateChange?.(event.target.value)}
-            className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-white/35"
+            className="w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-white/35"
           />
         ) : null}
         <input
           value={titleValue}
           onChange={(event) => onTitleChange(event.target.value)}
           placeholder="이벤트 제목 입력"
-          className="w-full rounded-xl border border-white/10 bg-neutral-900 px-3 py-2 text-sm outline-none focus:border-white/35"
+          className="w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-white/35"
         />
         <div className="flex justify-end gap-2 pt-1">
           <button
             onClick={onClose}
-            className="rounded-lg border border-white/20 px-3 py-2 text-sm text-neutral-200"
+            className="rounded-lg border border-zinc-200/90 px-3 py-2 text-sm text-zinc-800 dark:border-white/20 dark:text-neutral-200"
           >
             취소
           </button>
           <button
             onClick={onSubmit}
             disabled={busy || !titleValue.trim() || (includeDateField && !dateValue)}
-            className="rounded-lg bg-white px-3 py-2 text-sm font-semibold text-neutral-950 disabled:opacity-60"
+            className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60 dark:bg-white dark:text-neutral-950"
           >
             저장
           </button>

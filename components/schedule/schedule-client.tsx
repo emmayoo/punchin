@@ -419,13 +419,13 @@ export function ScheduleClient() {
 
   return (
     <TabPageShell title="스케줄" bodyClassName="gap-6" loading={loading}>
-      <section className="space-y-3 rounded-2xl border border-white/10 bg-white/5 p-4">
+      <section className="space-y-3 rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-[90px]">
             <button
               type="button"
               onClick={() => setWeekStart((prev) => addDays(prev, -7))}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 text-neutral-200"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-300/90 text-zinc-700 dark:border-white/20 dark:text-neutral-200"
               aria-label="이전 주"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden />
@@ -437,7 +437,7 @@ export function ScheduleClient() {
               setPickerDate(dateKey(weekStart));
               setWeekPickerOpen(true);
             }}
-            className="rounded-lg px-2 py-1 text-sm font-medium text-white transition-colors hover:bg-white/10"
+            className="rounded-lg px-2 py-1 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-200/60 dark:text-white dark:hover:bg-white/10"
             aria-label="주 선택 열기"
           >
             {weekLabel(weekStart)}
@@ -446,14 +446,14 @@ export function ScheduleClient() {
             <button
               type="button"
               onClick={() => setWeekStart(startOfWeek(new Date()))}
-              className="rounded-lg border border-rose-300/50 px-2 py-1 text-xs text-rose-200"
+              className="rounded-lg border border-rose-400/50 px-2 py-1 text-xs text-rose-700 dark:border-rose-300/50 dark:text-rose-200"
             >
               이번주
             </button>
             <button
               type="button"
               onClick={() => setWeekStart((prev) => addDays(prev, 7))}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 text-neutral-200"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-300/90 text-zinc-700 dark:border-white/20 dark:text-neutral-200"
               aria-label="다음 주"
             >
               <ChevronRight className="h-4 w-4" aria-hidden />
@@ -473,7 +473,7 @@ export function ScheduleClient() {
             type="button"
             onClick={downloadScheduleImage}
             disabled={exportingImage}
-            className="inline-flex h-7 items-center gap-1 rounded-lg border border-white/20 bg-black/50 px-2 text-xs text-neutral-200 shadow-sm backdrop-blur-sm enabled:hover:bg-white/10 disabled:opacity-50"
+            className="inline-flex h-7 items-center gap-1 rounded-lg border border-zinc-300/90 bg-zinc-200/50 px-2 text-xs text-zinc-800 shadow-sm backdrop-blur-sm enabled:hover:bg-zinc-300/50 disabled:opacity-50 dark:border-white/20 dark:bg-black/50 dark:text-neutral-200 dark:enabled:hover:bg-white/10"
             aria-label={`${weekLabel(weekStart)} 주간 스케줄 다운로드`}
           >
             <ImageDown className="h-3.5 w-3.5" aria-hidden />
@@ -482,7 +482,7 @@ export function ScheduleClient() {
           <button
             type="button"
             onClick={openCopyModal}
-            className="ml-2 inline-flex h-7 items-center gap-1 rounded-lg border border-white/20 bg-black/50 px-2 text-xs text-neutral-200 shadow-sm backdrop-blur-sm transition-colors hover:bg-white/10"
+            className="ml-2 inline-flex h-7 items-center gap-1 rounded-lg border border-zinc-300/90 bg-zinc-200/50 px-2 text-xs text-zinc-800 shadow-sm backdrop-blur-sm transition-colors hover:bg-zinc-300/50 dark:border-white/20 dark:bg-black/50 dark:text-neutral-200 dark:hover:bg-white/10"
           >
             <Copy className="h-3.5 w-3.5" aria-hidden />
             스케줄 복사
@@ -516,7 +516,9 @@ export function ScheduleClient() {
         onDeletePerson={deletePerson}
       />
 
-      {message && <p className="text-sm text-neutral-300">{message}</p>}
+      {message && (
+        <p className="text-sm text-zinc-600 dark:text-neutral-300">{message}</p>
+      )}
 
       <WeekPickerModal
         open={weekPickerOpen}

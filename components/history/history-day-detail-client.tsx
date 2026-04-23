@@ -124,14 +124,14 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
       aria-label={`${date} 일자 상세`}
       loading={loading}
     >
-      <section className="rounded-2xl border border-white/10 bg-white/5 p-4">
+      <section className="rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-white">이벤트</h2>
+          <h2 className="text-sm font-medium text-zinc-900 dark:text-white">이벤트</h2>
           <div className="flex items-center gap-2">
             <button
               onClick={handleCreate}
               disabled={busy}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-white/20 text-lg text-neutral-100 disabled:opacity-60"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-300/90 text-lg text-zinc-800 disabled:opacity-60 dark:border-white/20 dark:text-neutral-100"
               aria-label="이벤트 추가"
             >
               +
@@ -139,7 +139,7 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
           </div>
         </div>
         {dayEvents.length === 0 ? (
-          <p className="mt-2 text-sm text-neutral-400">
+          <p className="mt-2 text-sm text-zinc-600 dark:text-neutral-400">
             등록된 이벤트가 없습니다.
           </p>
         ) : (
@@ -152,7 +152,7 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
                     onChange={(item) =>
                       handleTitleChange(event.id, item.target.value)
                     }
-                    className="flex-1 rounded-lg border border-white/10 bg-neutral-900 px-2 py-1 text-sm outline-none focus:border-white/35"
+                    className="flex-1 rounded-lg border border-zinc-200/90 bg-white px-2 py-1 text-sm outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-neutral-900 dark:focus:border-white/35"
                     style={{ color: event.color }}
                   />
                   <input
@@ -161,7 +161,7 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
                     onChange={(item) =>
                       handleColorChange(event.id, item.target.value)
                     }
-                    className="h-8 w-10 rounded border border-white/10 bg-neutral-900 p-1"
+                    className="h-8 w-10 rounded border border-zinc-200/90 bg-white p-1 dark:border-white/10 dark:bg-neutral-900"
                     aria-label="이벤트 색상"
                   />
                   <button
@@ -180,31 +180,31 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
       </section>
 
       <section className="space-y-2">
-        <h2 className="text-sm font-medium text-white">근무 기록</h2>
+        <h2 className="text-sm font-medium text-zinc-900 dark:text-white">근무 기록</h2>
         {dayPunches.length === 0 ? (
-          <p className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-neutral-400">
+          <p className="rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 text-sm text-zinc-600 dark:border-white/10 dark:bg-white/5 dark:text-neutral-400">
             근무 기록이 없습니다.
           </p>
         ) : (
           dayPunches.map((record) => (
             <article
               key={record.id}
-              className="rounded-2xl border border-white/10 bg-white/5 p-4"
+              className="rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5"
             >
-              <p className="text-sm font-medium text-white">
+              <p className="text-sm font-medium text-zinc-900 dark:text-white">
                 {record.employeeName}
               </p>
-              <p className="mt-2 text-sm text-neutral-300">
+              <p className="mt-2 text-sm text-zinc-600 dark:text-neutral-300">
                 출근: {formatDateTime(record.checkedInAt)}
               </p>
-              <p className="text-sm text-neutral-300">
+              <p className="text-sm text-zinc-600 dark:text-neutral-300">
                 퇴근:{" "}
                 {record.checkedOutAt
                   ? formatDateTime(record.checkedOutAt)
                   : "근무 중"}
               </p>
               {record.checkedOutAt ? (
-                <p className="mt-2 text-xs text-neutral-400">
+                <p className="mt-2 text-xs text-zinc-600 dark:text-neutral-400">
                   근무시간:{" "}
                   {formatHours(
                     durationHours(record.checkedInAt, record.checkedOutAt),

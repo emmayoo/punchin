@@ -27,10 +27,10 @@ export type DetailPageShellProps = DetailPageShellBase &
   );
 
 const backButtonClassName =
-  "inline-flex w-fit min-h-10 min-w-10 shrink-0 items-center justify-center gap-0.5 rounded-xl pl-1 pr-3 text-sm text-neutral-300 transition-colors hover:bg-white/5 hover:text-white active:bg-white/10 touch-manipulation";
+  "inline-flex w-fit min-h-10 min-w-10 shrink-0 items-center justify-center gap-0.5 rounded-xl pl-1 pr-3 text-sm text-zinc-700 transition-colors hover:bg-zinc-200/60 hover:text-zinc-900 active:bg-zinc-300/50 dark:text-neutral-300 dark:hover:bg-white/5 dark:hover:text-white dark:active:bg-white/10 touch-manipulation";
 
 const defaultLoadingContent = (
-  <p className="text-sm text-neutral-400">불러오는 중...</p>
+  <p className="text-sm text-zinc-600 dark:text-neutral-400">불러오는 중...</p>
 );
 
 function resolveBody(
@@ -121,7 +121,7 @@ export function DetailPageShell(props: DetailPageShellProps) {
         <div className="flex min-h-10 items-center gap-2">
           {backControl}
           {title ? (
-            <h1 className="min-w-0 flex-1 truncate text-lg font-semibold leading-tight tracking-tight text-white">
+            <h1 className="min-w-0 flex-1 truncate text-lg font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white">
               {title}
             </h1>
           ) : null}

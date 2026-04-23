@@ -23,14 +23,14 @@ export type TabPageShellProps = {
 };
 
 /**
- * 탭 네비게이션이 있는 화면(홈/이력/스케줄/통계/My)용 공통 골격.
+ * 탭 네비게이션이 있는 화면(홈/이력/스케줄/통계/설정)용 공통 골격.
  * 로그인 등 별도 UX는 이 컴포넌트를 쓰지 않는 편이 낫습니다.
  *
  * `loading`과 함께 쓸 때는 `children`에 `() => …` 를 넘기면, 로딩 중에는 호출되지
  * 않아 본문 VNode를 만들지 않습니다. (일반 `ReactNode`는 기존처럼 항상 그립니다.)
  */
 const defaultLoadingContent = (
-  <p className="text-sm text-neutral-400">불러오는 중...</p>
+  <p className="text-sm text-zinc-600 dark:text-neutral-400">불러오는 중...</p>
 );
 
 function resolveBody(
@@ -61,8 +61,8 @@ export function TabPageShell({
 }: TabPageShellProps) {
   const titleClass =
     variant === "hero"
-      ? "text-3xl font-semibold tracking-tight text-white"
-      : "text-2xl font-semibold tracking-tight text-white";
+      ? "text-3xl font-semibold tracking-tight text-zinc-900 dark:text-white"
+      : "text-2xl font-semibold tracking-tight text-zinc-900 dark:text-white";
 
   const headerBlockClass = variant === "hero" ? "space-y-3" : "space-y-2";
 
@@ -79,13 +79,15 @@ export function TabPageShell({
     <main className={mainClass}>
       <header className={`shrink-0 ${headerBlockClass}`}>
         {eyebrow ? (
-          <p className="text-xs uppercase tracking-[0.18em] text-neutral-500">
+          <p className="text-xs uppercase tracking-[0.18em] text-zinc-500 dark:text-neutral-500">
             {eyebrow}
           </p>
         ) : null}
         <h1 className={titleClass}>{title}</h1>
         {description ? (
-          <p className="text-sm text-neutral-400">{description}</p>
+          <p className="text-sm text-zinc-600 dark:text-neutral-400">
+            {description}
+          </p>
         ) : null}
       </header>
 

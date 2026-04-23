@@ -2,6 +2,22 @@ export type Employee = {
   id: string;
   phone: string;
   name: string;
+  currentBranchId?: string | null;
+};
+
+export type Branch = {
+  id: string;
+  name: string;
+  createdByPhone: string;
+};
+
+export type BranchRole = "owner" | "member";
+
+export type BranchMembership = {
+  id: string;
+  branchId: string;
+  employeePhone: string;
+  role: BranchRole;
 };
 
 export type Shift = {

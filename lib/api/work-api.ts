@@ -1,7 +1,10 @@
 "use client";
 
 import {
+  addBranchMembership,
   addCalendarEvent,
+  createBranch,
+  deleteBranchByOwner,
   deleteCalendarEvent,
   deleteShift,
   addShift,
@@ -11,7 +14,12 @@ import {
   clearSession,
   getActivePunch,
   getCalendarEvents,
+  getBranches,
+  getBranchMembershipsByPhone,
   getEmployees,
+  removeBranchMembership,
+  setEmployeeCurrentBranch,
+  updateBranchName,
   getPunches,
   getSession,
   getShifts,
@@ -25,7 +33,15 @@ import {
 } from "@/lib/storage";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { durationHours, isToday, isWithinWeek, startOfWeek } from "@/lib/time";
-import { CalendarEvent, Employee, PunchRecord, Shift } from "@/types/work";
+import type {
+  Branch,
+  BranchMembership,
+  BranchRole,
+  CalendarEvent,
+  Employee,
+  PunchRecord,
+  Shift,
+} from "@/types/work";
 
 export type WeeklyStatRow = {
   phone: string;
@@ -55,6 +71,10 @@ export type SchedulePersonRecord = {
   employeePhone: string;
   color: string;
 };
+
+export type BranchSetupInput =
+  | { mode: "select"; branchId: string }
+  | { mode: "create"; branchName: string };
 
 export type DashboardData = {
   session: Employee | null;
@@ -91,6 +111,9 @@ function mapEmployeeRow(row: Record<string, unknown>): Employee {
     id: String(row.id),
     phone: String(row.phone),
     name: String(row.name),
+    currentBranchId: row.current_branch_id
+      ? String(row.current_branch_id)
+      : null,
   };
 }
 
@@ -123,12 +146,34 @@ function mapEventRow(row: Record<string, unknown>): CalendarEvent {
   };
 }
 
-function mapSchedulePersonRow(row: Record<string, unknown>): SchedulePersonRecord {
+function mapSchedulePersonRow(
+  row: Record<string, unknown>,
+): SchedulePersonRecord {
   return {
     id: String(row.id),
     name: String(row.name),
     employeePhone: String(row.phone),
     color: String(row.color ?? "#22c55e"),
+  };
+}
+
+function mapBranchRow(row: Record<string, unknown>): Branch {
+  return {
+    id: String(row.id),
+    name: String(row.name),
+    createdByPhone: String(row.created_by_phone),
+  };
+}
+
+function mapBranchMembershipRow(
+  row: Record<string, unknown>,
+): BranchMembership {
+  const roleValue = String(row.role) as BranchRole;
+  return {
+    id: String(row.id),
+    branchId: String(row.branch_id),
+    employeePhone: String(row.employee_phone),
+    role: roleValue === "owner" ? "owner" : "member",
   };
 }
 
@@ -155,9 +200,116 @@ class LocalWorkApi {
 
   async registerFirstProfile(phone: string, name: string): Promise<Employee> {
     const employee = upsertEmployee(normalizePhone(phone), name.trim());
-    saveSession(employee);
+    const updated = setEmployeeCurrentBranch(employee.phone, null) ?? employee;
+    saveSession(updated);
     await wait();
-    return employee;
+    return updated;
+  }
+
+  async getBranches(): Promise<Branch[]> {
+    await wait();
+    return getBranches();
+  }
+
+  async getMyBranchMemberships(phone: string): Promise<BranchMembership[]> {
+    await wait();
+    return getBranchMembershipsByPhone(normalizePhone(phone));
+  }
+
+  async completeBranchSetup(
+    phone: string,
+    input: BranchSetupInput,
+  ): Promise<Employee | null> {
+    const normalized = normalizePhone(phone);
+    const employee =
+      getEmployees().find((item) => item.phone === normalized) ?? null;
+    if (!employee) {
+      await wait();
+      return null;
+    }
+
+    let targetBranchId = "";
+    if (input.mode === "select") {
+      targetBranchId = input.branchId;
+      addBranchMembership(targetBranchId, normalized, "member");
+    } else {
+      const created = createBranch({
+        name: input.branchName.trim(),
+        createdByPhone: normalized,
+      });
+      targetBranchId = created.id;
+      addBranchMembership(targetBranchId, normalized, "owner");
+    }
+
+    const updated = setEmployeeCurrentBranch(normalized, targetBranchId);
+    if (!updated) {
+      await wait();
+      return null;
+    }
+    saveSession(updated);
+    await wait();
+    return updated;
+  }
+
+  async connectBranch(phone: string, branchId: string): Promise<boolean> {
+    const normalized = normalizePhone(phone);
+    const employee =
+      getEmployees().find((item) => item.phone === normalized) ?? null;
+    if (!employee) {
+      await wait();
+      return false;
+    }
+    addBranchMembership(branchId, normalized, "member");
+    await wait();
+    return true;
+  }
+
+  async disconnectBranch(phone: string, branchId: string): Promise<boolean> {
+    const normalized = normalizePhone(phone);
+    const employee =
+      getEmployees().find((item) => item.phone === normalized) ?? null;
+    if (!employee) {
+      await wait();
+      return false;
+    }
+    const removed = removeBranchMembership(branchId, normalized);
+    if (!removed) {
+      await wait();
+      return false;
+    }
+    const remain = getBranchMembershipsByPhone(normalized);
+    if (employee.currentBranchId === branchId) {
+      const nextDefault = remain[0]?.branchId ?? null;
+      const updated = setEmployeeCurrentBranch(normalized, nextDefault);
+      if (updated) {
+        saveSession(updated);
+      }
+    }
+    await wait();
+    return true;
+  }
+
+  async updateMyCreatedBranch(
+    branchId: string,
+    actorPhone: string,
+    name: string,
+  ): Promise<Branch | null> {
+    const updated = updateBranchName(
+      branchId,
+      name,
+      normalizePhone(actorPhone),
+    );
+    await wait();
+    return updated;
+  }
+
+  async deleteMyCreatedBranch(
+    branchId: string,
+    actorPhone: string,
+  ): Promise<boolean> {
+    const ok = deleteBranchByOwner(branchId, normalizePhone(actorPhone));
+    await wait();
+    return ok;
   }
 
   async updateMyProfileName(
@@ -293,7 +445,10 @@ class LocalWorkApi {
     employeePhone: string;
     color: string;
   }): Promise<SchedulePersonRecord> {
-    const employee = upsertEmployee(normalizePhone(input.employeePhone), input.name.trim());
+    const employee = upsertEmployee(
+      normalizePhone(input.employeePhone),
+      input.name.trim(),
+    );
     await wait();
     return {
       id: employee.id,
@@ -480,51 +635,7 @@ class SupabaseWorkApi {
   private supabase = getSupabaseBrowserClient();
 
   async init(): Promise<void> {
-    await this.seedIfNeeded();
     await wait();
-  }
-
-  private todayAt(hour: number): string {
-    const now = new Date();
-    now.setHours(hour, 0, 0, 0);
-    return now.toISOString();
-  }
-
-  private async seedIfNeeded(): Promise<void> {
-    try {
-      const { count } = await this.supabase
-        .from("employees")
-        .select("id", { count: "exact", head: true });
-      if ((count ?? 0) > 0) {
-        return;
-      }
-
-      await this.supabase.from("employees").insert(
-        [
-          { phone: "01012341234", name: "민지" },
-          { phone: "01055556666", name: "도윤" },
-        ] as never,
-      );
-
-      await this.supabase.from("shifts").insert(
-        [
-          {
-            employee_phone: "01012341234",
-            employee_name: "민지",
-            start_at: this.todayAt(9),
-            end_at: this.todayAt(15),
-          },
-          {
-            employee_phone: "01055556666",
-            employee_name: "도윤",
-            start_at: this.todayAt(15),
-            end_at: this.todayAt(22),
-          },
-        ] as never,
-      );
-    } catch (error) {
-      console.warn("Supabase seed skipped:", error);
-    }
   }
 
   private async ensureAuthUser(): Promise<void> {
@@ -568,6 +679,28 @@ class SupabaseWorkApi {
       .order("created_at", { ascending: false });
     return (data ?? []).map((row) =>
       mapEmployeeRow(row as Record<string, unknown>),
+    );
+  }
+
+  private async getBranchesRemote(): Promise<Branch[]> {
+    const { data } = await this.supabase
+      .from("branches")
+      .select("*")
+      .order("created_at", { ascending: true });
+    return (data ?? []).map((row) =>
+      mapBranchRow(row as Record<string, unknown>),
+    );
+  }
+
+  private async getBranchMembershipsByPhoneRemote(
+    phone: string,
+  ): Promise<BranchMembership[]> {
+    const { data } = await this.supabase
+      .from("branch_memberships")
+      .select("*")
+      .eq("employee_phone", phone);
+    return (data ?? []).map((row) =>
+      mapBranchMembershipRow(row as Record<string, unknown>),
     );
   }
 
@@ -643,6 +776,172 @@ class SupabaseWorkApi {
     return data ? mapEmployeeRow(data as Record<string, unknown>) : null;
   }
 
+  async getBranches(): Promise<Branch[]> {
+    const rows = await this.getBranchesRemote();
+    await wait();
+    return rows;
+  }
+
+  async getMyBranchMemberships(phone: string): Promise<BranchMembership[]> {
+    const normalized = normalizePhone(phone);
+    const rows = await this.getBranchMembershipsByPhoneRemote(normalized);
+    await wait();
+    return rows;
+  }
+
+  async completeBranchSetup(
+    phone: string,
+    input: BranchSetupInput,
+  ): Promise<Employee | null> {
+    const normalized = normalizePhone(phone);
+    const employee = await this.getEmployeeByPhone(normalized);
+    if (!employee) {
+      await wait();
+      return null;
+    }
+
+    let branchId = "";
+    if (input.mode === "select") {
+      branchId = input.branchId;
+      await this.supabase.from("branch_memberships").upsert(
+        {
+          branch_id: branchId,
+          employee_phone: normalized,
+          role: "member",
+        } as never,
+        { onConflict: "branch_id,employee_phone" },
+      );
+    } else {
+      const { data: createdBranch } = await this.supabase
+        .from("branches")
+        .insert({
+          name: input.branchName.trim(),
+          created_by_phone: normalized,
+        } as never)
+        .select("*")
+        .single();
+      const createdBranchRow = createdBranch as Record<string, unknown> | null;
+      branchId = createdBranchRow ? String(createdBranchRow.id) : "";
+      if (!branchId) {
+        await wait();
+        return employee;
+      }
+      await this.supabase.from("branch_memberships").insert({
+        branch_id: branchId,
+        employee_phone: normalized,
+        role: "owner",
+      } as never);
+    }
+
+    await this.supabase
+      .from("employees")
+      .update({ current_branch_id: branchId } as never)
+      .eq("phone", normalized);
+    const updated = await this.getEmployeeByPhone(normalized);
+    await wait();
+    return updated;
+  }
+
+  async connectBranch(phone: string, branchId: string): Promise<boolean> {
+    const normalized = normalizePhone(phone);
+    const employee = await this.getEmployeeByPhone(normalized);
+    if (!employee) {
+      await wait();
+      return false;
+    }
+    const { error } = await this.supabase.from("branch_memberships").upsert(
+      {
+        branch_id: branchId,
+        employee_phone: normalized,
+        role: "member",
+      } as never,
+      { onConflict: "branch_id,employee_phone" },
+    );
+    await wait();
+    return !error;
+  }
+
+  async disconnectBranch(phone: string, branchId: string): Promise<boolean> {
+    const normalized = normalizePhone(phone);
+    const employee = await this.getEmployeeByPhone(normalized);
+    if (!employee) {
+      await wait();
+      return false;
+    }
+    const { error } = await this.supabase
+      .from("branch_memberships")
+      .delete()
+      .eq("branch_id", branchId)
+      .eq("employee_phone", normalized);
+    if (error) {
+      await wait();
+      return false;
+    }
+    if (employee.currentBranchId === branchId) {
+      const remain = await this.getMyBranchMemberships(normalized);
+      const nextDefault = remain[0]?.branchId ?? null;
+      await this.supabase
+        .from("employees")
+        .update({ current_branch_id: nextDefault } as never)
+        .eq("phone", normalized);
+    }
+    await wait();
+    return true;
+  }
+
+  async updateMyCreatedBranch(
+    branchId: string,
+    actorPhone: string,
+    name: string,
+  ): Promise<Branch | null> {
+    const normalized = normalizePhone(actorPhone);
+    const { data: branch } = await this.supabase
+      .from("branches")
+      .select("*")
+      .eq("id", branchId)
+      .eq("created_by_phone", normalized)
+      .maybeSingle();
+    if (!branch) {
+      await wait();
+      return null;
+    }
+    const { data: updated } = await this.supabase
+      .from("branches")
+      .update({ name: name.trim() } as never)
+      .eq("id", branchId)
+      .select("*")
+      .maybeSingle();
+    await wait();
+    return updated ? mapBranchRow(updated as Record<string, unknown>) : null;
+  }
+
+  async deleteMyCreatedBranch(
+    branchId: string,
+    actorPhone: string,
+  ): Promise<boolean> {
+    const normalized = normalizePhone(actorPhone);
+    const { data: branch } = await this.supabase
+      .from("branches")
+      .select("id")
+      .eq("id", branchId)
+      .eq("created_by_phone", normalized)
+      .maybeSingle();
+    if (!branch) {
+      await wait();
+      return false;
+    }
+    await this.supabase
+      .from("employees")
+      .update({ current_branch_id: null } as never)
+      .eq("current_branch_id", branchId);
+    const { error } = await this.supabase
+      .from("branches")
+      .delete()
+      .eq("id", branchId);
+    await wait();
+    return !error;
+  }
+
   async registerFirstProfile(phone: string, name: string): Promise<Employee> {
     const normalized = normalizePhone(phone);
     await this.ensureAuthUser();
@@ -661,8 +960,15 @@ class SupabaseWorkApi {
     const employee = upserted
       ? mapEmployeeRow(upserted as Record<string, unknown>)
       : { id: "", phone: normalized, name: name.trim() };
+
+    await this.supabase
+      .from("employees")
+      .update({ current_branch_id: null } as never)
+      .eq("phone", normalized);
+
+    const synced = await this.getEmployeeByPhone(normalized);
     await wait();
-    return employee;
+    return synced ?? employee;
   }
 
   async updateMyProfileName(

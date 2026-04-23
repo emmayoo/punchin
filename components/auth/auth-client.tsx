@@ -76,8 +76,8 @@ export function AuthClient() {
       setBusy(false);
       return;
     }
-    await workApi.login(phone);
-    router.replace("/");
+    const loggedIn = await workApi.login(phone);
+    router.replace(loggedIn.currentBranchId ? "/" : "/branch");
   };
 
   const handleCompleteFirstProfile = async () => {
@@ -85,8 +85,8 @@ export function AuthClient() {
       return;
     }
     setBusy(true);
-    await workApi.registerFirstProfile(pendingPhone, profileName);
-    router.replace("/");
+    const registered = await workApi.registerFirstProfile(pendingPhone, profileName);
+    router.replace(registered.currentBranchId ? "/" : "/branch");
   };
 
   if (loading || !data) {

@@ -19,3 +19,4 @@ where not exists (
     and start_at >= date_trunc('day', now())
     and start_at < date_trunc('day', now()) + interval '1 day'
 );
+

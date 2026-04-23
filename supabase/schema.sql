@@ -12,6 +12,32 @@ create table if not exists public.employees (
 alter table public.employees
 add column if not exists color text not null default '#22c55e';
 
+create table if not exists public.branches (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  created_by_phone text not null references public.employees(phone) on update cascade,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists branches_created_by_phone_idx
+  on public.branches(created_by_phone);
+create index if not exists branches_name_idx on public.branches(name);
+
+create table if not exists public.branch_memberships (
+  id uuid primary key default gen_random_uuid(),
+  branch_id uuid not null references public.branches(id) on delete cascade,
+  employee_phone text not null references public.employees(phone) on update cascade,
+  role text not null check (role in ('owner', 'member')),
+  created_at timestamptz not null default now(),
+  unique (branch_id, employee_phone)
+);
+
+create index if not exists branch_memberships_employee_phone_idx
+  on public.branch_memberships(employee_phone);
+
+alter table public.employees
+add column if not exists current_branch_id uuid references public.branches(id) on delete set null;
+
 create table if not exists public.shifts (
   id uuid primary key default gen_random_uuid(),
   employee_phone text not null references public.employees(phone) on update cascade,
@@ -57,6 +83,8 @@ $$;
 
 -- RLS (step 5: minimal, keep app behavior)
 alter table public.employees enable row level security;
+alter table public.branches enable row level security;
+alter table public.branch_memberships enable row level security;
 alter table public.shifts enable row level security;
 alter table public.punch_records enable row level security;
 alter table public.calendar_events enable row level security;
@@ -74,6 +102,22 @@ create policy shifts_authenticated_all
 on public.shifts
 for all
 to authenticated
+using (true)
+with check (true);
+
+drop policy if exists branches_authenticated_all on public.branches;
+create policy branches_authenticated_all
+on public.branches
+for all
+to authenticated, anon
+using (true)
+with check (true);
+
+drop policy if exists branch_memberships_authenticated_all on public.branch_memberships;
+create policy branch_memberships_authenticated_all
+on public.branch_memberships
+for all
+to authenticated, anon
 using (true)
 with check (true);
 

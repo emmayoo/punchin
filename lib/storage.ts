@@ -1,6 +1,13 @@
 "use client";
 
-import { CalendarEvent, Employee, PunchRecord, Shift } from "@/types/work";
+import type {
+  Branch,
+  BranchMembership,
+  CalendarEvent,
+  Employee,
+  PunchRecord,
+  Shift,
+} from "@/types/work";
 import { isToday } from "@/lib/time";
 import { DEFAULT_EVENT_COLOR } from "@/lib/constants/event";
 
@@ -9,6 +16,8 @@ const SHIFT_KEY = "punchin:shifts";
 const PUNCH_KEY = "punchin:punches";
 const SESSION_KEY = "punchin:session";
 const CALENDAR_EVENT_KEY = "punchin:calendar-events";
+const BRANCH_KEY = "punchin:branches";
+const BRANCH_MEMBERSHIP_KEY = "punchin:branch-memberships";
 
 function id(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
@@ -44,6 +53,8 @@ function seedIfNeeded(): void {
   write(EMPLOYEE_KEY, []);
   write(SHIFT_KEY, []);
   write(PUNCH_KEY, []);
+  write(BRANCH_KEY, []);
+  write(BRANCH_MEMBERSHIP_KEY, []);
 }
 
 export function initStorage(): void {
@@ -66,10 +77,15 @@ export function upsertEmployee(phone: string, name?: string): Employee {
   const employees = getEmployees();
   const existing = employees.find((employee) => employee.phone === phone);
   if (existing) {
-    const updated: Employee = { ...existing, name: existing.name || resolvedName };
+    const updated: Employee = {
+      ...existing,
+      name: existing.name || resolvedName,
+    };
     write(
       EMPLOYEE_KEY,
-      employees.map((employee) => (employee.phone === phone ? updated : employee)),
+      employees.map((employee) =>
+        employee.phone === phone ? updated : employee,
+      ),
     );
     return updated;
   }
@@ -78,7 +94,33 @@ export function upsertEmployee(phone: string, name?: string): Employee {
   return created;
 }
 
-export function updateEmployeeName(phone: string, name: string): Employee | null {
+export function setEmployeeCurrentBranch(
+  phone: string,
+  branchId: string | null,
+): Employee | null {
+  const employees = getEmployees();
+  const target = employees.find((employee) => employee.phone === phone);
+  if (!target) {
+    return null;
+  }
+  const updated: Employee = { ...target, currentBranchId: branchId };
+  write(
+    EMPLOYEE_KEY,
+    employees.map((employee) =>
+      employee.phone === phone ? updated : employee,
+    ),
+  );
+  const session = getSession();
+  if (session?.phone === phone) {
+    saveSession(updated);
+  }
+  return updated;
+}
+
+export function updateEmployeeName(
+  phone: string,
+  name: string,
+): Employee | null {
   const employees = getEmployees();
   const target = employees.find((employee) => employee.phone === phone);
   if (!target) {
@@ -87,7 +129,9 @@ export function updateEmployeeName(phone: string, name: string): Employee | null
   const updated: Employee = { ...target, name: name.trim() };
   write(
     EMPLOYEE_KEY,
-    employees.map((employee) => (employee.phone === phone ? updated : employee)),
+    employees.map((employee) =>
+      employee.phone === phone ? updated : employee,
+    ),
   );
   const session = getSession();
   if (session?.phone === phone) {
@@ -130,7 +174,9 @@ export function addShifts(shifts: Omit<Shift, "id">[]): void {
 
 export function updateShift(
   shiftId: string,
-  payload: Partial<Pick<Shift, "employeeName" | "employeePhone" | "startAt" | "endAt">>,
+  payload: Partial<
+    Pick<Shift, "employeeName" | "employeePhone" | "startAt" | "endAt">
+  >,
 ): Shift | null {
   const all = getShifts();
   let updated: Shift | null = null;
@@ -149,7 +195,9 @@ export function updateShift(
   });
   write(
     SHIFT_KEY,
-    next.sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime()),
+    next.sort(
+      (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime(),
+    ),
   );
   return updated;
 }
@@ -164,14 +212,16 @@ export function deleteShift(shiftId: string): void {
 
 export function getPunches(): PunchRecord[] {
   return read<PunchRecord[]>(PUNCH_KEY, []).sort(
-    (a, b) => new Date(b.checkedInAt).getTime() - new Date(a.checkedInAt).getTime(),
+    (a, b) =>
+      new Date(b.checkedInAt).getTime() - new Date(a.checkedInAt).getTime(),
   );
 }
 
 export function getActivePunch(phone: string): PunchRecord | null {
   return (
     getPunches().find(
-      (record) => record.employeePhone === phone && record.checkedOutAt === null,
+      (record) =>
+        record.employeePhone === phone && record.checkedOutAt === null,
     ) ?? null
   );
 }
@@ -179,7 +229,8 @@ export function getActivePunch(phone: string): PunchRecord | null {
 export function checkIn(employee: Employee): PunchRecord {
   const all = getPunches();
   const active = all.find(
-    (record) => record.employeePhone === employee.phone && record.checkedOutAt === null,
+    (record) =>
+      record.employeePhone === employee.phone && record.checkedOutAt === null,
   );
   if (active) {
     return active;
@@ -228,6 +279,130 @@ export function getSession(): Employee | null {
   return read<Employee | null>(SESSION_KEY, null);
 }
 
+export function getBranches(): Branch[] {
+  return read<Branch[]>(BRANCH_KEY, []).sort((a, b) =>
+    a.name.localeCompare(b.name, "ko"),
+  );
+}
+
+export function createBranch(input: {
+  name: string;
+  createdByPhone: string;
+}): Branch {
+  const created: Branch = {
+    id: id("branch"),
+    name: input.name.trim(),
+    createdByPhone: input.createdByPhone,
+  };
+  write(BRANCH_KEY, [created, ...getBranches()]);
+  return created;
+}
+
+export function updateBranchName(
+  branchId: string,
+  name: string,
+  actorPhone: string,
+): Branch | null {
+  const all = getBranches();
+  const target = all.find((item) => item.id === branchId) ?? null;
+  if (!target || target.createdByPhone !== actorPhone) {
+    return null;
+  }
+  const updated: Branch = { ...target, name: name.trim() };
+  write(
+    BRANCH_KEY,
+    all.map((item) => (item.id === branchId ? updated : item)),
+  );
+  return updated;
+}
+
+export function deleteBranchByOwner(
+  branchId: string,
+  actorPhone: string,
+): boolean {
+  const all = getBranches();
+  const target = all.find((item) => item.id === branchId) ?? null;
+  if (!target || target.createdByPhone !== actorPhone) {
+    return false;
+  }
+
+  write(
+    BRANCH_KEY,
+    all.filter((item) => item.id !== branchId),
+  );
+  write(
+    BRANCH_MEMBERSHIP_KEY,
+    getBranchMemberships().filter((item) => item.branchId !== branchId),
+  );
+  write(
+    EMPLOYEE_KEY,
+    getEmployees().map((employee) =>
+      employee.currentBranchId === branchId
+        ? { ...employee, currentBranchId: null }
+        : employee,
+    ),
+  );
+
+  const session = getSession();
+  if (session?.currentBranchId === branchId) {
+    saveSession({ ...session, currentBranchId: null });
+  }
+
+  return true;
+}
+
+export function getBranchMemberships(): BranchMembership[] {
+  return read<BranchMembership[]>(BRANCH_MEMBERSHIP_KEY, []);
+}
+
+export function getBranchMembershipsByPhone(phone: string): BranchMembership[] {
+  return getBranchMemberships().filter((item) => item.employeePhone === phone);
+}
+
+export function addBranchMembership(
+  branchId: string,
+  employeePhone: string,
+  role: "owner" | "member",
+): BranchMembership {
+  const existing =
+    getBranchMemberships().find(
+      (item) =>
+        item.branchId === branchId && item.employeePhone === employeePhone,
+    ) ?? null;
+  if (existing) {
+    return existing;
+  }
+  const created: BranchMembership = {
+    id: id("branch-member"),
+    branchId,
+    employeePhone,
+    role,
+  };
+  write(BRANCH_MEMBERSHIP_KEY, [created, ...getBranchMemberships()]);
+  return created;
+}
+
+export function removeBranchMembership(
+  branchId: string,
+  employeePhone: string,
+): boolean {
+  const all = getBranchMemberships();
+  const exists = all.some(
+    (item) => item.branchId === branchId && item.employeePhone === employeePhone,
+  );
+  if (!exists) {
+    return false;
+  }
+  write(
+    BRANCH_MEMBERSHIP_KEY,
+    all.filter(
+      (item) =>
+        !(item.branchId === branchId && item.employeePhone === employeePhone),
+    ),
+  );
+  return true;
+}
+
 export function getCalendarEvents(): CalendarEvent[] {
   const raw = read<CalendarEvent[]>(CALENDAR_EVENT_KEY, []);
   const normalized = raw.map((event) => ({
@@ -237,7 +412,9 @@ export function getCalendarEvents(): CalendarEvent[] {
   return normalized.sort((a, b) => a.date.localeCompare(b.date));
 }
 
-export function addCalendarEvent(event: Omit<CalendarEvent, "id">): CalendarEvent {
+export function addCalendarEvent(
+  event: Omit<CalendarEvent, "id">,
+): CalendarEvent {
   const all = getCalendarEvents();
   const created: CalendarEvent = {
     id: id("event"),

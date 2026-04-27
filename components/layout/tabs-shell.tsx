@@ -6,8 +6,9 @@ import type { ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
-/** `/history/YYYY-MM-DD` — 상세 등에서 하단 탭 숨김 */
-const HIDE_TAB_FOR_PATH = /^\/history\/\d{4}-\d{2}-\d{2}\/?$/;
+/** `/workplace/history/YYYY-MM-DD` 상세에서 하단 탭 숨김 */
+const HIDE_TAB_FOR_PATH =
+  /^\/(?:workplace\/history|history)\/\d{4}-\d{2}-\d{2}\/?$/;
 
 type TabsShellProps = {
   children: ReactNode;

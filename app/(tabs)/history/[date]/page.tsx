@@ -1,4 +1,4 @@
-import { HistoryDayDetailClient } from "@/components/history/history-day-detail-client";
+import { redirect } from "next/navigation";
 
 type HistoryDayPageProps = {
   params: Promise<{ date: string }>;
@@ -6,5 +6,5 @@ type HistoryDayPageProps = {
 
 export default async function HistoryDayPage({ params }: HistoryDayPageProps) {
   const { date } = await params;
-  return <HistoryDayDetailClient date={date} />;
+  redirect(`/workplace/history/${date}`);
 }

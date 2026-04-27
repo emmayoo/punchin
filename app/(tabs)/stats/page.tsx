@@ -1,5 +1,5 @@
-import { StatsClient } from "@/components/stats/stats-client";
+import { redirect } from "next/navigation";
 
 export default function StatsPage() {
-  return <StatsClient />;
+  redirect("/workplace/stats");
 }

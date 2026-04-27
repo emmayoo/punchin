@@ -1,5 +1,5 @@
-import { ScheduleClient } from "@/components/schedule/schedule-client";
+import { redirect } from "next/navigation";
 
 export default function SchedulePage() {
-  return <ScheduleClient />;
+  redirect("/workplace/schedule");
 }

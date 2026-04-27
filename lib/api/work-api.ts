@@ -229,6 +229,31 @@ class LocalWorkApi {
     return getBranchMembershipsByPhone(normalizePhone(phone));
   }
 
+  async setCurrentBranch(phone: string, branchId: string): Promise<Employee | null> {
+    const normalized = normalizePhone(phone);
+    const employee =
+      getEmployees().find((item) => item.phone === normalized) ?? null;
+    if (!employee) {
+      await wait();
+      return null;
+    }
+    const memberships = getBranchMembershipsByPhone(normalized);
+    const branches = getBranches();
+    const hasAccess =
+      memberships.some((membership) => membership.branchId === branchId) ||
+      branches.some(
+        (branch) =>
+          branch.id === branchId && branch.createdByPhone === normalized,
+      );
+    if (!hasAccess) {
+      await wait();
+      return null;
+    }
+    const updated = setEmployeeCurrentBranch(normalized, branchId);
+    await wait();
+    return updated;
+  }
+
   async completeBranchSetup(
     phone: string,
     input: BranchSetupInput,
@@ -804,6 +829,36 @@ class SupabaseWorkApi {
     const rows = await this.getBranchMembershipsByPhoneRemote(normalized);
     await wait();
     return rows;
+  }
+
+  async setCurrentBranch(phone: string, branchId: string): Promise<Employee | null> {
+    const normalized = normalizePhone(phone);
+    const employee = await this.getEmployeeByPhone(normalized);
+    if (!employee) {
+      await wait();
+      return null;
+    }
+    const [memberships, branches] = await Promise.all([
+      this.getMyBranchMemberships(normalized),
+      this.getBranchesRemote(),
+    ]);
+    const hasAccess =
+      memberships.some((membership) => membership.branchId === branchId) ||
+      branches.some(
+        (branch) =>
+          branch.id === branchId && branch.createdByPhone === normalized,
+      );
+    if (!hasAccess) {
+      await wait();
+      return null;
+    }
+    await this.supabase
+      .from("employees")
+      .update({ current_branch_id: branchId } as never)
+      .eq("phone", normalized);
+    const updated = await this.getEmployeeByPhone(normalized);
+    await wait();
+    return updated;
   }
 
   async completeBranchSetup(

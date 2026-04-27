@@ -40,7 +40,7 @@ export function HistoryCalendarGrid({
           return (
             <Link
               key={dateKey}
-              href={`/history/${dateKey}`}
+              href={`/workplace/history/${dateKey}`}
               className={`h-20 border bg-zinc-100/80 p-1 transition-colors hover:border-zinc-400 dark:bg-neutral-900/50 dark:hover:border-white/30 ${
                 dateKey === todayKey
                   ? "border-rose-500 dark:border-rose-400"

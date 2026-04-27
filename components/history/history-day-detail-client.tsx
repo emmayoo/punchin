@@ -119,7 +119,7 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
 
   return (
     <DetailPageShell
-      backHref="/history"
+      backHref="/workplace/history"
       title={`${date} 근무 상세`}
       aria-label={`${date} 일자 상세`}
       loading={loading}

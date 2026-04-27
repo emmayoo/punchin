@@ -9,7 +9,7 @@ import { startTransition, useEffect, useState } from "react";
  * `THEME_STORAGE_KEY`(lib/theme)와 동일 키 — 저장값이 있으면 따르고, 없으면 시스템.
  */
 export function ThemeSunMoonToggle() {
-  const { theme, setTheme, resolvedTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -28,7 +28,6 @@ export function ThemeSunMoonToggle() {
   }
 
   const isDark = resolvedTheme === "dark";
-  const usingSystem = theme === "system";
 
   return (
     <div
@@ -64,11 +63,6 @@ export function ThemeSunMoonToggle() {
           <span className="sr-only">다크</span>
         </button>
       </div>
-      {usingSystem ? (
-        <p className="text-[11px] text-zinc-500 dark:text-neutral-500">
-          OS(시스템) 설정을 따르는 중입니다. 위에서 선택하면 기기에 저장됩니다.
-        </p>
-      ) : null}
     </div>
   );
 }

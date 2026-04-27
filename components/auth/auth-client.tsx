@@ -18,6 +18,27 @@ function formatTailDigits(input: string): string {
   return `${digits.slice(0, 4)}-${digits.slice(4)}`;
 }
 
+function findPreferredBranchId(
+  phone: string,
+  currentBranchId: string | null | undefined,
+  memberships: { branchId: string }[],
+  branches: { id: string; createdByPhone: string }[],
+): string | null {
+  if (currentBranchId) {
+    return currentBranchId;
+  }
+  if (memberships.length === 0) {
+    return null;
+  }
+
+  const branchById = new Map(branches.map((branch) => [branch.id, branch]));
+  const ownedMembership = memberships.find((membership) => {
+    const branch = branchById.get(membership.branchId);
+    return branch?.createdByPhone === phone;
+  });
+  return ownedMembership?.branchId ?? memberships[0].branchId;
+}
+
 export function AuthClient() {
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
@@ -40,6 +61,39 @@ export function AuthClient() {
     return dashboard;
   }, []);
 
+  const resolveDefaultBranchOnLogin = useCallback(
+    async (phone: string, currentBranchId?: string | null): Promise<string | null> => {
+      const [myMemberships, allBranches] = await Promise.all([
+        workApi.getMyBranchMemberships(phone),
+        workApi.getBranches(),
+      ]);
+      return findPreferredBranchId(
+        phone,
+        currentBranchId,
+        myMemberships,
+        allBranches,
+      );
+    },
+    [],
+  );
+
+  const routeByDefaultBranch = useCallback(
+    async (phone: string, currentBranchId?: string | null) => {
+      const defaultBranchId = await resolveDefaultBranchOnLogin(
+        phone,
+        currentBranchId,
+      );
+      if (defaultBranchId && defaultBranchId !== currentBranchId) {
+        await workApi.completeBranchSetup(phone, {
+          mode: "select",
+          branchId: defaultBranchId,
+        });
+      }
+      router.replace(defaultBranchId ? "/" : "/branch");
+    },
+    [resolveDefaultBranchOnLogin, router],
+  );
+
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -52,7 +106,10 @@ export function AuthClient() {
         return;
       }
       if (dashboard.session) {
-        router.replace("/");
+        await routeByDefaultBranch(
+          dashboard.session.phone,
+          dashboard.session.currentBranchId,
+        );
         return;
       }
       setLoading(false);
@@ -60,7 +117,7 @@ export function AuthClient() {
     return () => {
       mounted = false;
     };
-  }, [refresh, router]);
+  }, [refresh, routeByDefaultBranch]);
 
   const handleLogin = async () => {
     const tailDigits = normalizeTailDigits(phoneTail);
@@ -77,7 +134,10 @@ export function AuthClient() {
       return;
     }
     const loggedIn = await workApi.login(phone);
-    router.replace(loggedIn.currentBranchId ? "/" : "/branch");
+    await routeByDefaultBranch(
+      loggedIn.phone,
+      loggedIn.currentBranchId,
+    );
   };
 
   const handleCompleteFirstProfile = async () => {
@@ -86,7 +146,7 @@ export function AuthClient() {
     }
     setBusy(true);
     const registered = await workApi.registerFirstProfile(pendingPhone, profileName);
-    router.replace(registered.currentBranchId ? "/" : "/branch");
+    await routeByDefaultBranch(registered.phone, registered.currentBranchId);
   };
 
   if (loading || !data) {

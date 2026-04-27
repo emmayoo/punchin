@@ -14,10 +14,26 @@ add column if not exists color text not null default '#22c55e';
 
 create table if not exists public.branches (
   id uuid primary key default gen_random_uuid(),
+  profile_image_url text null,
   name text not null,
+  business_number text not null default '',
+  address text null,
+  store_phone text null,
   created_by_phone text not null references public.employees(phone) on update cascade,
   created_at timestamptz not null default now()
 );
+
+alter table public.branches
+add column if not exists profile_image_url text null;
+
+alter table public.branches
+add column if not exists business_number text not null default '';
+
+alter table public.branches
+add column if not exists address text null;
+
+alter table public.branches
+add column if not exists store_phone text null;
 
 create index if not exists branches_created_by_phone_idx
   on public.branches(created_by_phone);

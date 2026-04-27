@@ -286,12 +286,20 @@ export function getBranches(): Branch[] {
 }
 
 export function createBranch(input: {
+  profileImageUrl?: string | null;
   name: string;
+  businessNumber: string;
+  address?: string | null;
+  storePhone?: string | null;
   createdByPhone: string;
 }): Branch {
   const created: Branch = {
     id: id("branch"),
+    profileImageUrl: input.profileImageUrl ?? null,
     name: input.name.trim(),
+    businessNumber: input.businessNumber.trim(),
+    address: input.address?.trim() || null,
+    storePhone: input.storePhone?.trim() || null,
     createdByPhone: input.createdByPhone,
   };
   write(BRANCH_KEY, [created, ...getBranches()]);

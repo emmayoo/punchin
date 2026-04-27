@@ -7,7 +7,11 @@ export type Employee = {
 
 export type Branch = {
   id: string;
+  profileImageUrl?: string | null;
   name: string;
+  businessNumber: string;
+  address?: string | null;
+  storePhone?: string | null;
   createdByPhone: string;
 };
 

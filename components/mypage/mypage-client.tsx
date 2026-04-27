@@ -4,7 +4,12 @@ import { TabPageShell } from "@/components/layout/tab-page-shell";
 import { DashboardData, workApi } from "@/lib/api/work-api";
 import { formatPhoneNumber } from "@/lib/phone";
 import { toast } from "@/lib/toast";
+import {
+  MypageBranchDetailModal,
+  getEffectiveBranchRole,
+} from "@/components/mypage/mypage-branch-detail-modal";
 import type { Branch, BranchMembership } from "@/types/work";
+import { ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { ThemeSunMoonToggle } from "@/components/theme/theme-sun-moon-toggle";
@@ -17,6 +22,10 @@ export function MyPageClient() {
   const [name, setName] = useState("");
   const [branches, setBranches] = useState<Branch[]>([]);
   const [memberships, setMemberships] = useState<BranchMembership[]>([]);
+  const [branchDetail, setBranchDetail] = useState<{
+    branch: Branch;
+    membership: BranchMembership;
+  } | null>(null);
 
   const refresh = useCallback(async () => {
     const dashboard = await workApi.getDashboard();
@@ -73,23 +82,6 @@ export function MyPageClient() {
     await refresh();
     setBusy(false);
     toast.success("프로필을 저장했습니다.");
-  };
-
-  const handleChangeDefaultBranch = async (branchId: string) => {
-    if (!data?.session) {
-      return;
-    }
-    if (data.session.currentBranchId === branchId) {
-      return;
-    }
-    setBusy(true);
-    await workApi.completeBranchSetup(data.session.phone, {
-      mode: "select",
-      branchId,
-    });
-    await refresh();
-    setBusy(false);
-    toast.success("기본 지점을 변경했습니다.");
   };
 
   if (!data?.session) {
@@ -164,49 +156,38 @@ export function MyPageClient() {
           지점
         </h2>
         <div className="space-y-2 rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
-          <div className="rounded-xl border border-zinc-200/90 bg-white p-3 dark:border-white/10 dark:bg-neutral-900">
-            <p className="text-xs text-zinc-600 dark:text-neutral-400">
-              내가 선택한 지점 목록
-            </p>
+          <div>
             {myBranches.length === 0 ? (
-              <p className="mt-1 text-sm text-zinc-600 dark:text-neutral-400">
-                선택한 지점이 없습니다.
+              <p className="mt-2 text-sm text-zinc-600 dark:text-neutral-400">
+                연결된 지점이 없습니다. 지점 설정에서 선택해 주세요.
               </p>
             ) : (
-              <ul className="mt-2 space-y-1.5">
+              <ul className="mt-2 space-y-1">
                 {myBranches.map(({ branch, membership }) => {
                   const isDefault = data.session?.currentBranchId === branch.id;
                   return (
                     <li
                       key={membership.id}
-                      className="flex items-center justify-between gap-2 text-sm"
+                      className="flex items-center justify-between gap-2 "
                     >
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <p className="truncate text-sm font-medium text-zinc-900 dark:text-white">
+                          {branch.name}
+                        </p>
+                        {isDefault ? (
+                          <span className="shrink-0 rounded-full bg-zinc-200/90 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-zinc-800 dark:bg-white/15 dark:text-neutral-200">
+                            기본
+                          </span>
+                        ) : null}
+                      </div>
                       <button
                         type="button"
-                        onClick={() => handleChangeDefaultBranch(branch.id)}
-                        disabled={busy || isDefault}
-                        className={`flex-1 rounded-lg border px-2 py-1 text-left transition-colors ${
-                          isDefault
-                            ? "border-emerald-300/70 bg-emerald-50 text-emerald-800 dark:border-emerald-400/50 dark:bg-emerald-900/20 dark:text-emerald-200"
-                            : "border-zinc-200/90 text-zinc-900 hover:border-zinc-400 dark:border-white/10 dark:text-white dark:hover:border-white/30"
-                        }`}
+                        onClick={() => setBranchDetail({ branch, membership })}
+                        className="shrink-0 text-zinc-600 dark:text-neutral-300"
+                        aria-label={`${branch.name} 상세 정보`}
                       >
-                        {branch.name}
+                        <ChevronRight className="h-4 w-4" />
                       </button>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-700 dark:bg-white/10 dark:text-neutral-300">
-                          {membership.role}
-                        </span>
-                        {isDefault ? (
-                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
-                            default
-                          </span>
-                        ) : (
-                          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-700 dark:bg-white/10 dark:text-neutral-300">
-                            탭해서 기본 변경
-                          </span>
-                        )}
-                      </div>
                     </li>
                   );
                 })}
@@ -216,12 +197,32 @@ export function MyPageClient() {
           <button
             type="button"
             onClick={() => router.push("/branch")}
-            className="w-full rounded-xl border border-zinc-300/90 px-4 py-2 text-sm font-medium text-zinc-900 transition-colors hover:border-zinc-400 dark:border-white/20 dark:text-white dark:hover:border-white/40"
+            className="w-full rounded-xl border border-zinc-300/90 bg-white px-4 py-2.5 text-sm font-medium text-zinc-900 transition-colors hover:border-zinc-400 dark:border-white/20 dark:bg-zinc-900/60 dark:text-white dark:hover:border-white/40"
           >
-            설정
+            지점 설정 열기
           </button>
         </div>
       </section>
+
+      <MypageBranchDetailModal
+        open={branchDetail !== null}
+        branch={branchDetail?.branch ?? null}
+        effectiveRole={
+          branchDetail
+            ? getEffectiveBranchRole(
+                branchDetail.branch,
+                data.session.phone,
+                branchDetail.membership,
+              )
+            : "member"
+        }
+        isDefault={
+          branchDetail
+            ? data.session.currentBranchId === branchDetail.branch.id
+            : false
+        }
+        onClose={() => setBranchDetail(null)}
+      />
 
       <button
         onClick={handleLogout}

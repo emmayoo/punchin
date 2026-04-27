@@ -74,7 +74,14 @@ export type SchedulePersonRecord = {
 
 export type BranchSetupInput =
   | { mode: "select"; branchId: string }
-  | { mode: "create"; branchName: string };
+  | {
+      mode: "create";
+      branchName: string;
+      businessNumber: string;
+      profileImageUrl?: string | null;
+      address?: string | null;
+      storePhone?: string | null;
+    };
 
 export type DashboardData = {
   session: Employee | null;
@@ -160,7 +167,13 @@ function mapSchedulePersonRow(
 function mapBranchRow(row: Record<string, unknown>): Branch {
   return {
     id: String(row.id),
+    profileImageUrl: row.profile_image_url
+      ? String(row.profile_image_url)
+      : null,
     name: String(row.name),
+    businessNumber: String(row.business_number ?? ""),
+    address: row.address ? String(row.address) : null,
+    storePhone: row.store_phone ? String(row.store_phone) : null,
     createdByPhone: String(row.created_by_phone),
   };
 }
@@ -234,7 +247,11 @@ class LocalWorkApi {
       addBranchMembership(targetBranchId, normalized, "member");
     } else {
       const created = createBranch({
+        profileImageUrl: input.profileImageUrl ?? null,
         name: input.branchName.trim(),
+        businessNumber: input.businessNumber.trim(),
+        address: input.address ?? null,
+        storePhone: input.storePhone ?? null,
         createdByPhone: normalized,
       });
       targetBranchId = created.id;
@@ -815,7 +832,11 @@ class SupabaseWorkApi {
       const { data: createdBranch } = await this.supabase
         .from("branches")
         .insert({
+          profile_image_url: input.profileImageUrl ?? null,
           name: input.branchName.trim(),
+          business_number: input.businessNumber.trim(),
+          address: input.address ?? null,
+          store_phone: input.storePhone ?? null,
           created_by_phone: normalized,
         } as never)
         .select("*")

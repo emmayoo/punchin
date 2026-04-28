@@ -1,6 +1,7 @@
 "use client";
 
 import { FullscreenModal } from "@/components/overlay/fullscreen-modal";
+import type { ReactNode } from "react";
 
 type ConfirmDialogProps = {
   open: boolean;
@@ -10,6 +11,7 @@ type ConfirmDialogProps = {
   cancelText?: string;
   tone?: "default" | "danger";
   busy?: boolean;
+  body?: ReactNode;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -22,6 +24,7 @@ export function ConfirmDialog({
   cancelText = "취소",
   tone = "default",
   busy = false,
+  body,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -41,6 +44,7 @@ export function ConfirmDialog({
             {description}
           </p>
         </div>
+        {body ? <div>{body}</div> : null}
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={onCancel}

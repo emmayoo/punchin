@@ -36,18 +36,25 @@ export function WorkplaceBranchSwitcher({
       if (!mounted || !dashboard.session) {
         return;
       }
-      const [allBranches, memberships] = await Promise.all([
-        workApi.getBranches(),
-        workApi.getMyBranchMemberships(dashboard.session.phone),
-      ]);
       if (!mounted) {
         return;
       }
       setSession(dashboard.session);
       setSelectedBranchId(dashboard.session.currentBranchId ?? null);
-      setMyBranches(
-        buildMyBranches(allBranches, memberships, dashboard.session.phone),
-      );
+      if (dashboard.myBranches.length > 0) {
+        setMyBranches(dashboard.myBranches);
+      } else {
+        const [allBranches, memberships] = await Promise.all([
+          workApi.getBranches(),
+          workApi.getMyBranchMemberships(dashboard.session.phone),
+        ]);
+        if (!mounted) {
+          return;
+        }
+        setMyBranches(
+          buildMyBranches(allBranches, memberships, dashboard.session.phone),
+        );
+      }
     })();
     return () => {
       mounted = false;
@@ -56,10 +63,10 @@ export function WorkplaceBranchSwitcher({
 
   const selectedBranchName = useMemo(() => {
     if (!selectedBranchId) {
-      return "지점";
+      return "-";
     }
     return (
-      myBranches.find((branch) => branch.id === selectedBranchId)?.name ?? "지점"
+      myBranches.find((branch) => branch.id === selectedBranchId)?.name ?? "-"
     );
   }, [myBranches, selectedBranchId]);
 
@@ -122,7 +129,9 @@ export function WorkplaceBranchSwitcher({
                     >
                       <span className="truncate">{branch.name}</span>
                       {selected ? (
-                        <span className="text-xs">{busy ? "변경 중..." : "선택됨"}</span>
+                        <span className="text-xs">
+                          {busy ? "변경 중..." : "선택됨"}
+                        </span>
                       ) : null}
                     </button>
                   </li>

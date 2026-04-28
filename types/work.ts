@@ -28,6 +28,7 @@ export type Shift = {
   id: string;
   employeePhone: string;
   employeeName: string;
+  branchId?: string | null;
   startAt: string;
   endAt: string;
 };
@@ -36,6 +37,7 @@ export type PunchRecord = {
   id: string;
   employeePhone: string;
   employeeName: string;
+  branchId?: string | null;
   checkedInAt: string;
   checkedOutAt: string | null;
 };
@@ -45,4 +47,5 @@ export type CalendarEvent = {
   date: string; // yyyy-mm-dd
   title: string;
   color: string; // hex color
+  branchId?: string | null;
 };

@@ -312,6 +312,7 @@ export function ScheduleClient() {
       return {
         employeeName: shift.employeeName,
         employeePhone: shift.employeePhone,
+        branchId: shift.branchId ?? null,
         startAt,
         endAt,
       };
@@ -343,6 +344,7 @@ export function ScheduleClient() {
     if (!editingShiftId) {
       return;
     }
+    const targetShift = shifts.find((shift) => shift.id === editingShiftId) ?? null;
     const person = people.find((item) => item.id === editPersonId);
     if (!person) {
       toast.error("담당자를 선택해주세요.");
@@ -369,6 +371,7 @@ export function ScheduleClient() {
     await workApi.updateShift(editingShiftId, {
       employeeName: person.name,
       employeePhone: person.employeePhone,
+      branchId: targetShift?.branchId ?? null,
       startAt: startAt.toISOString(),
       endAt: endAt.toISOString(),
     });

@@ -85,6 +85,8 @@ export type BranchSetupInput =
 
 export type DashboardData = {
   session: Employee | null;
+  branches: Branch[];
+  myBranches: Branch[];
   shifts: Shift[];
   punchRecords: PunchRecord[];
   todayPunches: PunchRecord[];
@@ -129,6 +131,7 @@ function mapShiftRow(row: Record<string, unknown>): Shift {
     id: String(row.id),
     employeePhone: String(row.employee_phone),
     employeeName: String(row.employee_name),
+    branchId: row.branch_id ? String(row.branch_id) : null,
     startAt: String(row.start_at),
     endAt: String(row.end_at),
   };
@@ -139,6 +142,7 @@ function mapPunchRow(row: Record<string, unknown>): PunchRecord {
     id: String(row.id),
     employeePhone: String(row.employee_phone),
     employeeName: String(row.employee_name),
+    branchId: row.branch_id ? String(row.branch_id) : null,
     checkedInAt: String(row.checked_in_at),
     checkedOutAt: row.checked_out_at ? String(row.checked_out_at) : null,
   };
@@ -150,6 +154,7 @@ function mapEventRow(row: Record<string, unknown>): CalendarEvent {
     date: String(row.date),
     title: String(row.title),
     color: String(row.color),
+    branchId: row.branch_id ? String(row.branch_id) : null,
   };
 }
 
@@ -191,6 +196,8 @@ function mapBranchMembershipRow(
 }
 
 class LocalWorkApi {
+  private dashboardInFlight: Promise<DashboardData> | null = null;
+
   async init(): Promise<void> {
     initStorage();
     await wait();
@@ -368,8 +375,8 @@ class LocalWorkApi {
     await wait();
   }
 
-  async checkInCurrent(session: Employee): Promise<void> {
-    checkIn(session);
+  async checkInCurrent(session: Employee, branchId: string | null): Promise<void> {
+    checkIn(session, branchId);
     await wait();
   }
 
@@ -379,7 +386,25 @@ class LocalWorkApi {
   }
 
   async getDashboard(): Promise<DashboardData> {
+    if (this.dashboardInFlight) {
+      return this.dashboardInFlight;
+    }
+    const request = (async () => {
     const session = getSession();
+    const branches = getBranches();
+    const myBranchIds = new Set(
+      session
+        ? getBranchMembershipsByPhone(session.phone).map(
+            (membership) => membership.branchId,
+          )
+        : [],
+    );
+    const myBranches = session
+      ? branches.filter(
+          (branch) =>
+            myBranchIds.has(branch.id) || branch.createdByPhone === session.phone,
+        )
+      : [];
     const shifts = getShifts();
     const punchRecords = getPunches();
     const todayPunches = getTodayPunches();
@@ -421,6 +446,8 @@ class LocalWorkApi {
     await wait();
     return {
       session,
+      branches,
+      myBranches,
       shifts,
       punchRecords,
       todayPunches,
@@ -432,6 +459,15 @@ class LocalWorkApi {
       myTodayHours,
       myTodayRecords,
     };
+    })();
+    this.dashboardInFlight = request;
+    try {
+      return await request;
+    } finally {
+      if (this.dashboardInFlight === request) {
+        this.dashboardInFlight = null;
+      }
+    }
   }
 
   async getHistory(): Promise<PunchRecord[]> {
@@ -454,7 +490,7 @@ class LocalWorkApi {
 
   async updateCalendarEvent(
     eventId: string,
-    payload: Partial<Pick<CalendarEvent, "title" | "color">>,
+    payload: Partial<Pick<CalendarEvent, "title" | "color" | "branchId">>,
   ): Promise<CalendarEvent | null> {
     const updated = updateCalendarEvent(eventId, payload);
     await wait();
@@ -543,20 +579,30 @@ class LocalWorkApi {
   }
 
   async createShift(shift: Omit<Shift, "id">): Promise<Shift> {
-    const created = addShift(shift);
+    const resolvedBranchId = shift.branchId ?? getSession()?.currentBranchId ?? null;
+    const created = addShift({
+      ...shift,
+      branchId: resolvedBranchId,
+    });
     await wait();
     return created;
   }
 
   async createShifts(shifts: Omit<Shift, "id">[]): Promise<void> {
-    addShifts(shifts);
+    const defaultBranchId = getSession()?.currentBranchId ?? null;
+    addShifts(
+      shifts.map((shift) => ({
+        ...shift,
+        branchId: shift.branchId ?? defaultBranchId,
+      })),
+    );
     await wait();
   }
 
   async updateShift(
     shiftId: string,
     payload: Partial<
-      Pick<Shift, "employeeName" | "employeePhone" | "startAt" | "endAt">
+      Pick<Shift, "employeeName" | "employeePhone" | "branchId" | "startAt" | "endAt">
     >,
   ): Promise<Shift | null> {
     const updated = updateShift(shiftId, payload);
@@ -675,6 +721,7 @@ class LocalWorkApi {
 
 class SupabaseWorkApi {
   private supabase = getSupabaseBrowserClient();
+  private dashboardInFlight: Promise<DashboardData> | null = null;
 
   async init(): Promise<void> {
     await wait();
@@ -1073,7 +1120,7 @@ class SupabaseWorkApi {
     await wait();
   }
 
-  async checkInCurrent(session: Employee): Promise<void> {
+  async checkInCurrent(session: Employee, branchId: string | null): Promise<void> {
     await this.ensureAuthUser();
     await this.setAuthPhone(session.phone);
     const { data: active } = await this.supabase
@@ -1083,14 +1130,35 @@ class SupabaseWorkApi {
       .is("checked_out_at", null)
       .maybeSingle();
     if (!active) {
-      const { error } = await this.supabase.from("punch_records").insert({
+      const payloadWithBranch = {
         employee_phone: session.phone,
         employee_name: session.name,
+        branch_id: branchId,
         checked_in_at: new Date().toISOString(),
         checked_out_at: null,
-      } as never);
+      } as const;
+      let { error } = await this.supabase
+        .from("punch_records")
+        .insert(payloadWithBranch as never);
+      if (
+        error &&
+        (error.message.includes("branch_id") ||
+          error.message.includes("schema cache"))
+      ) {
+        // 서버 스키마가 아직 branch_id를 반영하지 않은 경우, 기존 포맷으로 재시도한다.
+        ({ error } = await this.supabase.from("punch_records").insert(
+          {
+            employee_phone: session.phone,
+            employee_name: session.name,
+            checked_in_at: payloadWithBranch.checked_in_at,
+            checked_out_at: null,
+          } as never,
+        ));
+      }
       if (error) {
-        throw new Error(`출근 처리 실패: ${error.message}`);
+        throw new Error(
+          `출근 처리 실패: ${error.message} (schema.sql을 최신으로 반영해주세요)`,
+        );
       }
     }
     await wait();
@@ -1109,12 +1177,27 @@ class SupabaseWorkApi {
   }
 
   async getDashboard(): Promise<DashboardData> {
+    if (this.dashboardInFlight) {
+      return this.dashboardInFlight;
+    }
+    const request = (async () => {
     const session = await this.getSessionEmployeeFromAuth();
-    const [shifts, punchRecords, events] = await Promise.all([
+    const [branches, shifts, punchRecords, events, memberships] = await Promise.all([
+      this.getBranchesRemote(),
       this.getShiftsRemote(),
       this.getPunchesRemote(),
       this.getCalendarEventsRemote(),
+      session
+        ? this.getBranchMembershipsByPhoneRemote(session.phone)
+        : Promise.resolve([]),
     ]);
+    const myBranchIds = new Set(memberships.map((membership) => membership.branchId));
+    const myBranches = session
+      ? branches.filter(
+          (branch) =>
+            myBranchIds.has(branch.id) || branch.createdByPhone === session.phone,
+        )
+      : [];
     const todayPunches = punchRecords.filter((record) =>
       isToday(record.checkedInAt),
     );
@@ -1161,6 +1244,8 @@ class SupabaseWorkApi {
     await wait();
     return {
       session,
+      branches,
+      myBranches,
       shifts,
       punchRecords,
       todayPunches,
@@ -1172,6 +1257,15 @@ class SupabaseWorkApi {
       myTodayHours,
       myTodayRecords,
     };
+    })();
+    this.dashboardInFlight = request;
+    try {
+      return await request;
+    } finally {
+      if (this.dashboardInFlight === request) {
+        this.dashboardInFlight = null;
+      }
+    }
   }
 
   async getHistory(): Promise<PunchRecord[]> {
@@ -1195,6 +1289,7 @@ class SupabaseWorkApi {
         date: event.date,
         title: event.title.trim(),
         color: event.color,
+        branch_id: event.branchId ?? null,
       } as never)
       .select("*")
       .single();
@@ -1206,13 +1301,14 @@ class SupabaseWorkApi {
 
   async updateCalendarEvent(
     eventId: string,
-    payload: Partial<Pick<CalendarEvent, "title" | "color">>,
+    payload: Partial<Pick<CalendarEvent, "title" | "color" | "branchId">>,
   ): Promise<CalendarEvent | null> {
     const { data } = await this.supabase
       .from("calendar_events")
       .update({
         ...(payload.title !== undefined ? { title: payload.title.trim() } : {}),
         ...(payload.color !== undefined ? { color: payload.color } : {}),
+        ...(payload.branchId !== undefined ? { branch_id: payload.branchId } : {}),
       } as never)
       .eq("id", eventId)
       .select("*")
@@ -1304,11 +1400,14 @@ class SupabaseWorkApi {
   }
 
   async createShift(shift: Omit<Shift, "id">): Promise<Shift> {
+    const session = await this.getSessionEmployeeFromAuth();
+    const resolvedBranchId = shift.branchId ?? session?.currentBranchId ?? null;
     const { data } = await this.supabase
       .from("shifts")
       .insert({
         employee_phone: shift.employeePhone,
         employee_name: shift.employeeName,
+        branch_id: resolvedBranchId,
         start_at: shift.startAt,
         end_at: shift.endAt,
       } as never)
@@ -1324,10 +1423,13 @@ class SupabaseWorkApi {
     if (shifts.length === 0) {
       return;
     }
+    const session = await this.getSessionEmployeeFromAuth();
+    const defaultBranchId = session?.currentBranchId ?? null;
     await this.supabase.from("shifts").insert(
       shifts.map((shift) => ({
         employee_phone: shift.employeePhone,
         employee_name: shift.employeeName,
+        branch_id: shift.branchId ?? defaultBranchId,
         start_at: shift.startAt,
         end_at: shift.endAt,
       })) as never,
@@ -1338,7 +1440,7 @@ class SupabaseWorkApi {
   async updateShift(
     shiftId: string,
     payload: Partial<
-      Pick<Shift, "employeeName" | "employeePhone" | "startAt" | "endAt">
+      Pick<Shift, "employeeName" | "employeePhone" | "branchId" | "startAt" | "endAt">
     >,
   ): Promise<Shift | null> {
     const { data } = await this.supabase
@@ -1350,6 +1452,7 @@ class SupabaseWorkApi {
         ...(payload.employeePhone !== undefined
           ? { employee_phone: payload.employeePhone }
           : {}),
+        ...(payload.branchId !== undefined ? { branch_id: payload.branchId } : {}),
         ...(payload.startAt !== undefined ? { start_at: payload.startAt } : {}),
         ...(payload.endAt !== undefined ? { end_at: payload.endAt } : {}),
       } as never)

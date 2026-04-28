@@ -10,11 +10,8 @@ export function BottomNav() {
   const [workplaceLabel, setWorkplaceLabel] = useState("지점");
 
   const loadCurrentBranch = async () => {
-    const [dashboard, branches] = await Promise.all([
-      workApi.getDashboard(),
-      workApi.getBranches(),
-    ]);
-    const currentBranch = branches.find(
+    const dashboard = await workApi.getDashboard();
+    const currentBranch = dashboard.branches.find(
       (branch) => branch.id === dashboard.session?.currentBranchId,
     );
     setWorkplaceLabel(currentBranch?.name ?? "지점");

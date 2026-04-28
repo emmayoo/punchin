@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { TabPageShell } from "@/components/layout/tab-page-shell";
+import { useDashboardData } from "@/components/dashboard/use-dashboard-data";
+import { DailyShiftTimeline } from "@/components/timeline/daily-shift-timeline";
 import { WorkplaceBranchSwitcher } from "@/components/workplace/workplace-branch-switcher";
 
 const workplaceMenus = [
@@ -20,6 +22,8 @@ const workplaceMenus = [
 ];
 
 export default function WorkplacePage() {
+  const { data } = useDashboardData();
+
   return (
     <TabPageShell title="" className="gap-3" bodyClassName="gap-3">
       <>
@@ -38,6 +42,17 @@ export default function WorkplacePage() {
             </Link>
           ))}
         </nav>
+        {data ? (
+          <div className="-mx-1 overflow-x-auto px-1 sm:mx-0 sm:px-0">
+            <div className="min-w-[320px]">
+              <DailyShiftTimeline
+                shifts={data.shifts}
+                punches={data.punchRecords}
+                nowIso={new Date().toISOString()}
+              />
+            </div>
+          </div>
+        ) : null}
       </>
     </TabPageShell>
   );

@@ -77,19 +77,21 @@ export function TabPageShell({
 
   return (
     <main className={mainClass}>
-      <header className={`shrink-0 ${headerBlockClass}`}>
-        {eyebrow ? (
-          <p className="text-xs uppercase tracking-[0.18em] text-zinc-500 dark:text-neutral-500">
-            {eyebrow}
-          </p>
-        ) : null}
-        <h1 className={titleClass}>{title}</h1>
-        {description ? (
-          <p className="text-sm text-zinc-600 dark:text-neutral-400">
-            {description}
-          </p>
-        ) : null}
-      </header>
+      {title && (
+        <header className={`shrink-0 ${headerBlockClass}`}>
+          {eyebrow ? (
+            <p className="text-xs uppercase tracking-[0.18em] text-zinc-500 dark:text-neutral-500">
+              {eyebrow}
+            </p>
+          ) : null}
+          <h1 className={titleClass}>{title}</h1>
+          {description ? (
+            <p className="text-sm text-zinc-600 dark:text-neutral-400">
+              {description}
+            </p>
+          ) : null}
+        </header>
+      )}
 
       <div className={bodyWrapperClass}>
         {resolveBody(loading, children, loadingContent)}

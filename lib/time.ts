@@ -42,6 +42,14 @@ export function formatDuration24h(hours: number): string {
   return `${hh}:${mm}`;
 }
 
+export function formatDuration24hWithSeconds(hours: number): string {
+  const totalSeconds = Math.max(0, Math.round(hours * 60 * 60));
+  const hh = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+  const mm = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+  const ss = String(totalSeconds % 60).padStart(2, "0");
+  return `${hh}:${mm}:${ss}`;
+}
+
 export function startOfWeek(date: Date): Date {
   const result = new Date(date);
   const day = result.getDay();

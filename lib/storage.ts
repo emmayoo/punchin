@@ -175,7 +175,7 @@ export function addShifts(shifts: Omit<Shift, "id">[]): void {
 export function updateShift(
   shiftId: string,
   payload: Partial<
-    Pick<Shift, "employeeName" | "employeePhone" | "startAt" | "endAt">
+    Pick<Shift, "employeeName" | "employeePhone" | "branchId" | "startAt" | "endAt">
   >,
 ): Shift | null {
   const all = getShifts();
@@ -188,6 +188,7 @@ export function updateShift(
       ...shift,
       employeeName: payload.employeeName ?? shift.employeeName,
       employeePhone: payload.employeePhone ?? shift.employeePhone,
+      branchId: payload.branchId ?? shift.branchId ?? null,
       startAt: payload.startAt ?? shift.startAt,
       endAt: payload.endAt ?? shift.endAt,
     };
@@ -226,7 +227,10 @@ export function getActivePunch(phone: string): PunchRecord | null {
   );
 }
 
-export function checkIn(employee: Employee): PunchRecord {
+export function checkIn(
+  employee: Employee,
+  branchId: string | null = employee.currentBranchId ?? null,
+): PunchRecord {
   const all = getPunches();
   const active = all.find(
     (record) =>
@@ -239,6 +243,7 @@ export function checkIn(employee: Employee): PunchRecord {
     id: id("punch"),
     employeePhone: employee.phone,
     employeeName: employee.name,
+    branchId,
     checkedInAt: new Date().toISOString(),
     checkedOutAt: null,
   };
@@ -436,7 +441,7 @@ export function addCalendarEvent(
 
 export function updateCalendarEvent(
   eventId: string,
-  payload: Partial<Pick<CalendarEvent, "title" | "color">>,
+  payload: Partial<Pick<CalendarEvent, "title" | "color" | "branchId">>,
 ): CalendarEvent | null {
   const all = getCalendarEvents();
   let updated: CalendarEvent | null = null;
@@ -448,6 +453,7 @@ export function updateCalendarEvent(
       ...event,
       title: payload.title?.trim() ?? event.title,
       color: payload.color ?? event.color,
+      branchId: payload.branchId ?? event.branchId ?? null,
     };
     return updated;
   });

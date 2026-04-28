@@ -22,6 +22,7 @@ function isSameDate(dateKey: string, iso: string): boolean {
 export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
   const [punches, setPunches] = useState<PunchRecord[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [currentBranchId, setCurrentBranchId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const saveTimersRef = useRef<Record<string, number>>({});
@@ -40,15 +41,17 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
     let mounted = true;
     (async () => {
       await workApi.init();
-      const [history, calendarEvents] = await Promise.all([
+      const [history, calendarEvents, dashboard] = await Promise.all([
         workApi.getHistory(),
         workApi.getCalendarEvents(),
+        workApi.getDashboard(),
       ]);
       if (!mounted) {
         return;
       }
       setPunches(history);
       setEvents(calendarEvents);
+      setCurrentBranchId(dashboard.session?.currentBranchId ?? null);
       setLoading(false);
     })();
     return () => {
@@ -71,6 +74,7 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
       date,
       title: "새 이벤트",
       color: newColor,
+      branchId: currentBranchId,
     });
     setNewColor(DEFAULT_EVENT_COLOR);
     await load();
@@ -91,7 +95,7 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
 
   const scheduleEventSave = (
     eventId: string,
-    payload: Partial<Pick<CalendarEvent, "title" | "color">>,
+    payload: Partial<Pick<CalendarEvent, "title" | "color" | "branchId">>,
   ) => {
     const prevTimer = saveTimersRef.current[eventId];
     if (prevTimer) {

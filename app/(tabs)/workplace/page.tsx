@@ -1,58 +1,99 @@
 "use client";
 
-import Link from "next/link";
 import { TabPageShell } from "@/components/layout/tab-page-shell";
 import { useDashboardData } from "@/components/dashboard/use-dashboard-data";
-import { DailyShiftTimeline } from "@/components/timeline/daily-shift-timeline";
+import Link from "next/link";
+import { workApi } from "@/lib/api/work-api";
+import { toast } from "@/lib/toast";
+import { WorkplaceHistoryEventsSection } from "@/components/workplace/workplace-history-events-section";
+import { WorkplaceMonthlyStatsSection } from "@/components/workplace/workplace-monthly-stats-section";
+import { WorkplaceNoticesSection } from "@/components/workplace/workplace-notices-section";
+import { WorkplaceScheduleOverviewSection } from "@/components/workplace/workplace-schedule-overview-section";
+import { WorkplaceTimelineSection } from "@/components/workplace/workplace-timeline-section";
 import { WorkplaceBranchSwitcher } from "@/components/workplace/workplace-branch-switcher";
-
-const workplaceMenus = [
-  {
-    href: "/workplace/history",
-    title: "이력",
-  },
-  {
-    href: "/workplace/schedule",
-    title: "스케줄",
-  },
-  {
-    href: "/workplace/stats",
-    title: "통계",
-  },
-];
+import { useState } from "react";
 
 export default function WorkplacePage() {
   const { data } = useDashboardData();
+  const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+  const [switchingBranch, setSwitchingBranch] = useState(false);
+
+  if (!data) {
+    return (
+      <TabPageShell title="" className="gap-3" bodyClassName="gap-3" loading>
+        <></>
+      </TabPageShell>
+    );
+  }
+
+  const currentBranchId =
+    selectedBranchId ?? data.session?.currentBranchId ?? data.myBranches[0]?.id ?? null;
+  const currentBranch =
+    data.branches.find((branch) => branch.id === currentBranchId) ?? null;
+  const currentBranchName =
+    currentBranch?.name ?? "지점";
+  const canManageCurrentBranch =
+    !!currentBranch && !!data.session && currentBranch.createdByPhone === data.session.phone;
+  const branchShifts = currentBranchId
+    ? data.shifts.filter((shift) => shift.branchId === currentBranchId)
+    : [];
+  const branchPunches = currentBranchId
+    ? data.punchRecords.filter((record) => record.branchId === currentBranchId)
+    : [];
+  const branchEvents = data.todayEvents.filter((event) =>
+    currentBranchId
+      ? event.branchId === currentBranchId
+      : event.branchId == null,
+  );
+  const handleSelectBranch = async (branchId: string) => {
+    if (!data.session || branchId === currentBranchId) {
+      return;
+    }
+    const previousBranchId = currentBranchId;
+    setSelectedBranchId(branchId);
+    setSwitchingBranch(true);
+    const updated = await workApi.setCurrentBranch(data.session.phone, branchId);
+    if (!updated?.currentBranchId) {
+      setSelectedBranchId(previousBranchId);
+      toast.error("지점 변경에 실패했습니다.");
+    }
+    setSwitchingBranch(false);
+    window.dispatchEvent(new Event("workplace:changed"));
+  };
 
   return (
     <TabPageShell title="" className="gap-3" bodyClassName="gap-3">
       <>
-        <WorkplaceBranchSwitcher />
-        <nav
-          aria-label="근무 메뉴"
-          className="inline-flex w-full items-center gap-2 overflow-x-auto rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-1.5 dark:border-white/10 dark:bg-white/5"
-        >
-          {workplaceMenus.map((menu) => (
+        <div className="flex items-start justify-between gap-3">
+          <WorkplaceBranchSwitcher
+            branches={data.myBranches}
+            selectedBranchId={currentBranchId}
+            busy={switchingBranch}
+            onSelect={(branchId) => {
+              void handleSelectBranch(branchId);
+            }}
+          />
+          {canManageCurrentBranch ? (
             <Link
-              key={menu.href}
-              href={menu.href}
-              className="flex-1 whitespace-nowrap rounded-xl px-4 py-2 text-center text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-neutral-300 dark:hover:bg-white/10 dark:hover:text-white"
+              href="/workplace/settings"
+              className="shrink-0 rounded-xl border border-zinc-200/80 px-3 py-2 text-sm text-zinc-700 transition-colors hover:border-zinc-300 hover:text-zinc-900 dark:border-white/10 dark:text-neutral-300 dark:hover:border-white/20 dark:hover:text-white"
             >
-              {menu.title}
+              지점 설정
             </Link>
-          ))}
-        </nav>
-        {data ? (
-          <div className="-mx-1 overflow-x-auto px-1 sm:mx-0 sm:px-0">
-            <div className="min-w-[320px]">
-              <DailyShiftTimeline
-                shifts={data.shifts}
-                punches={data.punchRecords}
-                nowIso={new Date().toISOString()}
-              />
-            </div>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
+        <WorkplaceTimelineSection
+          shifts={branchShifts}
+          punches={branchPunches}
+          nowIso={new Date().toISOString()}
+        />
+        <WorkplaceHistoryEventsSection
+          punches={branchPunches}
+          events={branchEvents}
+        />
+        <WorkplaceMonthlyStatsSection punches={branchPunches} />
+        <WorkplaceNoticesSection branchName={currentBranchName} />
+        <WorkplaceScheduleOverviewSection shifts={branchShifts} />
       </>
     </TabPageShell>
   );

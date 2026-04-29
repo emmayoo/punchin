@@ -18,13 +18,12 @@ export function TabsShell({ children }: TabsShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const hideTab = HIDE_TAB_FOR_PATH.test(pathname);
-  const [guardChecked, setGuardChecked] = useState(false);
+  const [guardedPath, setGuardedPath] = useState<string | null>(null);
   const [allowRender, setAllowRender] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-    setAllowRender(false);
-    setGuardChecked(false);
+    const pathAtEffect = pathname;
     (async () => {
       const dashboard = await workApi.getDashboard();
       if (!mounted) {
@@ -42,15 +41,18 @@ export function TabsShell({ children }: TabsShellProps) {
         router.replace("/branch");
         return;
       }
+      if (pathname !== pathAtEffect) {
+        return;
+      }
+      setGuardedPath(pathAtEffect);
       setAllowRender(true);
-      setGuardChecked(true);
     })();
     return () => {
       mounted = false;
     };
   }, [router, pathname]);
 
-  if (!guardChecked || !allowRender) {
+  if (!allowRender || guardedPath !== pathname) {
     return null;
   }
 

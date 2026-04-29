@@ -1,7 +1,8 @@
 "use client";
 
-import type { Branch } from "@/types/work";
 import { X } from "lucide-react";
+
+import type { Branch } from "@/types/work";
 
 type BranchSelectedTagsProps = {
   selectedBranches: Branch[];
@@ -20,9 +21,7 @@ export function BranchSelectedTags({
 }: BranchSelectedTagsProps) {
   return (
     <div className="rounded-xl border border-zinc-200/90 bg-white p-3 dark:border-white/10 dark:bg-[#18181b]">
-      <p className="mb-0.5 text-xs font-medium text-zinc-600 dark:text-neutral-300">
-        선택된 지점
-      </p>
+      <p className="mb-0.5 text-xs font-medium text-zinc-600 dark:text-neutral-300">선택된 지점</p>
       <p className="mb-2 text-[11px] text-zinc-500 dark:text-neutral-500">
         태그를 누르면 기본 지점으로 지정 · X 는 선택 해제
       </p>

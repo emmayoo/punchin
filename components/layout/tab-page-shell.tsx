@@ -66,10 +66,9 @@ export function TabPageShell({
 
   const headerBlockClass = variant === "hero" ? "space-y-3" : "space-y-2";
 
-  const mainClass = [
-    "flex min-h-0 flex-1 flex-col",
-    className.trim() ? className : "gap-6",
-  ].join(" ");
+  const mainClass = ["flex min-h-0 flex-1 flex-col", className.trim() ? className : "gap-6"].join(
+    " ",
+  );
 
   const bodyWrapperClass = ["flex min-h-0 flex-1 flex-col", bodyClassName]
     .filter(Boolean)
@@ -86,16 +85,12 @@ export function TabPageShell({
           ) : null}
           <h1 className={titleClass}>{title}</h1>
           {description ? (
-            <p className="text-sm text-zinc-600 dark:text-neutral-400">
-              {description}
-            </p>
+            <p className="text-sm text-zinc-600 dark:text-neutral-400">{description}</p>
           ) : null}
         </header>
       )}
 
-      <div className={bodyWrapperClass}>
-        {resolveBody(loading, children, loadingContent)}
-      </div>
+      <div className={bodyWrapperClass}>{resolveBody(loading, children, loadingContent)}</div>
 
       {footer ? <footer className="shrink-0">{footer}</footer> : null}
     </main>

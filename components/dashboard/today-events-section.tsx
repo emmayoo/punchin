@@ -1,6 +1,7 @@
 "use client";
 
 import { BellRing } from "lucide-react";
+
 import type { Branch, CalendarEvent } from "@/types/work";
 
 type TodayEventsSectionProps = {
@@ -12,9 +13,7 @@ export function TodayEventsSection({ events, branches }: TodayEventsSectionProps
   if (events.length === 0) {
     return null;
   }
-  const branchNameById = new Map(
-    branches.map((branch) => [branch.id, branch.name] as const),
-  );
+  const branchNameById = new Map(branches.map((branch) => [branch.id, branch.name] as const));
   return (
     <section className="rounded-2xl border border-amber-400/40 bg-amber-100/50 p-4 dark:border-amber-300/30 dark:bg-amber-200/10">
       <div className="flex items-center gap-2">
@@ -29,10 +28,7 @@ export function TodayEventsSection({ events, branches }: TodayEventsSectionProps
             ? (branchNameById.get(event.branchId) ?? "지점 미지정")
             : "전체 지점";
           return (
-            <li
-              key={event.id}
-              className="text-sm text-amber-900/90 dark:text-amber-50/95"
-            >
+            <li key={event.id} className="text-sm text-amber-900/90 dark:text-amber-50/95">
               <span
                 className="mr-2 inline-block h-2 w-2 rounded-full align-middle"
                 style={{ backgroundColor: event.color }}

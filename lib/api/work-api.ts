@@ -3,29 +3,29 @@
 import {
   addBranchMembership,
   addCalendarEvent,
-  createBranch,
-  deleteBranchByOwner,
-  deleteCalendarEvent,
-  deleteShift,
   addShift,
   addShifts,
   checkIn,
   checkOut,
   clearSession,
+  createBranch,
+  deleteBranchByOwner,
+  deleteCalendarEvent,
+  deleteShift,
   getActivePunch,
-  getCalendarEvents,
   getBranches,
   getBranchMembershipsByPhone,
+  getCalendarEvents,
   getEmployees,
-  removeBranchMembership,
-  setEmployeeCurrentBranch,
-  updateBranchName,
   getPunches,
   getSession,
   getShifts,
   getTodayPunches,
   initStorage,
+  removeBranchMembership,
   saveSession,
+  setEmployeeCurrentBranch,
+  updateBranchName,
   updateCalendarEvent,
   updateEmployeeName,
   updateShift,
@@ -120,9 +120,7 @@ function mapEmployeeRow(row: Record<string, unknown>): Employee {
     id: String(row.id),
     phone: String(row.phone),
     name: String(row.name),
-    currentBranchId: row.current_branch_id
-      ? String(row.current_branch_id)
-      : null,
+    currentBranchId: row.current_branch_id ? String(row.current_branch_id) : null,
   };
 }
 
@@ -158,9 +156,7 @@ function mapEventRow(row: Record<string, unknown>): CalendarEvent {
   };
 }
 
-function mapSchedulePersonRow(
-  row: Record<string, unknown>,
-): SchedulePersonRecord {
+function mapSchedulePersonRow(row: Record<string, unknown>): SchedulePersonRecord {
   return {
     id: String(row.id),
     name: String(row.name),
@@ -172,9 +168,7 @@ function mapSchedulePersonRow(
 function mapBranchRow(row: Record<string, unknown>): Branch {
   return {
     id: String(row.id),
-    profileImageUrl: row.profile_image_url
-      ? String(row.profile_image_url)
-      : null,
+    profileImageUrl: row.profile_image_url ? String(row.profile_image_url) : null,
     name: String(row.name),
     businessNumber: String(row.business_number ?? ""),
     address: row.address ? String(row.address) : null,
@@ -183,9 +177,7 @@ function mapBranchRow(row: Record<string, unknown>): Branch {
   };
 }
 
-function mapBranchMembershipRow(
-  row: Record<string, unknown>,
-): BranchMembership {
+function mapBranchMembershipRow(row: Record<string, unknown>): BranchMembership {
   const roleValue = String(row.role) as BranchRole;
   return {
     id: String(row.id),
@@ -212,8 +204,7 @@ class LocalWorkApi {
 
   async getEmployeeByPhone(phone: string): Promise<Employee | null> {
     const normalized = normalizePhone(phone);
-    const employee =
-      getEmployees().find((item) => item.phone === normalized) ?? null;
+    const employee = getEmployees().find((item) => item.phone === normalized) ?? null;
     await wait();
     return employee;
   }
@@ -238,8 +229,7 @@ class LocalWorkApi {
 
   async setCurrentBranch(phone: string, branchId: string): Promise<Employee | null> {
     const normalized = normalizePhone(phone);
-    const employee =
-      getEmployees().find((item) => item.phone === normalized) ?? null;
+    const employee = getEmployees().find((item) => item.phone === normalized) ?? null;
     if (!employee) {
       await wait();
       return null;
@@ -248,10 +238,7 @@ class LocalWorkApi {
     const branches = getBranches();
     const hasAccess =
       memberships.some((membership) => membership.branchId === branchId) ||
-      branches.some(
-        (branch) =>
-          branch.id === branchId && branch.createdByPhone === normalized,
-      );
+      branches.some((branch) => branch.id === branchId && branch.createdByPhone === normalized);
     if (!hasAccess) {
       await wait();
       return null;
@@ -261,13 +248,9 @@ class LocalWorkApi {
     return updated;
   }
 
-  async completeBranchSetup(
-    phone: string,
-    input: BranchSetupInput,
-  ): Promise<Employee | null> {
+  async completeBranchSetup(phone: string, input: BranchSetupInput): Promise<Employee | null> {
     const normalized = normalizePhone(phone);
-    const employee =
-      getEmployees().find((item) => item.phone === normalized) ?? null;
+    const employee = getEmployees().find((item) => item.phone === normalized) ?? null;
     if (!employee) {
       await wait();
       return null;
@@ -302,8 +285,7 @@ class LocalWorkApi {
 
   async connectBranch(phone: string, branchId: string): Promise<boolean> {
     const normalized = normalizePhone(phone);
-    const employee =
-      getEmployees().find((item) => item.phone === normalized) ?? null;
+    const employee = getEmployees().find((item) => item.phone === normalized) ?? null;
     if (!employee) {
       await wait();
       return false;
@@ -315,8 +297,7 @@ class LocalWorkApi {
 
   async disconnectBranch(phone: string, branchId: string): Promise<boolean> {
     const normalized = normalizePhone(phone);
-    const employee =
-      getEmployees().find((item) => item.phone === normalized) ?? null;
+    const employee = getEmployees().find((item) => item.phone === normalized) ?? null;
     if (!employee) {
       await wait();
       return false;
@@ -343,28 +324,18 @@ class LocalWorkApi {
     actorPhone: string,
     name: string,
   ): Promise<Branch | null> {
-    const updated = updateBranchName(
-      branchId,
-      name,
-      normalizePhone(actorPhone),
-    );
+    const updated = updateBranchName(branchId, name, normalizePhone(actorPhone));
     await wait();
     return updated;
   }
 
-  async deleteMyCreatedBranch(
-    branchId: string,
-    actorPhone: string,
-  ): Promise<boolean> {
+  async deleteMyCreatedBranch(branchId: string, actorPhone: string): Promise<boolean> {
     const ok = deleteBranchByOwner(branchId, normalizePhone(actorPhone));
     await wait();
     return ok;
   }
 
-  async updateMyProfileName(
-    phone: string,
-    name: string,
-  ): Promise<Employee | null> {
+  async updateMyProfileName(phone: string, name: string): Promise<Employee | null> {
     const updated = updateEmployeeName(normalizePhone(phone), name);
     await wait();
     return updated;
@@ -390,75 +361,65 @@ class LocalWorkApi {
       return this.dashboardInFlight;
     }
     const request = (async () => {
-    const session = getSession();
-    const branches = getBranches();
-    const myBranchIds = new Set(
-      session
-        ? getBranchMembershipsByPhone(session.phone).map(
-            (membership) => membership.branchId,
+      const session = getSession();
+      const branches = getBranches();
+      const myBranchIds = new Set(
+        session
+          ? getBranchMembershipsByPhone(session.phone).map((membership) => membership.branchId)
+          : [],
+      );
+      const myBranches = session
+        ? branches.filter(
+            (branch) => myBranchIds.has(branch.id) || branch.createdByPhone === session.phone,
           )
-        : [],
-    );
-    const myBranches = session
-      ? branches.filter(
-          (branch) =>
-            myBranchIds.has(branch.id) || branch.createdByPhone === session.phone,
-        )
-      : [];
-    const shifts = getShifts();
-    const punchRecords = getPunches();
-    const todayPunches = getTodayPunches();
-    const todayEvents = getCalendarEvents()
-      .filter((event) => event.date === toDateKey(new Date()))
-      .sort((a, b) => a.title.localeCompare(b.title));
-    const nowMs = Date.now();
+        : [];
+      const shifts = getShifts();
+      const punchRecords = getPunches();
+      const todayPunches = getTodayPunches();
+      const todayEvents = getCalendarEvents()
+        .filter((event) => event.date === toDateKey(new Date()))
+        .sort((a, b) => a.title.localeCompare(b.title));
+      const nowMs = Date.now();
 
-    const activePunch = session ? getActivePunch(session.phone) : null;
-    const todayShift = session
-      ? (shifts.find(
+      const activePunch = session ? getActivePunch(session.phone) : null;
+      const todayShift = session
+        ? (shifts.find(
+            (shift) => shift.employeePhone === session.phone && isToday(shift.startAt),
+          ) ?? null)
+        : null;
+      const currentWorker =
+        shifts.find(
           (shift) =>
-            shift.employeePhone === session.phone && isToday(shift.startAt),
-        ) ?? null)
-      : null;
-    const currentWorker =
-      shifts.find(
-        (shift) =>
-          new Date(shift.startAt).getTime() <= nowMs &&
-          new Date(shift.endAt).getTime() >= nowMs,
-      ) ?? null;
-    const nextWorker =
-      shifts.find((shift) => new Date(shift.startAt).getTime() > nowMs) ?? null;
+            new Date(shift.startAt).getTime() <= nowMs && new Date(shift.endAt).getTime() >= nowMs,
+        ) ?? null;
+      const nextWorker = shifts.find((shift) => new Date(shift.startAt).getTime() > nowMs) ?? null;
 
-    const myTodayRecords = session
-      ? todayPunches
-          .filter((record) => record.employeePhone === session.phone)
-          .sort(
-            (a, b) =>
-              new Date(a.checkedInAt).getTime() -
-              new Date(b.checkedInAt).getTime(),
-          )
-      : [];
-    const myTodayHours = myTodayRecords.reduce((sum, record) => {
-      const endAt = record.checkedOutAt ?? new Date(nowMs).toISOString();
-      return sum + durationHours(record.checkedInAt, endAt);
-    }, 0);
+      const myTodayRecords = session
+        ? todayPunches
+            .filter((record) => record.employeePhone === session.phone)
+            .sort((a, b) => new Date(a.checkedInAt).getTime() - new Date(b.checkedInAt).getTime())
+        : [];
+      const myTodayHours = myTodayRecords.reduce((sum, record) => {
+        const endAt = record.checkedOutAt ?? new Date(nowMs).toISOString();
+        return sum + durationHours(record.checkedInAt, endAt);
+      }, 0);
 
-    await wait();
-    return {
-      session,
-      branches,
-      myBranches,
-      shifts,
-      punchRecords,
-      todayPunches,
-      todayEvents,
-      activePunch,
-      currentWorker,
-      nextWorker,
-      todayShift,
-      myTodayHours,
-      myTodayRecords,
-    };
+      await wait();
+      return {
+        session,
+        branches,
+        myBranches,
+        shifts,
+        punchRecords,
+        todayPunches,
+        todayEvents,
+        activePunch,
+        currentWorker,
+        nextWorker,
+        todayShift,
+        myTodayHours,
+        myTodayRecords,
+      };
     })();
     this.dashboardInFlight = request;
     try {
@@ -480,9 +441,7 @@ class LocalWorkApi {
     return getCalendarEvents();
   }
 
-  async createCalendarEvent(
-    event: Omit<CalendarEvent, "id">,
-  ): Promise<CalendarEvent> {
+  async createCalendarEvent(event: Omit<CalendarEvent, "id">): Promise<CalendarEvent> {
     const created = addCalendarEvent(event);
     await wait();
     return created;
@@ -523,10 +482,7 @@ class LocalWorkApi {
     employeePhone: string;
     color: string;
   }): Promise<SchedulePersonRecord> {
-    const employee = upsertEmployee(
-      normalizePhone(input.employeePhone),
-      input.name.trim(),
-    );
+    const employee = upsertEmployee(normalizePhone(input.employeePhone), input.name.trim());
     await wait();
     return {
       id: employee.id,
@@ -623,10 +579,7 @@ class LocalWorkApi {
     const map = new Map<string, WeeklyStatRow>();
 
     for (const record of getPunches()) {
-      if (
-        !record.checkedOutAt ||
-        !isWithinWeek(record.checkedInAt, weekStart)
-      ) {
+      if (!record.checkedOutAt || !isWithinWeek(record.checkedInAt, weekStart)) {
         continue;
       }
       const key = record.employeePhone;
@@ -636,10 +589,7 @@ class LocalWorkApi {
         totalHours: 0,
         shiftCount: 0,
       };
-      current.totalHours += durationHours(
-        record.checkedInAt,
-        record.checkedOutAt,
-      );
+      current.totalHours += durationHours(record.checkedInAt, record.checkedOutAt);
       current.shiftCount += 1;
       map.set(key, current);
     }
@@ -707,9 +657,7 @@ class LocalWorkApi {
       .map((row) => ({
         ...row,
         details: row.details.sort(
-          (a, b) =>
-            new Date(b.checkedInAt).getTime() -
-            new Date(a.checkedInAt).getTime(),
+          (a, b) => new Date(b.checkedInAt).getTime() - new Date(a.checkedInAt).getTime(),
         ),
       }))
       .sort((a, b) => b.totalSeconds - a.totalSeconds);
@@ -766,9 +714,7 @@ class SupabaseWorkApi {
       .from("employees")
       .select("*")
       .order("created_at", { ascending: false });
-    return (data ?? []).map((row) =>
-      mapEmployeeRow(row as Record<string, unknown>),
-    );
+    return (data ?? []).map((row) => mapEmployeeRow(row as Record<string, unknown>));
   }
 
   private async getBranchesRemote(): Promise<Branch[]> {
@@ -776,21 +722,15 @@ class SupabaseWorkApi {
       .from("branches")
       .select("*")
       .order("created_at", { ascending: true });
-    return (data ?? []).map((row) =>
-      mapBranchRow(row as Record<string, unknown>),
-    );
+    return (data ?? []).map((row) => mapBranchRow(row as Record<string, unknown>));
   }
 
-  private async getBranchMembershipsByPhoneRemote(
-    phone: string,
-  ): Promise<BranchMembership[]> {
+  private async getBranchMembershipsByPhoneRemote(phone: string): Promise<BranchMembership[]> {
     const { data } = await this.supabase
       .from("branch_memberships")
       .select("*")
       .eq("employee_phone", phone);
-    return (data ?? []).map((row) =>
-      mapBranchMembershipRow(row as Record<string, unknown>),
-    );
+    return (data ?? []).map((row) => mapBranchMembershipRow(row as Record<string, unknown>));
   }
 
   private async getShiftsRemote(): Promise<Shift[]> {
@@ -798,9 +738,7 @@ class SupabaseWorkApi {
       .from("shifts")
       .select("*")
       .order("start_at", { ascending: true });
-    return (data ?? []).map((row) =>
-      mapShiftRow(row as Record<string, unknown>),
-    );
+    return (data ?? []).map((row) => mapShiftRow(row as Record<string, unknown>));
   }
 
   private async getPunchesRemote(): Promise<PunchRecord[]> {
@@ -808,9 +746,7 @@ class SupabaseWorkApi {
       .from("punch_records")
       .select("*")
       .order("checked_in_at", { ascending: false });
-    return (data ?? []).map((row) =>
-      mapPunchRow(row as Record<string, unknown>),
-    );
+    return (data ?? []).map((row) => mapPunchRow(row as Record<string, unknown>));
   }
 
   private async getCalendarEventsRemote(): Promise<CalendarEvent[]> {
@@ -818,9 +754,7 @@ class SupabaseWorkApi {
       .from("calendar_events")
       .select("*")
       .order("date", { ascending: true });
-    return (data ?? []).map((row) =>
-      mapEventRow(row as Record<string, unknown>),
-    );
+    return (data ?? []).map((row) => mapEventRow(row as Record<string, unknown>));
   }
 
   async login(phone: string): Promise<Employee> {
@@ -891,10 +825,7 @@ class SupabaseWorkApi {
     ]);
     const hasAccess =
       memberships.some((membership) => membership.branchId === branchId) ||
-      branches.some(
-        (branch) =>
-          branch.id === branchId && branch.createdByPhone === normalized,
-      );
+      branches.some((branch) => branch.id === branchId && branch.createdByPhone === normalized);
     if (!hasAccess) {
       await wait();
       return null;
@@ -908,10 +839,7 @@ class SupabaseWorkApi {
     return updated;
   }
 
-  async completeBranchSetup(
-    phone: string,
-    input: BranchSetupInput,
-  ): Promise<Employee | null> {
+  async completeBranchSetup(phone: string, input: BranchSetupInput): Promise<Employee | null> {
     const normalized = normalizePhone(phone);
     const employee = await this.getEmployeeByPhone(normalized);
     if (!employee) {
@@ -1038,10 +966,7 @@ class SupabaseWorkApi {
     return updated ? mapBranchRow(updated as Record<string, unknown>) : null;
   }
 
-  async deleteMyCreatedBranch(
-    branchId: string,
-    actorPhone: string,
-  ): Promise<boolean> {
+  async deleteMyCreatedBranch(branchId: string, actorPhone: string): Promise<boolean> {
     const normalized = normalizePhone(actorPhone);
     const { data: branch } = await this.supabase
       .from("branches")
@@ -1057,10 +982,7 @@ class SupabaseWorkApi {
       .from("employees")
       .update({ current_branch_id: null } as never)
       .eq("current_branch_id", branchId);
-    const { error } = await this.supabase
-      .from("branches")
-      .delete()
-      .eq("id", branchId);
+    const { error } = await this.supabase.from("branches").delete().eq("id", branchId);
     await wait();
     return !error;
   }
@@ -1094,10 +1016,7 @@ class SupabaseWorkApi {
     return synced ?? employee;
   }
 
-  async updateMyProfileName(
-    phone: string,
-    name: string,
-  ): Promise<Employee | null> {
+  async updateMyProfileName(phone: string, name: string): Promise<Employee | null> {
     const normalized = normalizePhone(phone);
     const { data } = await this.supabase
       .from("employees")
@@ -1137,28 +1056,21 @@ class SupabaseWorkApi {
         checked_in_at: new Date().toISOString(),
         checked_out_at: null,
       } as const;
-      let { error } = await this.supabase
-        .from("punch_records")
-        .insert(payloadWithBranch as never);
+      let { error } = await this.supabase.from("punch_records").insert(payloadWithBranch as never);
       if (
         error &&
-        (error.message.includes("branch_id") ||
-          error.message.includes("schema cache"))
+        (error.message.includes("branch_id") || error.message.includes("schema cache"))
       ) {
         // 서버 스키마가 아직 branch_id를 반영하지 않은 경우, 기존 포맷으로 재시도한다.
-        ({ error } = await this.supabase.from("punch_records").insert(
-          {
-            employee_phone: session.phone,
-            employee_name: session.name,
-            checked_in_at: payloadWithBranch.checked_in_at,
-            checked_out_at: null,
-          } as never,
-        ));
+        ({ error } = await this.supabase.from("punch_records").insert({
+          employee_phone: session.phone,
+          employee_name: session.name,
+          checked_in_at: payloadWithBranch.checked_in_at,
+          checked_out_at: null,
+        } as never));
       }
       if (error) {
-        throw new Error(
-          `출근 처리 실패: ${error.message} (schema.sql을 최신으로 반영해주세요)`,
-        );
+        throw new Error(`출근 처리 실패: ${error.message} (schema.sql을 최신으로 반영해주세요)`);
       }
     }
     await wait();
@@ -1181,82 +1093,68 @@ class SupabaseWorkApi {
       return this.dashboardInFlight;
     }
     const request = (async () => {
-    const session = await this.getSessionEmployeeFromAuth();
-    const [branches, shifts, punchRecords, events, memberships] = await Promise.all([
-      this.getBranchesRemote(),
-      this.getShiftsRemote(),
-      this.getPunchesRemote(),
-      this.getCalendarEventsRemote(),
-      session
-        ? this.getBranchMembershipsByPhoneRemote(session.phone)
-        : Promise.resolve([]),
-    ]);
-    const myBranchIds = new Set(memberships.map((membership) => membership.branchId));
-    const myBranches = session
-      ? branches.filter(
-          (branch) =>
-            myBranchIds.has(branch.id) || branch.createdByPhone === session.phone,
-        )
-      : [];
-    const todayPunches = punchRecords.filter((record) =>
-      isToday(record.checkedInAt),
-    );
-    const todayEvents = events
-      .filter((event) => event.date === toDateKey(new Date()))
-      .sort((a, b) => a.title.localeCompare(b.title));
-    const nowMs = Date.now();
-
-    const activePunch = session
-      ? (punchRecords.find(
-          (record) =>
-            record.employeePhone === session.phone &&
-            record.checkedOutAt === null,
-        ) ?? null)
-      : null;
-    const todayShift = session
-      ? (shifts.find(
-          (shift) =>
-            shift.employeePhone === session.phone && isToday(shift.startAt),
-        ) ?? null)
-      : null;
-    const currentWorker =
-      shifts.find(
-        (shift) =>
-          new Date(shift.startAt).getTime() <= nowMs &&
-          new Date(shift.endAt).getTime() >= nowMs,
-      ) ?? null;
-    const nextWorker =
-      shifts.find((shift) => new Date(shift.startAt).getTime() > nowMs) ?? null;
-    const myTodayRecords = session
-      ? todayPunches
-          .filter((record) => record.employeePhone === session.phone)
-          .sort(
-            (a, b) =>
-              new Date(a.checkedInAt).getTime() -
-              new Date(b.checkedInAt).getTime(),
+      const session = await this.getSessionEmployeeFromAuth();
+      const [branches, shifts, punchRecords, events, memberships] = await Promise.all([
+        this.getBranchesRemote(),
+        this.getShiftsRemote(),
+        this.getPunchesRemote(),
+        this.getCalendarEventsRemote(),
+        session ? this.getBranchMembershipsByPhoneRemote(session.phone) : Promise.resolve([]),
+      ]);
+      const myBranchIds = new Set(memberships.map((membership) => membership.branchId));
+      const myBranches = session
+        ? branches.filter(
+            (branch) => myBranchIds.has(branch.id) || branch.createdByPhone === session.phone,
           )
-      : [];
-    const myTodayHours = myTodayRecords.reduce((sum, record) => {
-      const endAt = record.checkedOutAt ?? new Date(nowMs).toISOString();
-      return sum + durationHours(record.checkedInAt, endAt);
-    }, 0);
+        : [];
+      const todayPunches = punchRecords.filter((record) => isToday(record.checkedInAt));
+      const todayEvents = events
+        .filter((event) => event.date === toDateKey(new Date()))
+        .sort((a, b) => a.title.localeCompare(b.title));
+      const nowMs = Date.now();
 
-    await wait();
-    return {
-      session,
-      branches,
-      myBranches,
-      shifts,
-      punchRecords,
-      todayPunches,
-      todayEvents,
-      activePunch,
-      currentWorker,
-      nextWorker,
-      todayShift,
-      myTodayHours,
-      myTodayRecords,
-    };
+      const activePunch = session
+        ? (punchRecords.find(
+            (record) => record.employeePhone === session.phone && record.checkedOutAt === null,
+          ) ?? null)
+        : null;
+      const todayShift = session
+        ? (shifts.find(
+            (shift) => shift.employeePhone === session.phone && isToday(shift.startAt),
+          ) ?? null)
+        : null;
+      const currentWorker =
+        shifts.find(
+          (shift) =>
+            new Date(shift.startAt).getTime() <= nowMs && new Date(shift.endAt).getTime() >= nowMs,
+        ) ?? null;
+      const nextWorker = shifts.find((shift) => new Date(shift.startAt).getTime() > nowMs) ?? null;
+      const myTodayRecords = session
+        ? todayPunches
+            .filter((record) => record.employeePhone === session.phone)
+            .sort((a, b) => new Date(a.checkedInAt).getTime() - new Date(b.checkedInAt).getTime())
+        : [];
+      const myTodayHours = myTodayRecords.reduce((sum, record) => {
+        const endAt = record.checkedOutAt ?? new Date(nowMs).toISOString();
+        return sum + durationHours(record.checkedInAt, endAt);
+      }, 0);
+
+      await wait();
+      return {
+        session,
+        branches,
+        myBranches,
+        shifts,
+        punchRecords,
+        todayPunches,
+        todayEvents,
+        activePunch,
+        currentWorker,
+        nextWorker,
+        todayShift,
+        myTodayHours,
+        myTodayRecords,
+      };
     })();
     this.dashboardInFlight = request;
     try {
@@ -1280,9 +1178,7 @@ class SupabaseWorkApi {
     return events;
   }
 
-  async createCalendarEvent(
-    event: Omit<CalendarEvent, "id">,
-  ): Promise<CalendarEvent> {
+  async createCalendarEvent(event: Omit<CalendarEvent, "id">): Promise<CalendarEvent> {
     const { data } = await this.supabase
       .from("calendar_events")
       .insert({
@@ -1294,9 +1190,7 @@ class SupabaseWorkApi {
       .select("*")
       .single();
     await wait();
-    return data
-      ? mapEventRow(data as Record<string, unknown>)
-      : { id: "", ...event };
+    return data ? mapEventRow(data as Record<string, unknown>) : { id: "", ...event };
   }
 
   async updateCalendarEvent(
@@ -1334,9 +1228,7 @@ class SupabaseWorkApi {
       .select("id,name,phone,color")
       .order("created_at", { ascending: false });
     await wait();
-    return (data ?? []).map((row) =>
-      mapSchedulePersonRow(row as Record<string, unknown>),
-    );
+    return (data ?? []).map((row) => mapSchedulePersonRow(row as Record<string, unknown>));
   }
 
   async createSchedulePerson(input: {
@@ -1414,9 +1306,7 @@ class SupabaseWorkApi {
       .select("*")
       .single();
     await wait();
-    return data
-      ? mapShiftRow(data as Record<string, unknown>)
-      : { id: "", ...shift };
+    return data ? mapShiftRow(data as Record<string, unknown>) : { id: "", ...shift };
   }
 
   async createShifts(shifts: Omit<Shift, "id">[]): Promise<void> {
@@ -1446,12 +1336,8 @@ class SupabaseWorkApi {
     const { data } = await this.supabase
       .from("shifts")
       .update({
-        ...(payload.employeeName !== undefined
-          ? { employee_name: payload.employeeName }
-          : {}),
-        ...(payload.employeePhone !== undefined
-          ? { employee_phone: payload.employeePhone }
-          : {}),
+        ...(payload.employeeName !== undefined ? { employee_name: payload.employeeName } : {}),
+        ...(payload.employeePhone !== undefined ? { employee_phone: payload.employeePhone } : {}),
         ...(payload.branchId !== undefined ? { branch_id: payload.branchId } : {}),
         ...(payload.startAt !== undefined ? { start_at: payload.startAt } : {}),
         ...(payload.endAt !== undefined ? { end_at: payload.endAt } : {}),
@@ -1476,10 +1362,7 @@ class SupabaseWorkApi {
     const punches = await this.getPunchesRemote();
     const map = new Map<string, WeeklyStatRow>();
     for (const record of punches) {
-      if (
-        !record.checkedOutAt ||
-        !isWithinWeek(record.checkedInAt, weekStart)
-      ) {
+      if (!record.checkedOutAt || !isWithinWeek(record.checkedInAt, weekStart)) {
         continue;
       }
       const key = record.employeePhone;
@@ -1489,10 +1372,7 @@ class SupabaseWorkApi {
         totalHours: 0,
         shiftCount: 0,
       };
-      current.totalHours += durationHours(
-        record.checkedInAt,
-        record.checkedOutAt,
-      );
+      current.totalHours += durationHours(record.checkedInAt, record.checkedOutAt);
       current.shiftCount += 1;
       map.set(key, current);
     }
@@ -1559,9 +1439,7 @@ class SupabaseWorkApi {
       .map((row) => ({
         ...row,
         details: row.details.sort(
-          (a, b) =>
-            new Date(b.checkedInAt).getTime() -
-            new Date(a.checkedInAt).getTime(),
+          (a, b) => new Date(b.checkedInAt).getTime() - new Date(a.checkedInAt).getTime(),
         ),
       }))
       .sort((a, b) => b.totalSeconds - a.totalSeconds);
@@ -1575,6 +1453,4 @@ const hasSupabaseEnv =
   Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
   Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
 
-export const workApi = hasSupabaseEnv
-  ? new SupabaseWorkApi()
-  : new LocalWorkApi();
+export const workApi = hasSupabaseEnv ? new SupabaseWorkApi() : new LocalWorkApi();

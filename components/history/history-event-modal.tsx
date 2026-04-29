@@ -30,9 +30,7 @@ export function HistoryEventModal({
   return (
     <FullscreenModal open={open}>
       <div className="space-y-3">
-        <h2 className="text-base font-semibold text-zinc-900 dark:text-white">
-          {title}
-        </h2>
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-white">{title}</h2>
         {includeDateField ? (
           <input
             type="date"

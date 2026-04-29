@@ -1,7 +1,8 @@
 "use client";
 
-import type { Branch } from "@/types/work";
 import { Search } from "lucide-react";
+
+import type { Branch } from "@/types/work";
 
 type BranchListProps = {
   branches: Branch[];
@@ -27,10 +28,7 @@ export function BranchList({
     if (!q) {
       return true;
     }
-    return (
-      branch.name.toLowerCase().includes(q) ||
-      branch.businessNumber.toLowerCase().includes(q)
-    );
+    return branch.name.toLowerCase().includes(q) || branch.businessNumber.toLowerCase().includes(q);
   });
 
   return (
@@ -46,9 +44,7 @@ export function BranchList({
       </div>
 
       {filteredBranches.length === 0 ? (
-        <p className="text-sm text-zinc-600 dark:text-neutral-400">
-          검색 결과가 없습니다.
-        </p>
+        <p className="text-sm text-zinc-600 dark:text-neutral-400">검색 결과가 없습니다.</p>
       ) : (
         <ul className="space-y-2.5">
           {filteredBranches.map((branch) => {
@@ -98,8 +94,8 @@ export function BranchList({
                       isOwned
                         ? "border-zinc-300 bg-zinc-100 text-zinc-600 dark:border-white/20 dark:bg-white/10 dark:text-neutral-300"
                         : isSelected
-                        ? "border-emerald-500 bg-emerald-500 text-white"
-                        : "border-zinc-300 text-zinc-500 dark:border-white/20 dark:text-neutral-400"
+                          ? "border-emerald-500 bg-emerald-500 text-white"
+                          : "border-zinc-300 text-zinc-500 dark:border-white/20 dark:text-neutral-400"
                     }`}
                   >
                     {isOwned || isSelected ? "✓" : ""}

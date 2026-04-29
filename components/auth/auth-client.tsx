@@ -1,10 +1,11 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
+
 import { FirstProfileForm } from "@/components/onboarding/first-profile-form";
 import { FullscreenModal } from "@/components/overlay/fullscreen-modal";
 import { DashboardData, workApi } from "@/lib/api/work-api";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 
 function normalizeTailDigits(input: string): string {
   return input.replace(/\D/g, "").slice(0, 8);
@@ -67,22 +68,14 @@ export function AuthClient() {
         workApi.getMyBranchMemberships(phone),
         workApi.getBranches(),
       ]);
-      return findPreferredBranchId(
-        phone,
-        currentBranchId,
-        myMemberships,
-        allBranches,
-      );
+      return findPreferredBranchId(phone, currentBranchId, myMemberships, allBranches);
     },
     [],
   );
 
   const routeByDefaultBranch = useCallback(
     async (phone: string, currentBranchId?: string | null) => {
-      const defaultBranchId = await resolveDefaultBranchOnLogin(
-        phone,
-        currentBranchId,
-      );
+      const defaultBranchId = await resolveDefaultBranchOnLogin(phone, currentBranchId);
       if (defaultBranchId && defaultBranchId !== currentBranchId) {
         await workApi.completeBranchSetup(phone, {
           mode: "select",
@@ -106,10 +99,7 @@ export function AuthClient() {
         return;
       }
       if (dashboard.session) {
-        await routeByDefaultBranch(
-          dashboard.session.phone,
-          dashboard.session.currentBranchId,
-        );
+        await routeByDefaultBranch(dashboard.session.phone, dashboard.session.currentBranchId);
         return;
       }
       setLoading(false);
@@ -134,10 +124,7 @@ export function AuthClient() {
       return;
     }
     const loggedIn = await workApi.login(phone);
-    await routeByDefaultBranch(
-      loggedIn.phone,
-      loggedIn.currentBranchId,
-    );
+    await routeByDefaultBranch(loggedIn.phone, loggedIn.currentBranchId);
   };
 
   const handleCompleteFirstProfile = async () => {
@@ -150,9 +137,7 @@ export function AuthClient() {
   };
 
   if (loading || !data) {
-    return (
-      <p className="text-sm text-zinc-600 dark:text-neutral-400">불러오는 중...</p>
-    );
+    return <p className="text-sm text-zinc-600 dark:text-neutral-400">불러오는 중...</p>;
   }
 
   return (
@@ -170,16 +155,12 @@ export function AuthClient() {
       </section>
 
       <section className="space-y-3 rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
-        <h2 className="text-sm font-medium text-zinc-900 dark:text-white">
-          핸드폰 번호
-        </h2>
+        <h2 className="text-sm font-medium text-zinc-900 dark:text-white">핸드폰 번호</h2>
         <div
           onClick={() => phoneInputRef.current?.focus()}
           className="relative flex items-center transition-colors"
         >
-          <span className="pr-1 text-sm text-zinc-700 dark:text-neutral-300">
-            010
-          </span>
+          <span className="pr-1 text-sm text-zinc-700 dark:text-neutral-300">010</span>
           <span className="px-1 text-zinc-500 dark:text-neutral-500">-</span>
           <div className="flex items-center gap-1">
             {Array.from({ length: 4 }).map((_, index) => (
@@ -211,9 +192,7 @@ export function AuthClient() {
           <input
             ref={phoneInputRef}
             value={formatTailDigits(phoneTail)}
-            onChange={(event) =>
-              setPhoneTail(normalizeTailDigits(event.target.value))
-            }
+            onChange={(event) => setPhoneTail(normalizeTailDigits(event.target.value))}
             onFocus={() => setPhoneFocused(true)}
             onBlur={() => setPhoneFocused(false)}
             inputMode="numeric"

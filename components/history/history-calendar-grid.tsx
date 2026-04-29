@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import type { CalendarEvent } from "@/types/work";
+
 import { WEEKDAY_LABELS } from "@/lib/constants/calendar";
+import type { CalendarEvent } from "@/types/work";
 
 type HistoryCalendarGridProps = {
   calendarDays: (Date | null)[];
@@ -47,21 +48,14 @@ export function HistoryCalendarGrid({
                   : "border-zinc-200/90 dark:border-white/10"
               }`}
             >
-              <p className="text-xs font-medium text-zinc-900 dark:text-white">
-                {date.getDate()}
-              </p>
+              <p className="text-xs font-medium text-zinc-900 dark:text-white">{date.getDate()}</p>
               {dayEvents.length > 0 ? (
-                <p
-                  className="mt-1 truncate text-[11px]"
-                  style={{ color: dayEvents[0].color }}
-                >
+                <p className="mt-1 truncate text-[11px]" style={{ color: dayEvents[0].color }}>
                   {dayEvents[0].title}
                 </p>
               ) : null}
               {names.length > 0 ? (
-                <p className="mt-1 truncate text-[11px] text-zinc-600 dark:text-neutral-300">
-                  {`${names.length} 명`}
-                </p>
+                <p className="mt-1 truncate text-[11px] text-zinc-600 dark:text-neutral-300">{`${names.length} 명`}</p>
               ) : null}
             </Link>
           );

@@ -1,11 +1,9 @@
 "use client";
 
-import { workApi } from "@/lib/api/work-api";
-import { TabPageShell } from "@/components/layout/tab-page-shell";
-import { ConfirmDialog } from "@/components/overlay/confirm-dialog";
-import { DailyShiftTimeline } from "@/components/timeline/daily-shift-timeline";
 import { CalendarDays } from "lucide-react";
-import { useDashboardData } from "@/components/dashboard/use-dashboard-data";
+import { useRouter } from "next/navigation";
+import { useCallback, useMemo, useState } from "react";
+
 import {
   buildAttendanceStatuses,
   buildMyTimelinePunches,
@@ -20,16 +18,17 @@ import {
   TodayRecordsSection,
 } from "@/components/dashboard/dashboard-sections";
 import { TodayEventsSection } from "@/components/dashboard/today-events-section";
-import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useDashboardData } from "@/components/dashboard/use-dashboard-data";
+import { TabPageShell } from "@/components/layout/tab-page-shell";
+import { ConfirmDialog } from "@/components/overlay/confirm-dialog";
+import { DailyShiftTimeline } from "@/components/timeline/daily-shift-timeline";
+import { workApi } from "@/lib/api/work-api";
 
 export function DashboardClient() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [confirmAction, setConfirmAction] = useState<
-    "checkin" | "checkout" | null
-  >(null);
+  const [confirmAction, setConfirmAction] = useState<"checkin" | "checkout" | null>(null);
   const [checkInBranchId, setCheckInBranchId] = useState<string>("");
   const handleDashboardData = useCallback(
     (dashboard: Awaited<ReturnType<typeof workApi.getDashboard>>) => {
@@ -64,11 +63,7 @@ export function DashboardClient() {
       await refresh();
       setConfirmAction(null);
     } catch (error) {
-      setActionError(
-        error instanceof Error
-          ? error.message
-          : "출근 처리 중 오류가 발생했습니다.",
-      );
+      setActionError(error instanceof Error ? error.message : "출근 처리 중 오류가 발생했습니다.");
     } finally {
       setBusy(false);
     }
@@ -85,20 +80,13 @@ export function DashboardClient() {
       await refresh();
       setConfirmAction(null);
     } catch (error) {
-      setActionError(
-        error instanceof Error
-          ? error.message
-          : "퇴근 처리 중 오류가 발생했습니다.",
-      );
+      setActionError(error instanceof Error ? error.message : "퇴근 처리 중 오류가 발생했습니다.");
     } finally {
       setBusy(false);
     }
   };
 
-  const defaultCheckInBranchId = useMemo(
-    () => resolveDefaultCheckInBranchId(data),
-    [data],
-  );
+  const defaultCheckInBranchId = useMemo(() => resolveDefaultCheckInBranchId(data), [data]);
   const nextUpcomingShift = useMemo(() => {
     if (!data?.session) {
       return null;
@@ -111,10 +99,7 @@ export function DashboardClient() {
             shift.employeePhone === data.session?.phone &&
             new Date(shift.startAt).getTime() > nowMs,
         )
-        .sort(
-          (a, b) =>
-            new Date(a.startAt).getTime() - new Date(b.startAt).getTime(),
-        )[0] ?? null
+        .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime())[0] ?? null
     );
   }, [data]);
   if (!data) {
@@ -124,16 +109,13 @@ export function DashboardClient() {
   const myTimelineShifts = buildMyTimelineShifts(data);
   const myTimelinePunches = buildMyTimelinePunches(data);
   const attendanceStatuses = buildAttendanceStatuses(data);
-  const problemStatuses = attendanceStatuses.filter(
-    (status) => status.tone === "danger",
-  );
+  const problemStatuses = attendanceStatuses.filter((status) => status.tone === "danger");
   const checkInBranchName =
     data.myBranches.find((branch) => branch.id === checkInBranchId)?.name ?? "";
-  const nextShiftBranchName =
-    nextUpcomingShift?.branchId
-      ? (data.branches.find((branch) => branch.id === nextUpcomingShift.branchId)
-          ?.name ?? "지점 미지정")
-      : "전체 지점";
+  const nextShiftBranchName = nextUpcomingShift?.branchId
+    ? (data.branches.find((branch) => branch.id === nextUpcomingShift.branchId)?.name ??
+      "지점 미지정")
+    : "전체 지점";
   const openCheckInConfirm = () => {
     setActionError(null);
     setCheckInBranchId(defaultCheckInBranchId);

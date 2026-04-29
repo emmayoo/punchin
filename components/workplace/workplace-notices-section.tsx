@@ -6,9 +6,7 @@ type WorkplaceNoticesSectionProps = {
   branchName: string;
 };
 
-export function WorkplaceNoticesSection({
-  branchName,
-}: WorkplaceNoticesSectionProps) {
+export function WorkplaceNoticesSection({ branchName }: WorkplaceNoticesSectionProps) {
   return (
     <WorkplaceSectionCard title="공지 사항">
       <div className="space-y-2 text-sm text-zinc-700 dark:text-neutral-300">

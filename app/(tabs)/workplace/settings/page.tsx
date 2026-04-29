@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+
 import { useDashboardData } from "@/components/dashboard/use-dashboard-data";
 import { DetailPageShell } from "@/components/layout/detail-page-shell";
 import { workApi } from "@/lib/api/work-api";
@@ -16,17 +17,11 @@ export default function WorkplaceSettingsPage() {
     if (!data?.session?.currentBranchId) {
       return null;
     }
-    return (
-      data.branches.find(
-        (branch) => branch.id === data.session?.currentBranchId,
-      ) ?? null
-    );
+    return data.branches.find((branch) => branch.id === data.session?.currentBranchId) ?? null;
   }, [data]);
 
   const canManageCurrentBranch =
-    !!currentBranch &&
-    !!data?.session &&
-    currentBranch.createdByPhone === data.session.phone;
+    !!currentBranch && !!data?.session && currentBranch.createdByPhone === data.session.phone;
 
   const effectiveBranchName = branchName || currentBranch?.name || "";
 
@@ -113,30 +108,22 @@ export default function WorkplaceSettingsPage() {
     >
       <div className="space-y-4">
         <div className="rounded-2xl border border-zinc-200/80 bg-zinc-50/80 p-4 dark:border-white/10 dark:bg-white/5">
-          <p className="text-xs text-zinc-500 dark:text-neutral-500">
-            기본 정보
-          </p>
+          <p className="text-xs text-zinc-500 dark:text-neutral-500">기본 정보</p>
           <dl className="mt-3 space-y-3 text-sm">
             <div>
-              <dt className="text-xs text-zinc-500 dark:text-neutral-500">
-                사업자 번호
-              </dt>
+              <dt className="text-xs text-zinc-500 dark:text-neutral-500">사업자 번호</dt>
               <dd className="mt-0.5 text-zinc-900 dark:text-neutral-100">
                 {currentBranch.businessNumber || "-"}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-zinc-500 dark:text-neutral-500">
-                주소
-              </dt>
+              <dt className="text-xs text-zinc-500 dark:text-neutral-500">주소</dt>
               <dd className="mt-0.5 text-zinc-900 dark:text-neutral-100">
                 {currentBranch.address?.trim() || "-"}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-zinc-500 dark:text-neutral-500">
-                가게 번호
-              </dt>
+              <dt className="text-xs text-zinc-500 dark:text-neutral-500">가게 번호</dt>
               <dd className="mt-0.5 text-zinc-900 dark:text-neutral-100">
                 {currentBranch.storePhone?.trim() || "-"}
               </dd>
@@ -145,10 +132,7 @@ export default function WorkplaceSettingsPage() {
         </div>
 
         <div className="rounded-2xl border border-zinc-200/80 bg-zinc-50/80 p-4 dark:border-white/10 dark:bg-white/5">
-          <label
-            htmlFor="branch-name"
-            className="text-xs text-zinc-500 dark:text-neutral-500"
-          >
+          <label htmlFor="branch-name" className="text-xs text-zinc-500 dark:text-neutral-500">
             지점명
           </label>
           <input

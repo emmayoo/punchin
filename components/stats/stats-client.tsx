@@ -1,8 +1,9 @@
 "use client";
 
-import { TabPageShell } from "@/components/layout/tab-page-shell";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+
+import { TabPageShell } from "@/components/layout/tab-page-shell";
 import { RangeWorkStatRow, workApi } from "@/lib/api/work-api";
 
 function dateKey(date: Date): string {
@@ -59,19 +60,12 @@ export function StatsClient() {
 
   const toggleRow = (phone: string) => {
     setExpandedPhones((prev) =>
-      prev.includes(phone)
-        ? prev.filter((item) => item !== phone)
-        : [...prev, phone],
+      prev.includes(phone) ? prev.filter((item) => item !== phone) : [...prev, phone],
     );
   };
 
   return (
-    <TabPageShell
-      title="근무 통계"
-      className="gap-5"
-      bodyClassName="gap-5"
-      loading={loading}
-    >
+    <TabPageShell title="근무 통계" className="gap-5" bodyClassName="gap-5" loading={loading}>
       <section className="grid grid-cols-[1fr_1fr] gap-3 rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
         <label className="space-y-1">
           <span className="text-xs text-zinc-600 dark:text-neutral-400">시작일</span>
@@ -116,9 +110,7 @@ export function StatsClient() {
                       <p className="text-sm font-medium text-zinc-900 dark:text-white">
                         {row.name}
                       </p>
-                      <p className="text-xs text-zinc-600 dark:text-neutral-400">
-                        {row.phone}
-                      </p>
+                      <p className="text-xs text-zinc-600 dark:text-neutral-400">{row.phone}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="text-right">

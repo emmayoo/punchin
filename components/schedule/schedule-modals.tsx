@@ -41,11 +41,7 @@ export function WeekPickerModal({
           <button type="button" onClick={onClose} className={btnGhost}>
             취소
           </button>
-          <button
-            type="button"
-            onClick={onApply}
-            className={btnPrimary}
-          >
+          <button type="button" onClick={onApply} className={btnPrimary}>
             이동
           </button>
         </div>
@@ -96,12 +92,7 @@ export function CopyScheduleModal({
           <button type="button" onClick={onClose} className={btnGhost}>
             취소
           </button>
-          <button
-            type="button"
-            onClick={onCopy}
-            disabled={copying}
-            className={btnPrimary}
-          >
+          <button type="button" onClick={onCopy} disabled={copying} className={btnPrimary}>
             {copying ? "복사 중..." : "복사"}
           </button>
         </div>
@@ -205,12 +196,7 @@ export function ShiftEditModal({
             <button type="button" onClick={onClose} className={btnGhost}>
               취소
             </button>
-            <button
-              type="button"
-              onClick={onSave}
-              disabled={saving}
-              className={btnPrimary}
-            >
+            <button type="button" onClick={onSave} disabled={saving} className={btnPrimary}>
               {saving ? "저장 중..." : "저장"}
             </button>
           </div>

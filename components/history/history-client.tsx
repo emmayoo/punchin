@@ -1,12 +1,13 @@
 "use client";
 
-import { TabPageShell } from "@/components/layout/tab-page-shell";
 import { useEffect, useState } from "react";
+
+import { HistoryCalendarGrid } from "@/components/history/history-calendar-grid";
+import { HistoryCalendarHeader } from "@/components/history/history-calendar-header";
+import { HistoryMonthPickerModal } from "@/components/history/history-month-picker-modal";
+import { TabPageShell } from "@/components/layout/tab-page-shell";
 import { workApi } from "@/lib/api/work-api";
 import type { CalendarEvent, PunchRecord } from "@/types/work";
-import { HistoryCalendarHeader } from "@/components/history/history-calendar-header";
-import { HistoryCalendarGrid } from "@/components/history/history-calendar-grid";
-import { HistoryMonthPickerModal } from "@/components/history/history-month-picker-modal";
 
 function pad2(value: number): string {
   return String(value).padStart(2, "0");
@@ -59,16 +60,10 @@ export function HistoryClient() {
   const dayEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
   const firstWeekday = dayStart.getDay();
   const totalDays = dayEnd.getDate();
-  const calendarDays = Array.from(
-    { length: firstWeekday + totalDays },
-    (_, i) =>
-      i < firstWeekday
-        ? null
-        : new Date(
-            monthDate.getFullYear(),
-            monthDate.getMonth(),
-            i - firstWeekday + 1,
-          ),
+  const calendarDays = Array.from({ length: firstWeekday + totalDays }, (_, i) =>
+    i < firstWeekday
+      ? null
+      : new Date(monthDate.getFullYear(), monthDate.getMonth(), i - firstWeekday + 1),
   );
 
   const nameMap = punches.reduce<Record<string, string[]>>((acc, record) => {
@@ -81,47 +76,29 @@ export function HistoryClient() {
     return acc;
   }, {});
 
-  const eventMap = events.reduce<Record<string, CalendarEvent[]>>(
-    (acc, event) => {
-      const current = acc[event.date] ?? [];
-      current.push(event);
-      acc[event.date] = current;
-      return acc;
-    },
-    {},
-  );
+  const eventMap = events.reduce<Record<string, CalendarEvent[]>>((acc, event) => {
+    const current = acc[event.date] ?? [];
+    current.push(event);
+    acc[event.date] = current;
+    return acc;
+  }, {});
   const today = new Date();
   const todayKey = toDateKey(today);
 
   return (
-    <TabPageShell
-      title="근무 이력"
-      className="gap-5"
-      bodyClassName="gap-5"
-      loading={loading}
-    >
+    <TabPageShell title="근무 이력" className="gap-5" bodyClassName="gap-5" loading={loading}>
       {() => (
         <>
           <section className="rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
             <HistoryCalendarHeader
               monthLabel={monthLabel(monthDate)}
               onPrev={() =>
-                setMonthDate(
-                  (prev) =>
-                    new Date(prev.getFullYear(), prev.getMonth() - 1, 1),
-                )
+                setMonthDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
               }
               onNext={() =>
-                setMonthDate(
-                  (prev) =>
-                    new Date(prev.getFullYear(), prev.getMonth() + 1, 1),
-                )
+                setMonthDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
               }
-              onToday={() =>
-                setMonthDate(
-                  new Date(today.getFullYear(), today.getMonth(), 1),
-                )
-              }
+              onToday={() => setMonthDate(new Date(today.getFullYear(), today.getMonth(), 1))}
               onOpenPicker={() => {
                 setPickerYear(monthDate.getFullYear());
                 setPickerMonth(monthDate.getMonth() + 1);

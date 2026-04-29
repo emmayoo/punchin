@@ -1,9 +1,9 @@
 "use client";
 
-import { formatTime } from "@/lib/time";
-import type { CalendarEvent, PunchRecord } from "@/types/work";
 import { WorkplaceSectionCard } from "@/components/workplace/workplace-section-card";
 import { WorkplaceSectionLink } from "@/components/workplace/workplace-section-link";
+import { formatTime } from "@/lib/time";
+import type { CalendarEvent, PunchRecord } from "@/types/work";
 
 type WorkplaceHistoryEventsSectionProps = {
   punches: PunchRecord[];
@@ -15,21 +15,13 @@ export function WorkplaceHistoryEventsSection({
   events,
 }: WorkplaceHistoryEventsSectionProps) {
   const recentPunches = [...punches]
-    .sort(
-      (a, b) =>
-        new Date(b.checkedInAt).getTime() - new Date(a.checkedInAt).getTime(),
-    )
+    .sort((a, b) => new Date(b.checkedInAt).getTime() - new Date(a.checkedInAt).getTime())
     .slice(0, 3);
 
   return (
     <WorkplaceSectionCard
       title="오늘 근무 이력 및 이벤트"
-      action={
-        <WorkplaceSectionLink
-          href="/workplace/history"
-          label="캘린더 바로가기"
-        />
-      }
+      action={<WorkplaceSectionLink href="/workplace/history" label="캘린더 바로가기" />}
     >
       <div className="space-y-3">
         <div>
@@ -39,14 +31,9 @@ export function WorkplaceHistoryEventsSection({
           {recentPunches.length > 0 ? (
             <div className="mt-2 space-y-1">
               {recentPunches.map((record) => (
-                <p
-                  key={record.id}
-                  className="text-sm text-zinc-800 dark:text-neutral-100"
-                >
+                <p key={record.id} className="text-sm text-zinc-800 dark:text-neutral-100">
                   {record.employeeName} · {formatTime(record.checkedInAt)}
-                  {record.checkedOutAt
-                    ? ` - ${formatTime(record.checkedOutAt)}`
-                    : " - 진행 중"}
+                  {record.checkedOutAt ? ` - ${formatTime(record.checkedOutAt)}` : " - 진행 중"}
                 </p>
               ))}
             </div>
@@ -57,9 +44,7 @@ export function WorkplaceHistoryEventsSection({
           )}
         </div>
         <div>
-          <p className="text-xs text-zinc-500 dark:text-neutral-500">
-            이벤트 ({events.length}개)
-          </p>
+          <p className="text-xs text-zinc-500 dark:text-neutral-500">이벤트 ({events.length}개)</p>
           {events.length > 0 ? (
             <div className="mt-2 space-y-1">
               {events.slice(0, 3).map((event) => (

@@ -1,13 +1,5 @@
 export const SCHEDULE_PEOPLE_KEY = "punchin:schedule-people";
-export const WEEKDAY_LABELS = [
-  "월",
-  "화",
-  "수",
-  "목",
-  "금",
-  "토",
-  "일",
-] as const;
+export const WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"] as const;
 export const DISPLAY_HOURS = Array.from({ length: 24 }, (_, idx) => idx);
 export const MINUTES_PER_DAY = 24 * 60;
 export const HOUR_ROW_HEIGHT = 24;

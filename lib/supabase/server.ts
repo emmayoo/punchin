@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+
 import { getSupabaseServerConfig } from "@/lib/supabase/config";
 
 export function getSupabaseServerClient() {

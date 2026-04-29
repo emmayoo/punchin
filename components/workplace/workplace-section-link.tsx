@@ -1,17 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import Link from "next/link";
 
 type WorkplaceSectionLinkProps = {
   href: string;
   label: string;
 };
 
-export function WorkplaceSectionLink({
-  href,
-  label,
-}: WorkplaceSectionLinkProps) {
+export function WorkplaceSectionLink({ href, label }: WorkplaceSectionLinkProps) {
   return (
     <Link
       href={href}

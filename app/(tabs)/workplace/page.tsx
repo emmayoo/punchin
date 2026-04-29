@@ -1,17 +1,18 @@
 "use client";
 
-import { TabPageShell } from "@/components/layout/tab-page-shell";
-import { useDashboardData } from "@/components/dashboard/use-dashboard-data";
 import Link from "next/link";
-import { workApi } from "@/lib/api/work-api";
-import { toast } from "@/lib/toast";
+import { useState } from "react";
+
+import { useDashboardData } from "@/components/dashboard/use-dashboard-data";
+import { TabPageShell } from "@/components/layout/tab-page-shell";
+import { WorkplaceBranchSwitcher } from "@/components/workplace/workplace-branch-switcher";
 import { WorkplaceHistoryEventsSection } from "@/components/workplace/workplace-history-events-section";
 import { WorkplaceMonthlyStatsSection } from "@/components/workplace/workplace-monthly-stats-section";
 import { WorkplaceNoticesSection } from "@/components/workplace/workplace-notices-section";
 import { WorkplaceScheduleOverviewSection } from "@/components/workplace/workplace-schedule-overview-section";
 import { WorkplaceTimelineSection } from "@/components/workplace/workplace-timeline-section";
-import { WorkplaceBranchSwitcher } from "@/components/workplace/workplace-branch-switcher";
-import { useState } from "react";
+import { workApi } from "@/lib/api/work-api";
+import { toast } from "@/lib/toast";
 
 export default function WorkplacePage() {
   const { data } = useDashboardData();
@@ -28,10 +29,8 @@ export default function WorkplacePage() {
 
   const currentBranchId =
     selectedBranchId ?? data.session?.currentBranchId ?? data.myBranches[0]?.id ?? null;
-  const currentBranch =
-    data.branches.find((branch) => branch.id === currentBranchId) ?? null;
-  const currentBranchName =
-    currentBranch?.name ?? "지점";
+  const currentBranch = data.branches.find((branch) => branch.id === currentBranchId) ?? null;
+  const currentBranchName = currentBranch?.name ?? "지점";
   const canManageCurrentBranch =
     !!currentBranch && !!data.session && currentBranch.createdByPhone === data.session.phone;
   const branchShifts = currentBranchId
@@ -41,9 +40,7 @@ export default function WorkplacePage() {
     ? data.punchRecords.filter((record) => record.branchId === currentBranchId)
     : [];
   const branchEvents = data.todayEvents.filter((event) =>
-    currentBranchId
-      ? event.branchId === currentBranchId
-      : event.branchId == null,
+    currentBranchId ? event.branchId === currentBranchId : event.branchId == null,
   );
   const handleSelectBranch = async (branchId: string) => {
     if (!data.session || branchId === currentBranchId) {
@@ -87,10 +84,7 @@ export default function WorkplacePage() {
           punches={branchPunches}
           nowIso={new Date().toISOString()}
         />
-        <WorkplaceHistoryEventsSection
-          punches={branchPunches}
-          events={branchEvents}
-        />
+        <WorkplaceHistoryEventsSection punches={branchPunches} events={branchEvents} />
         <WorkplaceMonthlyStatsSection punches={branchPunches} />
         <WorkplaceNoticesSection branchName={currentBranchName} />
         <WorkplaceScheduleOverviewSection shifts={branchShifts} />

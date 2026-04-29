@@ -1,9 +1,9 @@
 "use client";
 
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+
 import { workApi } from "@/lib/api/work-api";
 import type { PunchRecord, Shift } from "@/types/work";
-import type { RefObject } from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type DailyShiftTimelineProps = {
   shifts: Shift[];
@@ -77,9 +77,7 @@ function TimelineHeader({
       <div>
         <p className="text-xs text-zinc-500 dark:text-neutral-500">{title}</p>
         {showActiveLabel ? (
-          <p className="mt-1 text-xs text-zinc-600 dark:text-neutral-300">
-            {activeLabel}
-          </p>
+          <p className="mt-1 text-xs text-zinc-600 dark:text-neutral-300">{activeLabel}</p>
         ) : null}
       </div>
       <button
@@ -99,12 +97,7 @@ type TimelineChartProps = {
   actualShifts: ActualTimelineItem[];
 };
 
-function TimelineChart({
-  viewportRef,
-  nowLeft,
-  todayShifts,
-  actualShifts,
-}: TimelineChartProps) {
+function TimelineChart({ viewportRef, nowLeft, todayShifts, actualShifts }: TimelineChartProps) {
   return (
     <div
       ref={viewportRef}
@@ -134,8 +127,7 @@ function TimelineChart({
             const end = clamp(dayMinute(shift.endAt), 0, MINUTES_IN_DAY);
             const left = (start / MINUTES_IN_DAY) * TIMELINE_WIDTH;
             const width = Math.max(
-              ((Math.max(start + 1, end) - start) / MINUTES_IN_DAY) *
-                TIMELINE_WIDTH,
+              ((Math.max(start + 1, end) - start) / MINUTES_IN_DAY) * TIMELINE_WIDTH,
               14,
             );
             const top = 8 + (index % 3) * 34;
@@ -172,8 +164,7 @@ function TimelineChart({
             const end = clamp(dayMinute(shift.endAt), 0, MINUTES_IN_DAY);
             const left = (start / MINUTES_IN_DAY) * TIMELINE_WIDTH;
             const width = Math.max(
-              ((Math.max(start + 1, end) - start) / MINUTES_IN_DAY) *
-                TIMELINE_WIDTH,
+              ((Math.max(start + 1, end) - start) / MINUTES_IN_DAY) * TIMELINE_WIDTH,
               14,
             );
             const top = 80 + (index % 2) * 34;
@@ -270,9 +261,7 @@ export function DailyShiftTimeline({
     return punches
       .map((record) => {
         const checkedInMs = new Date(record.checkedInAt).getTime();
-        const checkedOutMs = record.checkedOutAt
-          ? new Date(record.checkedOutAt).getTime()
-          : nowMs;
+        const checkedOutMs = record.checkedOutAt ? new Date(record.checkedOutAt).getTime() : nowMs;
         if (!overlaps(checkedInMs, checkedOutMs, dayStartMs, dayEndMs)) {
           return null;
         }
@@ -287,9 +276,7 @@ export function DailyShiftTimeline({
         } satisfies ActualTimelineItem;
       })
       .filter((item): item is ActualTimelineItem => item !== null)
-      .sort(
-        (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime(),
-      );
+      .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
   }, [punches, nowIso]);
 
   useEffect(() => {
@@ -317,9 +304,7 @@ export function DailyShiftTimeline({
       ? "근무 중: 없음"
       : activeWorkers.length === 1
         ? `근무 중: ${activeWorkers[0].employeeName}님`
-        : `근무 중: ${activeWorkers[0].employeeName}님 외 ${
-            activeWorkers.length - 1
-          }명`;
+        : `근무 중: ${activeWorkers[0].employeeName}님 외 ${activeWorkers.length - 1}명`;
 
   return (
     <section className="space-y-3 rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">

@@ -1,17 +1,15 @@
 "use client";
 
-import {
-  BranchCreateModal,
-  type BranchCreateForm,
-} from "@/components/branch/branch-create-modal";
+import { Check, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+
+import { BranchCreateModal, type BranchCreateForm } from "@/components/branch/branch-create-modal";
 import { BranchList } from "@/components/branch/branch-list";
 import { BranchSelectedTags } from "@/components/branch/branch-selected-tags";
 import { workApi } from "@/lib/api/work-api";
 import { toast } from "@/lib/toast";
 import type { Branch, BranchMembership, Employee } from "@/types/work";
-import { Check, Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
 
 function sanitizeBusinessNumber(value: string): string {
   return value.replace(/[^0-9-]/g, "");
@@ -94,22 +92,14 @@ export function BranchSelectClient() {
       .filter((branch) => branch.createdByPhone === dashboard.session?.phone)
       .map((branch) => branch.id);
     const mergedIds = Array.from(
-      new Set([
-        ...myMemberships.map((item) => item.branchId),
-        ...ownedBranchIds,
-      ]),
+      new Set([...myMemberships.map((item) => item.branchId), ...ownedBranchIds]),
     );
     setSelectedBranchIds(mergedIds);
     const finalSet = new Set(mergedIds);
     const initialDefault =
-      dashboard.session.currentBranchId &&
-      finalSet.has(dashboard.session.currentBranchId)
+      dashboard.session.currentBranchId && finalSet.has(dashboard.session.currentBranchId)
         ? dashboard.session.currentBranchId
-        : pickDefaultBranchId(
-            finalSet,
-            all,
-            dashboard.session.phone,
-          );
+        : pickDefaultBranchId(finalSet, all, dashboard.session.phone);
     setDefaultBranchId(initialDefault);
     setLoading(false);
   }, [router]);
@@ -167,9 +157,7 @@ export function BranchSelectClient() {
     if (!session) {
       return;
     }
-    const ownedIds = branches
-      .filter((b) => b.createdByPhone === session.phone)
-      .map((b) => b.id);
+    const ownedIds = branches.filter((b) => b.createdByPhone === session.phone).map((b) => b.id);
     const final = new Set([...selectedBranchIds, ...ownedIds]);
     if (!final.has(branchId)) {
       return;
@@ -177,16 +165,14 @@ export function BranchSelectClient() {
     if (defaultBranchId === branchId) {
       return;
     }
-    const name =
-      branches.find((b) => b.id === branchId)?.name ?? "지점";
+    const name = branches.find((b) => b.id === branchId)?.name ?? "지점";
     setDefaultBranchId(branchId);
     toast.message(`기본 지점을 ${name}로 설정했어요.`);
   };
 
   const toggleSelection = (branchId: string) => {
     const isOwned = branches.some(
-      (branch) =>
-        branch.id === branchId && branch.createdByPhone === session?.phone,
+      (branch) => branch.id === branchId && branch.createdByPhone === session?.phone,
     );
     if (isOwned) {
       toast.message("내가 생성한 지점(owner)은 선택 해제할 수 없습니다.");
@@ -195,9 +181,7 @@ export function BranchSelectClient() {
     if (!session) {
       return;
     }
-    const ownedIds = branches
-      .filter((b) => b.createdByPhone === session.phone)
-      .map((b) => b.id);
+    const ownedIds = branches.filter((b) => b.createdByPhone === session.phone).map((b) => b.id);
     setSelectedBranchIds((prev) => {
       const next = prev.includes(branchId)
         ? prev.filter((id) => id !== branchId)
@@ -225,9 +209,7 @@ export function BranchSelectClient() {
     const ownedBranchIds = branches
       .filter((branch) => branch.createdByPhone === session.phone)
       .map((branch) => branch.id);
-    const finalSelectedIds = Array.from(
-      new Set([...selectedBranchIds, ...ownedBranchIds]),
-    );
+    const finalSelectedIds = Array.from(new Set([...selectedBranchIds, ...ownedBranchIds]));
 
     if (finalSelectedIds.length === 0) {
       toast.error("최소 1개 지점을 선택해야 합니다.");
@@ -236,11 +218,7 @@ export function BranchSelectClient() {
     const defaultId =
       defaultBranchId && finalSelectedIds.includes(defaultBranchId)
         ? defaultBranchId
-        : pickDefaultBranchId(
-            new Set(finalSelectedIds),
-            branches,
-            session.phone,
-          );
+        : pickDefaultBranchId(new Set(finalSelectedIds), branches, session.phone);
 
     const currentIds = memberships.map((item) => item.branchId);
     const toConnect = finalSelectedIds.filter((id) => !currentIds.includes(id));
@@ -272,9 +250,7 @@ export function BranchSelectClient() {
     return <p className="p-4 text-sm text-neutral-400">불러오는 중...</p>;
   }
 
-  const selectedBranches = branches.filter((branch) =>
-    selectedBranchIds.includes(branch.id),
-  );
+  const selectedBranches = branches.filter((branch) => selectedBranchIds.includes(branch.id));
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-4 pb-6 pt-5 sm:px-8">
@@ -286,9 +262,7 @@ export function BranchSelectClient() {
 
       <section className="space-y-3 rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-[#111113]">
         <div className="flex items-center justify-between gap-2">
-          <h2 className="text-sm font-medium text-zinc-900 dark:text-white">
-            지점 목록
-          </h2>
+          <h2 className="text-sm font-medium text-zinc-900 dark:text-white">지점 목록</h2>
           <button
             type="button"
             onClick={() => setCreateOpen(true)}

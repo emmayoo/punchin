@@ -1,14 +1,13 @@
 "use client";
 
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, type ReactNode } from "react";
+
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { workApi } from "@/lib/api/work-api";
-import type { ReactNode } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
 
 /** `/workplace/history/YYYY-MM-DD` 상세에서 하단 탭 숨김 */
-const HIDE_TAB_FOR_PATH =
-  /^\/(?:workplace\/history|history)\/\d{4}-\d{2}-\d{2}\/?$/;
+const HIDE_TAB_FOR_PATH = /^\/(?:workplace\/history|history)\/\d{4}-\d{2}-\d{2}\/?$/;
 
 type TabsShellProps = {
   children: ReactNode;

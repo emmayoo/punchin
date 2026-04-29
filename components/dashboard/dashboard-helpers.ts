@@ -41,16 +41,12 @@ export function resolveDefaultCheckInBranchId(data: DashboardData | null): strin
 }
 
 export function buildMyTimelineShifts(data: DashboardData): Shift[] {
-  const branchNameById = new Map(
-    data.branches.map((branch) => [branch.id, branch.name] as const),
-  );
+  const branchNameById = new Map(data.branches.map((branch) => [branch.id, branch.name] as const));
   if (!data.session) {
     return [];
   }
   return data.shifts
-    .filter(
-      (shift) => shift.employeePhone === data.session?.phone && isToday(shift.startAt),
-    )
+    .filter((shift) => shift.employeePhone === data.session?.phone && isToday(shift.startAt))
     .map((shift) => ({
       ...shift,
       employeeName: shift.branchId
@@ -63,9 +59,7 @@ export function buildMyTimelinePunches(data: DashboardData): PunchRecord[] {
   if (!data.session) {
     return [];
   }
-  const branchNameById = new Map(
-    data.branches.map((branch) => [branch.id, branch.name] as const),
-  );
+  const branchNameById = new Map(data.branches.map((branch) => [branch.id, branch.name] as const));
   return data.punchRecords
     .filter((record) => record.employeePhone === data.session?.phone)
     .map((record) => ({
@@ -105,10 +99,7 @@ export function buildAttendanceStatus(data: DashboardData): AttendanceStatus {
   }
   const nowMs = Date.now();
   const myTodayShifts = data.shifts
-    .filter(
-      (shift) =>
-        shift.employeePhone === data.session?.phone && isToday(shift.startAt),
-    )
+    .filter((shift) => shift.employeePhone === data.session?.phone && isToday(shift.startAt))
     .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
   if (myTodayShifts.length === 0) {
     return {
@@ -121,9 +112,7 @@ export function buildAttendanceStatus(data: DashboardData): AttendanceStatus {
     };
   }
 
-  const branchNameById = new Map(
-    data.branches.map((branch) => [branch.id, branch.name] as const),
-  );
+  const branchNameById = new Map(data.branches.map((branch) => [branch.id, branch.name] as const));
 
   const myTodayPunches = data.punchRecords
     .filter((p) => p.employeePhone === data.session?.phone)
@@ -218,9 +207,7 @@ export function buildAttendanceStatus(data: DashboardData): AttendanceStatus {
   }
 
   // 현재 진행중 없으면: 다음 예정 표시
-  const nextShift = myTodayShifts.find(
-    (shift) => new Date(shift.startAt).getTime() > nowMs,
-  );
+  const nextShift = myTodayShifts.find((shift) => new Date(shift.startAt).getTime() > nowMs);
 
   if (nextShift) {
     const diffMinutes = Math.max(
@@ -255,14 +242,9 @@ export function buildAttendanceStatuses(data: DashboardData): AttendanceStatus[]
   }
   const nowMs = Date.now();
   const myTodayShifts = data.shifts
-    .filter(
-      (shift) =>
-        shift.employeePhone === data.session?.phone && isToday(shift.startAt),
-    )
+    .filter((shift) => shift.employeePhone === data.session?.phone && isToday(shift.startAt))
     .sort((a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime());
-  const branchNameById = new Map(
-    data.branches.map((branch) => [branch.id, branch.name] as const),
-  );
+  const branchNameById = new Map(data.branches.map((branch) => [branch.id, branch.name] as const));
   const myTodayPunches = data.punchRecords
     .filter((p) => p.employeePhone === data.session?.phone)
     .sort((a, b) => new Date(a.checkedInAt).getTime() - new Date(b.checkedInAt).getTime());

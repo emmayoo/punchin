@@ -22,9 +22,7 @@ export function FirstProfileForm({
     <div className="space-y-4">
       <div className="space-y-1">
         <h2 className="text-base font-semibold text-zinc-900 dark:text-white">프로필 등록</h2>
-        <p className="text-xs text-zinc-500 dark:text-neutral-500">
-          {formatPhoneNumber(phone)}
-        </p>
+        <p className="text-xs text-zinc-500 dark:text-neutral-500">{formatPhoneNumber(phone)}</p>
       </div>
 
       <div className="flex flex-col items-center gap-2">

@@ -1,9 +1,10 @@
 "use client";
 
-import { FullscreenModal } from "@/components/overlay/fullscreen-modal";
-import { toast } from "@/lib/toast";
 import Image from "next/image";
 import { useRef, type ChangeEvent } from "react";
+
+import { FullscreenModal } from "@/components/overlay/fullscreen-modal";
+import { toast } from "@/lib/toast";
 
 export type BranchCreateForm = {
   profileImageUrl: string;
@@ -64,9 +65,7 @@ export function BranchCreateModal({
   return (
     <FullscreenModal open={open}>
       <div className="space-y-3">
-        <h2 className="text-base font-semibold text-zinc-900 dark:text-white">
-          새 지점 만들기
-        </h2>
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-white">새 지점 만들기</h2>
         <div className="flex items-center gap-3 rounded-xl border border-zinc-200/90 bg-zinc-50 p-3 dark:border-white/10 dark:bg-[#18181b]">
           <div className="relative h-14 w-14 overflow-hidden rounded-full border border-dashed border-zinc-300/90 bg-zinc-100 dark:border-white/20 dark:bg-neutral-900">
             {form.profileImageUrl ? (

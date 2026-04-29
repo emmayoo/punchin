@@ -1,8 +1,9 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Copy, ImageDown } from "lucide-react";
 import { toPng } from "html-to-image";
+import { ChevronLeft, ChevronRight, Copy, ImageDown } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+
 import { TabPageShell } from "@/components/layout/tab-page-shell";
 import {
   CopyScheduleModal,
@@ -11,18 +12,18 @@ import {
 } from "@/components/schedule/schedule-modals";
 import { SchedulePeopleManager } from "@/components/schedule/schedule-people-manager";
 import { ScheduleSlotForm } from "@/components/schedule/schedule-slot-form";
-import { ScheduleWeekGrid } from "@/components/schedule/schedule-week-grid";
 import { SchedulePerson } from "@/components/schedule/schedule-types";
 import {
-  WEEKDAY_LABELS,
   addDays,
   dateKey,
   fromDateInput,
   parseTimeHHMM,
   startOfWeek,
   toMinutes,
+  WEEKDAY_LABELS,
   weekLabel,
 } from "@/components/schedule/schedule-utils";
+import { ScheduleWeekGrid } from "@/components/schedule/schedule-week-grid";
 import { workApi } from "@/lib/api/work-api";
 import { toast } from "@/lib/toast";
 import { Shift } from "@/types/work";
@@ -71,9 +72,7 @@ export function ScheduleClient() {
     }));
     setPeople(mapped);
     setSelectedPersonId((prev) =>
-      prev && mapped.some((person) => person.id === prev)
-        ? prev
-        : (mapped[0]?.id ?? ""),
+      prev && mapped.some((person) => person.id === prev) ? prev : (mapped[0]?.id ?? ""),
     );
   };
 
@@ -151,13 +150,10 @@ export function ScheduleClient() {
 
   const toHHMM = (value: string): string => {
     const date = new Date(value);
-    return `${String(date.getHours()).padStart(2, "0")}:${String(
-      date.getMinutes(),
-    ).padStart(2, "0")}`;
+    return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
   };
 
-  const normalizePhone = (input: string): string =>
-    input.replace(/\D/g, "").slice(0, 11);
+  const normalizePhone = (input: string): string => input.replace(/\D/g, "").slice(0, 11);
 
   const createSlot = async () => {
     const person = people.find((item) => item.id === selectedPersonId);
@@ -269,14 +265,8 @@ export function ScheduleClient() {
     setWeekPickerOpen(false);
   };
 
-  const nextWeekStartDate = useMemo(
-    () => addDays(startOfWeek(new Date()), 7),
-    [],
-  );
-  const minCopyDate = useMemo(
-    () => dateKey(nextWeekStartDate),
-    [nextWeekStartDate],
-  );
+  const nextWeekStartDate = useMemo(() => addDays(startOfWeek(new Date()), 7), []);
+  const minCopyDate = useMemo(() => dateKey(nextWeekStartDate), [nextWeekStartDate]);
 
   const openCopyModal = () => {
     setCopyTargetDate(minCopyDate);
@@ -303,12 +293,8 @@ export function ScheduleClient() {
 
     const deltaMs = targetWeekStart.getTime() - weekStart.getTime();
     const payload = weekShifts.map((shift) => {
-      const startAt = new Date(
-        new Date(shift.startAt).getTime() + deltaMs,
-      ).toISOString();
-      const endAt = new Date(
-        new Date(shift.endAt).getTime() + deltaMs,
-      ).toISOString();
+      const startAt = new Date(new Date(shift.startAt).getTime() + deltaMs).toISOString();
+      const endAt = new Date(new Date(shift.endAt).getTime() + deltaMs).toISOString();
       return {
         employeeName: shift.employeeName,
         employeePhone: shift.employeePhone,
@@ -323,15 +309,11 @@ export function ScheduleClient() {
     await loadSchedule();
     setCopying(false);
     setCopyModalOpen(false);
-    toast.success(
-      `${weekLabel(weekStart)} 스케줄을 ${weekLabel(targetWeekStart)}로 복사했습니다.`,
-    );
+    toast.success(`${weekLabel(weekStart)} 스케줄을 ${weekLabel(targetWeekStart)}로 복사했습니다.`);
   };
 
   const openShiftEditModal = (shift: Shift) => {
-    const person = people.find(
-      (item) => item.employeePhone === shift.employeePhone,
-    );
+    const person = people.find((item) => item.employeePhone === shift.employeePhone);
     setEditingShiftId(shift.id);
     setEditDate(dateKey(new Date(shift.startAt)));
     setEditStartTime(toHHMM(shift.startAt));
@@ -402,10 +384,7 @@ export function ScheduleClient() {
     try {
       const dataUrl = await toPng(el, {
         cacheBust: true,
-        pixelRatio: Math.min(
-          2,
-          typeof window !== "undefined" ? window.devicePixelRatio : 1,
-        ),
+        pixelRatio: Math.min(2, typeof window !== "undefined" ? window.devicePixelRatio : 1),
         backgroundColor: "#0a0a0a",
       });
       const a = document.createElement("a");

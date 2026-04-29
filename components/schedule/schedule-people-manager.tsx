@@ -1,6 +1,7 @@
-import { SchedulePerson } from "@/components/schedule/schedule-types";
 import { Pencil, Plus, Save, Trash, XIcon } from "lucide-react";
 import { useState } from "react";
+
+import { SchedulePerson } from "@/components/schedule/schedule-types";
 
 const inputClass =
   "w-full rounded-lg border border-zinc-200/90 bg-white px-2 py-1.5 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-white/35";
@@ -115,9 +116,7 @@ export function SchedulePeopleManager({
                     style={{ backgroundColor: person.color }}
                     aria-hidden
                   />
-                  <span className="text-sm text-zinc-800 dark:text-neutral-100">
-                    {person.name}
-                  </span>
+                  <span className="text-sm text-zinc-800 dark:text-neutral-100">{person.name}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-zinc-500 dark:text-neutral-500">

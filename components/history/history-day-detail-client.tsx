@@ -1,11 +1,12 @@
 "use client";
 
-import { DetailPageShell } from "@/components/layout/detail-page-shell";
 import { useEffect, useMemo, useRef, useState } from "react";
+
+import { DetailPageShell } from "@/components/layout/detail-page-shell";
 import { workApi } from "@/lib/api/work-api";
-import { CalendarEvent, PunchRecord } from "@/types/work";
-import { durationHours, formatDateTime, formatHours } from "@/lib/time";
 import { DEFAULT_EVENT_COLOR } from "@/lib/constants/event";
+import { durationHours, formatDateTime, formatHours } from "@/lib/time";
+import { CalendarEvent, PunchRecord } from "@/types/work";
 
 type HistoryDayDetailClientProps = {
   date: string;
@@ -13,9 +14,7 @@ type HistoryDayDetailClientProps = {
 
 function isSameDate(dateKey: string, iso: string): boolean {
   const d = new Date(iso);
-  const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate(),
-  ).padStart(2, "0")}`;
+  const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   return key === dateKey;
 }
 
@@ -63,10 +62,7 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
     () => punches.filter((record) => isSameDate(date, record.checkedInAt)),
     [punches, date],
   );
-  const dayEvents = useMemo(
-    () => events.filter((event) => event.date === date),
-    [events, date],
-  );
+  const dayEvents = useMemo(() => events.filter((event) => event.date === date), [events, date]);
 
   const handleCreate = async () => {
     setBusy(true);
@@ -153,18 +149,14 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
                 <div className="flex items-center gap-2">
                   <input
                     defaultValue={event.title}
-                    onChange={(item) =>
-                      handleTitleChange(event.id, item.target.value)
-                    }
+                    onChange={(item) => handleTitleChange(event.id, item.target.value)}
                     className="flex-1 rounded-lg border border-zinc-200/90 bg-white px-2 py-1 text-sm outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-neutral-900 dark:focus:border-white/35"
                     style={{ color: event.color }}
                   />
                   <input
                     type="color"
                     defaultValue={event.color || DEFAULT_EVENT_COLOR}
-                    onChange={(item) =>
-                      handleColorChange(event.id, item.target.value)
-                    }
+                    onChange={(item) => handleColorChange(event.id, item.target.value)}
                     className="h-8 w-10 rounded border border-zinc-200/90 bg-white p-1 dark:border-white/10 dark:bg-neutral-900"
                     aria-label="이벤트 색상"
                   />
@@ -202,17 +194,11 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
                 출근: {formatDateTime(record.checkedInAt)}
               </p>
               <p className="text-sm text-zinc-600 dark:text-neutral-300">
-                퇴근:{" "}
-                {record.checkedOutAt
-                  ? formatDateTime(record.checkedOutAt)
-                  : "근무 중"}
+                퇴근: {record.checkedOutAt ? formatDateTime(record.checkedOutAt) : "근무 중"}
               </p>
               {record.checkedOutAt ? (
                 <p className="mt-2 text-xs text-zinc-600 dark:text-neutral-400">
-                  근무시간:{" "}
-                  {formatHours(
-                    durationHours(record.checkedInAt, record.checkedOutAt),
-                  )}
+                  근무시간: {formatHours(durationHours(record.checkedInAt, record.checkedOutAt))}
                 </p>
               ) : null}
             </article>

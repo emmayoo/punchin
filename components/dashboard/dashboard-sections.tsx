@@ -1,5 +1,6 @@
 "use client";
 
+import type { AttendanceStatus } from "@/components/dashboard/dashboard-helpers";
 import {
   durationHours,
   formatDateTime,
@@ -7,7 +8,6 @@ import {
   formatTime,
 } from "@/lib/time";
 import type { Branch, PunchRecord, Shift } from "@/types/work";
-import type { AttendanceStatus } from "@/components/dashboard/dashboard-helpers";
 
 type GreetingPunchSectionProps = {
   userName: string;
@@ -53,9 +53,7 @@ export function GreetingPunchSection({
           </button>
         </>
       )}
-      {actionError ? (
-        <p className="text-xs text-rose-300">{actionError}</p>
-      ) : null}
+      {actionError ? <p className="text-xs text-rose-300">{actionError}</p> : null}
     </section>
   );
 }
@@ -66,14 +64,8 @@ type TodayRecordsSectionProps = {
   branches: Branch[];
 };
 
-export function TodayRecordsSection({
-  records,
-  todayHours,
-  branches,
-}: TodayRecordsSectionProps) {
-  const branchNameById = new Map(
-    branches.map((branch) => [branch.id, branch.name] as const),
-  );
+export function TodayRecordsSection({ records, todayHours, branches }: TodayRecordsSectionProps) {
+  const branchNameById = new Map(branches.map((branch) => [branch.id, branch.name] as const));
   const branchHoursMap = records.reduce<Map<string, number>>((acc, record) => {
     const branchLabel = record.branchId
       ? (branchNameById.get(record.branchId) ?? "지점 미지정")
@@ -84,29 +76,20 @@ export function TodayRecordsSection({
     acc.set(branchLabel, current + workedHours);
     return acc;
   }, new Map<string, number>());
-  const branchSummaries = [...branchHoursMap.entries()].sort(
-    (a, b) => b[1] - a[1],
-  );
+  const branchSummaries = [...branchHoursMap.entries()].sort((a, b) => b[1] - a[1]);
   return (
     <article className="rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
-      <p className="text-xs text-zinc-500 dark:text-neutral-500">
-        오늘 출퇴근 기록
-      </p>
+      <p className="text-xs text-zinc-500 dark:text-neutral-500">오늘 출퇴근 기록</p>
       <p className="flex items-center gap-2 mt-2">
         <span className="text-base font-semibold text-zinc-900 dark:text-white">
           {formatDuration24hWithSeconds(todayHours)}
         </span>
-        <span className="text-xs text-zinc-500 dark:text-neutral-500">
-          (총 근무 시간)
-        </span>
+        <span className="text-xs text-zinc-500 dark:text-neutral-500">(총 근무 시간)</span>
       </p>
       {branchSummaries.length > 0 ? (
         <div className="mt-2 space-y-1">
           {branchSummaries.map(([branchName, hours]) => (
-            <p
-              key={branchName}
-              className="text-xs text-zinc-600 dark:text-neutral-400"
-            >
+            <p key={branchName} className="text-xs text-zinc-600 dark:text-neutral-400">
               - {branchName}: {formatDuration24hWithSeconds(hours)}
             </p>
           ))}
@@ -119,10 +102,7 @@ export function TodayRecordsSection({
               ? formatTime(record.checkedOutAt)
               : `${formatTime(new Date().toISOString())} (진행 중)`;
             return (
-              <p
-                key={record.id}
-                className="text-sm text-zinc-800 dark:text-neutral-100"
-              >
+              <p key={record.id} className="text-sm text-zinc-800 dark:text-neutral-100">
                 {formatTime(record.checkedInAt)} - {endLabel}
                 <span className="ml-2 text-xs text-zinc-500 dark:text-neutral-400">
                   ·{" "}
@@ -135,9 +115,7 @@ export function TodayRecordsSection({
           })}
         </div>
       ) : (
-        <p className="mt-4 text-sm text-zinc-600 dark:text-neutral-400">
-          오늘 기록 없음
-        </p>
+        <p className="mt-4 text-sm text-zinc-600 dark:text-neutral-400">오늘 기록 없음</p>
       )}
     </article>
   );
@@ -161,10 +139,7 @@ export function CheckInBranchSelectBody({
   }
   return (
     <div className="space-y-1.5">
-      <label
-        htmlFor="checkin-branch"
-        className="text-xs text-zinc-600 dark:text-neutral-300"
-      >
+      <label htmlFor="checkin-branch" className="text-xs text-zinc-600 dark:text-neutral-300">
         출근 지점 선택
       </label>
       <select
@@ -250,23 +225,16 @@ export function NextUpcomingShiftSection({
 }: NextUpcomingShiftSectionProps) {
   return (
     <section className="rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
-      <p className="text-xs text-zinc-500 dark:text-neutral-500">
-        다음 예정 근무
-      </p>
+      <p className="text-xs text-zinc-500 dark:text-neutral-500">다음 예정 근무</p>
       {nextUpcomingShift ? (
         <div className="mt-1 space-y-1">
-          <p className="text-sm font-medium text-zinc-900 dark:text-white">
-            {nextShiftBranchName}
-          </p>
+          <p className="text-sm font-medium text-zinc-900 dark:text-white">{nextShiftBranchName}</p>
           <p className="text-sm text-zinc-600 dark:text-neutral-300">
-            {formatDateTime(nextUpcomingShift.startAt)} ~{" "}
-            {formatDateTime(nextUpcomingShift.endAt)}
+            {formatDateTime(nextUpcomingShift.startAt)} ~ {formatDateTime(nextUpcomingShift.endAt)}
           </p>
         </div>
       ) : (
-        <p className="mt-1 text-sm text-zinc-600 dark:text-neutral-400">
-          예정된 근무가 없습니다.
-        </p>
+        <p className="mt-1 text-sm text-zinc-600 dark:text-neutral-400">예정된 근무가 없습니다.</p>
       )}
     </section>
   );

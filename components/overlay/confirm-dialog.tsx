@@ -1,7 +1,8 @@
 "use client";
 
-import { FullscreenModal } from "@/components/overlay/fullscreen-modal";
 import type { ReactNode } from "react";
+
+import { FullscreenModal } from "@/components/overlay/fullscreen-modal";
 
 type ConfirmDialogProps = {
   open: boolean;
@@ -37,12 +38,8 @@ export function ConfirmDialog({
     <FullscreenModal open={open}>
       <div className="space-y-4">
         <div className="space-y-1">
-          <h2 className="text-base font-semibold text-zinc-900 dark:text-white">
-            {title}
-          </h2>
-          <p className="text-sm text-zinc-600 dark:text-neutral-400">
-            {description}
-          </p>
+          <h2 className="text-base font-semibold text-zinc-900 dark:text-white">{title}</h2>
+          <p className="text-sm text-zinc-600 dark:text-neutral-400">{description}</p>
         </div>
         {body ? <div>{body}</div> : null}
         <div className="grid grid-cols-2 gap-2">

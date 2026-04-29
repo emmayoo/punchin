@@ -30,10 +30,7 @@ export function HistoryCalendarHeader({
         </button>
       </div>
       <div>
-        <button
-          onClick={onOpenPicker}
-          className="text-md text-zinc-900 dark:text-white"
-        >
+        <button onClick={onOpenPicker} className="text-md text-zinc-900 dark:text-white">
           {monthLabel}
         </button>
       </div>

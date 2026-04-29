@@ -1,8 +1,9 @@
 "use client";
 
-import { THEME_STORAGE_KEY } from "@/lib/theme";
 import { ThemeProvider } from "next-themes";
 import type { ReactNode } from "react";
+
+import { THEME_STORAGE_KEY } from "@/lib/theme";
 
 export function AppThemeProvider({ children }: { children: ReactNode }) {
   return (

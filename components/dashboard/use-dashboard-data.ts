@@ -1,7 +1,8 @@
 "use client";
 
-import { DashboardData, workApi } from "@/lib/api/work-api";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+import { DashboardData, workApi } from "@/lib/api/work-api";
 
 type UseDashboardDataOptions = {
   pollMs?: number;

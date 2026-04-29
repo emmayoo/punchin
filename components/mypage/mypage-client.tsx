@@ -1,18 +1,19 @@
 "use client";
 
-import { TabPageShell } from "@/components/layout/tab-page-shell";
-import { DashboardData, workApi } from "@/lib/api/work-api";
-import { formatPhoneNumber } from "@/lib/phone";
-import { toast } from "@/lib/toast";
-import {
-  MypageBranchDetailModal,
-  getEffectiveBranchRole,
-} from "@/components/mypage/mypage-branch-detail-modal";
-import type { Branch, BranchMembership } from "@/types/work";
 import { ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+
+import { TabPageShell } from "@/components/layout/tab-page-shell";
+import {
+  getEffectiveBranchRole,
+  MypageBranchDetailModal,
+} from "@/components/mypage/mypage-branch-detail-modal";
 import { ThemeSunMoonToggle } from "@/components/theme/theme-sun-moon-toggle";
+import { DashboardData, workApi } from "@/lib/api/work-api";
+import { formatPhoneNumber } from "@/lib/phone";
+import { toast } from "@/lib/toast";
+import type { Branch, BranchMembership } from "@/types/work";
 
 export function MyPageClient() {
   const router = useRouter();
@@ -95,25 +96,14 @@ export function MyPageClient() {
       }
       return { branch, membership };
     })
-    .filter(
-      (item): item is { branch: Branch; membership: BranchMembership } =>
-        item !== null,
-    );
+    .filter((item): item is { branch: Branch; membership: BranchMembership } => item !== null);
 
   return (
-    <TabPageShell
-      title="설정"
-      bodyClassName="gap-8"
-      loading={loading || !data?.session}
-    >
+    <TabPageShell title="설정" bodyClassName="gap-8" loading={loading || !data?.session}>
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">
-          프로필
-        </h2>
+        <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">프로필</h2>
         <div className="rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
-          <p className="text-xs text-zinc-500 dark:text-neutral-500">
-            로그인 번호
-          </p>
+          <p className="text-xs text-zinc-500 dark:text-neutral-500">로그인 번호</p>
           <p className="mt-1 text-sm text-zinc-800 dark:text-neutral-100">
             {formatPhoneNumber(data.session.phone)}
           </p>
@@ -121,9 +111,7 @@ export function MyPageClient() {
 
         <div className="space-y-3 rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
           <label className="block space-y-1">
-            <span className="text-xs text-zinc-600 dark:text-neutral-400">
-              이름 (닉네임)
-            </span>
+            <span className="text-xs text-zinc-600 dark:text-neutral-400">이름 (닉네임)</span>
             <input
               value={name}
               onChange={(event) => setName(event.target.value)}
@@ -142,9 +130,7 @@ export function MyPageClient() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">
-          앱
-        </h2>
+        <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">앱</h2>
         <div className="rounded-2xl border flex justify-between items-center border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
           <p className="text-xs text-zinc-600 dark:text-neutral-400">테마</p>
           <ThemeSunMoonToggle />
@@ -152,9 +138,7 @@ export function MyPageClient() {
       </section>
 
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">
-          지점
-        </h2>
+        <h2 className="text-sm font-semibold text-zinc-900 dark:text-white">지점</h2>
         <div className="space-y-2 rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
           <div>
             {myBranches.length === 0 ? (
@@ -166,10 +150,7 @@ export function MyPageClient() {
                 {myBranches.map(({ branch, membership }) => {
                   const isDefault = data.session?.currentBranchId === branch.id;
                   return (
-                    <li
-                      key={membership.id}
-                      className="flex items-center justify-between gap-2 "
-                    >
+                    <li key={membership.id} className="flex items-center justify-between gap-2 ">
                       <div className="flex min-w-0 flex-1 items-center gap-2">
                         <p className="truncate text-sm font-medium text-zinc-900 dark:text-white">
                           {branch.name}
@@ -216,11 +197,7 @@ export function MyPageClient() {
               )
             : "member"
         }
-        isDefault={
-          branchDetail
-            ? data.session.currentBranchId === branchDetail.branch.id
-            : false
-        }
+        isDefault={branchDetail ? data.session.currentBranchId === branchDetail.branch.id : false}
         onClose={() => setBranchDetail(null)}
       />
 

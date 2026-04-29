@@ -1,20 +1,17 @@
+import { RefObject } from "react";
+
+import { SchedulePerson, ShiftMap, WeekDayItem } from "@/components/schedule/schedule-types";
 import {
+  ceilToHour,
+  dateKey,
   DAY_COLUMN_HEIGHT,
   DISPLAY_HOURS,
-  HOUR_ROW_HEIGHT,
-  MINUTES_PER_DAY,
-  dateKey,
-  ceilToHour,
   floorToHour,
+  HOUR_ROW_HEIGHT,
   minuteOffsetInDay,
+  MINUTES_PER_DAY,
 } from "@/components/schedule/schedule-utils";
-import {
-  SchedulePerson,
-  ShiftMap,
-  WeekDayItem,
-} from "@/components/schedule/schedule-types";
 import type { Shift } from "@/types/work";
-import { RefObject } from "react";
 
 type ScheduleWeekGridProps = {
   weekDays: WeekDayItem[];
@@ -59,9 +56,7 @@ function buildShiftSegments(shifts: PositionedShift[]): ShiftSegment[] {
       .filter((item) => item.startMin < segEnd && item.endMin > segStart)
       .sort(
         (a, b) =>
-          a.startMin - b.startMin ||
-          a.endMin - b.endMin ||
-          a.shift.id.localeCompare(b.shift.id),
+          a.startMin - b.startMin || a.endMin - b.endMin || a.shift.id.localeCompare(b.shift.id),
       );
     if (active.length === 0) {
       continue;
@@ -145,20 +140,13 @@ export function ScheduleWeekGrid({
             {weekDays.map((day) => {
               const dayKey = dateKey(day.date);
               const dayEntries = (shiftMap.get(dayKey) ?? []).sort(
-                (a, b) =>
-                  new Date(a.startAt).getTime() - new Date(b.startAt).getTime(),
+                (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime(),
               );
               const positionedEntries: PositionedShift[] = dayEntries.map((shift) => {
                 const start = new Date(shift.startAt);
                 const end = new Date(shift.endAt);
-                const startMin = Math.max(
-                  0,
-                  floorToHour(minuteOffsetInDay(start)),
-                );
-                const endMin = Math.min(
-                  MINUTES_PER_DAY,
-                  ceilToHour(minuteOffsetInDay(end)),
-                );
+                const startMin = Math.max(0, floorToHour(minuteOffsetInDay(start)));
+                const endMin = Math.min(MINUTES_PER_DAY, ceilToHour(minuteOffsetInDay(end)));
                 return {
                   shift,
                   startMin,
@@ -184,12 +172,9 @@ export function ScheduleWeekGrid({
                     const start = new Date(segment.shift.startAt);
                     const end = new Date(segment.shift.endAt);
                     const timeLabel = `${timeFmt.format(start)}-${timeFmt.format(end)}`;
-                    const top =
-                      (segment.startMin / MINUTES_PER_DAY) * DAY_COLUMN_HEIGHT;
+                    const top = (segment.startMin / MINUTES_PER_DAY) * DAY_COLUMN_HEIGHT;
                     const rawHeight =
-                      ((segment.endMin - segment.startMin) /
-                        MINUTES_PER_DAY) *
-                      DAY_COLUMN_HEIGHT;
+                      ((segment.endMin - segment.startMin) / MINUTES_PER_DAY) * DAY_COLUMN_HEIGHT;
                     const height = Math.max(18, rawHeight);
                     const person = peopleByPhone.get(segment.shift.employeePhone);
                     const laneWidth = 100 / segment.laneCount;

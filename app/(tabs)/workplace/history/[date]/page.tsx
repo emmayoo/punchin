@@ -4,9 +4,7 @@ type WorkplaceHistoryDayPageProps = {
   params: Promise<{ date: string }>;
 };
 
-export default async function WorkplaceHistoryDayPage({
-  params,
-}: WorkplaceHistoryDayPageProps) {
+export default async function WorkplaceHistoryDayPage({ params }: WorkplaceHistoryDayPageProps) {
   const { date } = await params;
   return <HistoryDayDetailClient date={date} />;
 }

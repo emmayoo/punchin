@@ -1,17 +1,15 @@
 "use client";
 
-import { formatDuration24hWithSeconds } from "@/lib/time";
-import type { PunchRecord } from "@/types/work";
 import { WorkplaceSectionCard } from "@/components/workplace/workplace-section-card";
 import { WorkplaceSectionLink } from "@/components/workplace/workplace-section-link";
+import { formatDuration24hWithSeconds } from "@/lib/time";
+import type { PunchRecord } from "@/types/work";
 
 type WorkplaceMonthlyStatsSectionProps = {
   punches: PunchRecord[];
 };
 
-export function WorkplaceMonthlyStatsSection({
-  punches,
-}: WorkplaceMonthlyStatsSectionProps) {
+export function WorkplaceMonthlyStatsSection({ punches }: WorkplaceMonthlyStatsSectionProps) {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
   const nextMonthStart = new Date(now.getFullYear(), now.getMonth() + 1, 1).getTime();
@@ -28,12 +26,8 @@ export function WorkplaceMonthlyStatsSection({
       }>
     >((acc, record) => {
       const endAt = record.checkedOutAt ?? new Date().toISOString();
-      const hours =
-        (new Date(endAt).getTime() - new Date(record.checkedInAt).getTime()) /
-        3600000;
-      const existing = acc.find(
-        (item) => item.employeeName === record.employeeName,
-      );
+      const hours = (new Date(endAt).getTime() - new Date(record.checkedInAt).getTime()) / 3600000;
+      const existing = acc.find((item) => item.employeeName === record.employeeName);
       if (existing) {
         existing.hours += hours;
         return acc;

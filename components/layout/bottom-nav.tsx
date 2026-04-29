@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { workApi } from "@/lib/api/work-api";
 import { useEffect, useState } from "react";
+
+import { workApi } from "@/lib/api/work-api";
 
 export function BottomNav() {
   const pathname = usePathname();

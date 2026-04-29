@@ -1,8 +1,9 @@
 "use client";
 
-import type { Branch } from "@/types/work";
 import { ChevronDownIcon } from "lucide-react";
 import { useMemo, useState } from "react";
+
+import type { Branch } from "@/types/work";
 
 type WorkplaceBranchSwitcherProps = {
   className?: string;
@@ -25,9 +26,7 @@ export function WorkplaceBranchSwitcher({
     if (!selectedBranchId) {
       return "-";
     }
-    return (
-      branches.find((branch) => branch.id === selectedBranchId)?.name ?? "-"
-    );
+    return branches.find((branch) => branch.id === selectedBranchId)?.name ?? "-";
   }, [branches, selectedBranchId]);
 
   const handleSelect = (branchId: string) => {
@@ -77,9 +76,7 @@ export function WorkplaceBranchSwitcher({
                     >
                       <span className="truncate">{branch.name}</span>
                       {selected ? (
-                        <span className="text-xs">
-                          {busy ? "변경 중..." : "선택됨"}
-                        </span>
+                        <span className="text-xs">{busy ? "변경 중..." : "선택됨"}</span>
                       ) : null}
                     </button>
                   </li>

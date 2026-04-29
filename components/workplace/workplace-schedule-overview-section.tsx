@@ -1,12 +1,18 @@
 "use client";
 
 import { useMemo, useRef } from "react";
-import { ScheduleWeekGrid } from "@/components/schedule/schedule-week-grid";
+
 import type { SchedulePerson, WeekDayItem } from "@/components/schedule/schedule-types";
-import { addDays, dateKey, startOfWeek, WEEKDAY_LABELS } from "@/components/schedule/schedule-utils";
-import type { Shift } from "@/types/work";
+import {
+  addDays,
+  dateKey,
+  startOfWeek,
+  WEEKDAY_LABELS,
+} from "@/components/schedule/schedule-utils";
+import { ScheduleWeekGrid } from "@/components/schedule/schedule-week-grid";
 import { WorkplaceSectionCard } from "@/components/workplace/workplace-section-card";
 import { WorkplaceSectionLink } from "@/components/workplace/workplace-section-link";
+import type { Shift } from "@/types/work";
 
 type WorkplaceScheduleOverviewSectionProps = {
   shifts: Shift[];
@@ -77,9 +83,7 @@ export function WorkplaceScheduleOverviewSection({
           onShiftClick={() => {}}
         />
       ) : (
-        <p className="text-sm text-zinc-600 dark:text-neutral-400">
-          이번주 스케줄이 없습니다.
-        </p>
+        <p className="text-sm text-zinc-600 dark:text-neutral-400">이번주 스케줄이 없습니다.</p>
       )}
     </WorkplaceSectionCard>
   );

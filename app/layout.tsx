@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
-import "./globals.css";
+
 import { AppThemeProvider } from "@/components/providers/app-theme-provider";
 import { AppToaster } from "@/components/providers/app-toaster";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 import { buildThemeInitScriptBody } from "@/lib/theme";
+
+import "./globals.css";
 
 const THEME_INIT_SCRIPT = buildThemeInitScriptBody();
 

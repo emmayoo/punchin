@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { HistoryCalendarGrid } from "@/components/history/history-calendar-grid";
 import { HistoryCalendarHeader } from "@/components/history/history-calendar-header";
 import { HistoryMonthPickerModal } from "@/components/history/history-month-picker-modal";
-import { TabPageShell } from "@/components/layout/tab-page-shell";
+import { DetailPageShell } from "@/components/layout/detail-page-shell";
 import { workApi } from "@/lib/api/work-api";
 import type { CalendarEvent, PunchRecord } from "@/types/work";
 
@@ -86,7 +86,7 @@ export function HistoryClient() {
   const todayKey = toDateKey(today);
 
   return (
-    <TabPageShell title="근무 이력" className="gap-5" bodyClassName="gap-5" loading={loading}>
+    <DetailPageShell backHref="/workplace" title="캘린더" loading={loading}>
       {() => (
         <>
           <section className="rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
@@ -98,7 +98,9 @@ export function HistoryClient() {
               onNext={() =>
                 setMonthDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
               }
-              onToday={() => setMonthDate(new Date(today.getFullYear(), today.getMonth(), 1))}
+              onToday={() =>
+                setMonthDate(new Date(today.getFullYear(), today.getMonth(), 1))
+              }
               onOpenPicker={() => {
                 setPickerYear(monthDate.getFullYear());
                 setPickerMonth(monthDate.getMonth() + 1);
@@ -127,6 +129,6 @@ export function HistoryClient() {
           />
         </>
       )}
-    </TabPageShell>
+    </DetailPageShell>
   );
 }

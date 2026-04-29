@@ -4,13 +4,12 @@ import { toPng } from "html-to-image";
 import { ChevronLeft, ChevronRight, Copy, ImageDown } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { TabPageShell } from "@/components/layout/tab-page-shell";
+import { DetailPageShell } from "@/components/layout/detail-page-shell";
 import {
   CopyScheduleModal,
   ShiftEditModal,
   WeekPickerModal,
 } from "@/components/schedule/schedule-modals";
-import { SchedulePeopleManager } from "@/components/schedule/schedule-people-manager";
 import { ScheduleSlotForm } from "@/components/schedule/schedule-slot-form";
 import { SchedulePerson } from "@/components/schedule/schedule-types";
 import {
@@ -36,9 +35,6 @@ export function ScheduleClient() {
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("13:00");
   const [selectedPersonId, setSelectedPersonId] = useState("");
-  const [newPersonName, setNewPersonName] = useState("");
-  const [newPersonPhone, setNewPersonPhone] = useState("");
-  const [newPersonColor, setNewPersonColor] = useState("#22c55e");
   const [weekPickerOpen, setWeekPickerOpen] = useState(false);
   const [pickerDate, setPickerDate] = useState(() => dateKey(new Date()));
   const [copyModalOpen, setCopyModalOpen] = useState(false);
@@ -61,19 +57,6 @@ export function ScheduleClient() {
   const loadSchedule = async () => {
     const list = await workApi.getSchedule();
     setShifts(list);
-  };
-  const loadPeople = async () => {
-    const list = await workApi.getSchedulePeople();
-    const mapped: SchedulePerson[] = list.map((item) => ({
-      id: item.id,
-      name: item.name,
-      employeePhone: item.employeePhone,
-      color: item.color,
-    }));
-    setPeople(mapped);
-    setSelectedPersonId((prev) =>
-      prev && mapped.some((person) => person.id === prev) ? prev : (mapped[0]?.id ?? ""),
-    );
   };
 
   useEffect(() => {
@@ -153,8 +136,6 @@ export function ScheduleClient() {
     return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
   };
 
-  const normalizePhone = (input: string): string => input.replace(/\D/g, "").slice(0, 11);
-
   const createSlot = async () => {
     const person = people.find((item) => item.id === selectedPersonId);
     if (!person) {
@@ -188,72 +169,6 @@ export function ScheduleClient() {
       `${WEEKDAY_LABELS[weekday]} ${startTime}-${endTime} ${person.name} 스케줄을 추가했습니다.`,
     );
     setBusy(false);
-  };
-
-  const addPerson = async () => {
-    if (!newPersonName.trim()) {
-      toast.error("사람 이름을 입력해주세요.");
-      return;
-    }
-    const phone = normalizePhone(newPersonPhone);
-    if (phone.length < 10) {
-      toast.error("핸드폰 번호를 정확히 입력해주세요.");
-      return;
-    }
-    if (people.some((person) => person.employeePhone === phone)) {
-      toast.error("이미 등록된 핸드폰 번호입니다.");
-      return;
-    }
-    const created = await workApi.createSchedulePerson({
-      name: newPersonName.trim(),
-      employeePhone: phone,
-      color: newPersonColor,
-    });
-    await loadPeople();
-    setSelectedPersonId(created.id);
-    setNewPersonName("");
-    setNewPersonPhone("");
-    toast.success(`${created.name} 직원을 추가했습니다.`);
-  };
-
-  const updatePerson = async (
-    personId: string,
-    payload: Pick<SchedulePerson, "name" | "employeePhone" | "color">,
-  ) => {
-    const name = payload.name.trim();
-    if (!name) {
-      toast.error("사람 이름을 입력해주세요.");
-      return;
-    }
-    const phone = normalizePhone(payload.employeePhone);
-    if (phone.length < 10) {
-      toast.error("핸드폰 번호를 정확히 입력해주세요.");
-      return;
-    }
-    const duplicated = people.some(
-      (person) => person.id !== personId && person.employeePhone === phone,
-    );
-    if (duplicated) {
-      toast.error("이미 등록된 핸드폰 번호입니다.");
-      return;
-    }
-    await workApi.updateSchedulePerson(personId, {
-      name,
-      employeePhone: phone,
-      color: payload.color,
-    });
-    await loadPeople();
-    toast.success("직원 정보를 수정했습니다.");
-  };
-
-  const deletePerson = async (personId: string) => {
-    if (people.length <= 1) {
-      toast.error("직원은 최소 1명 이상 필요합니다.");
-      return;
-    }
-    await workApi.deleteSchedulePerson(personId);
-    await loadPeople();
-    toast.success("직원을 삭제했습니다.");
   };
 
   const applyWeekPicker = () => {
@@ -387,17 +302,32 @@ export function ScheduleClient() {
     }
     setExportingImage(true);
     try {
+      // 폰트/레이아웃이 완전히 렌더된 뒤 캡처해야 프로덕션에서 빈 이미지가 덜 나옵니다.
+      if (typeof document !== "undefined" && "fonts" in document) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (document as any).fonts?.ready;
+      }
+      await new Promise<void>((resolve) => {
+        window.requestAnimationFrame(() => resolve());
+      });
+
       const dataUrl = await toPng(el, {
         cacheBust: true,
         pixelRatio: Math.min(2, typeof window !== "undefined" ? window.devicePixelRatio : 1),
         backgroundColor: "#0a0a0a",
       });
+
       const a = document.createElement("a");
       a.href = dataUrl;
       a.download = `스케줄_${dateKey(weekStart)}.png`;
+      a.rel = "noreferrer";
+      document.body.appendChild(a);
       a.click();
+      a.remove();
       toast.success("스케줄 이미지를 저장했습니다.");
-    } catch {
+    } catch (err) {
+      // 프로덕션에서 원인을 알아야 재현/해결이 빨라집니다.
+      console.error("Failed to export schedule image:", err);
       toast.error("이미지를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.");
     } finally {
       setExportingImage(false);
@@ -405,7 +335,13 @@ export function ScheduleClient() {
   };
 
   return (
-    <TabPageShell title="스케줄" bodyClassName="gap-6" loading={loading}>
+    <DetailPageShell
+      backHref="/workplace"
+      title="스케줄"
+      loading={loading}
+      className="gap-6"
+      contentClassName="gap-6"
+    >
       <section className="space-y-3 rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-[90px]">
@@ -490,19 +426,6 @@ export function ScheduleClient() {
         onCreateSlot={createSlot}
       />
 
-      <SchedulePeopleManager
-        people={people}
-        newPersonName={newPersonName}
-        newPersonPhone={newPersonPhone}
-        newPersonColor={newPersonColor}
-        onNameChange={setNewPersonName}
-        onPhoneChange={setNewPersonPhone}
-        onColorChange={setNewPersonColor}
-        onAddPerson={addPerson}
-        onUpdatePerson={updatePerson}
-        onDeletePerson={deletePerson}
-      />
-
       <WeekPickerModal
         open={weekPickerOpen}
         pickerDate={pickerDate}
@@ -537,6 +460,6 @@ export function ScheduleClient() {
         onSave={saveEditedShift}
         onDelete={deleteEditingShift}
       />
-    </TabPageShell>
+    </DetailPageShell>
   );
 }

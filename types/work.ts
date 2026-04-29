@@ -40,6 +40,7 @@ export type BranchMemberListItem = {
   employeeId: string;
   phone: string;
   name: string;
+  color?: string | null;
   role: BranchRole;
   /** 멤버십 생성 시각(ISO). 로컬 저장소 등에서는 비어 있을 수 있음 → 입사일 표시 시 — */
   joinedAt?: string | null;

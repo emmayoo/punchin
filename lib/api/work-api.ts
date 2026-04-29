@@ -31,6 +31,7 @@ import {
   updateBranchBasicFields,
   updateCalendarEvent,
   updateEmployeeName,
+  updateEmployeeColor,
   updateShift,
   upsertEmployee,
 } from "@/lib/storage";
@@ -248,12 +249,15 @@ function mapBranchMemberListRow(row: Record<string, unknown>): BranchMemberListI
       : null;
   const phone = emp && typeof emp.phone === "string" ? emp.phone : "";
   const name = emp && typeof emp.name === "string" ? emp.name : "";
+  const color =
+    emp && typeof emp.color === "string" && emp.color.trim().length > 0 ? emp.color : null;
   const createdAt = row.created_at;
   return {
     membershipId: String(row.id),
     employeeId: String(row.employee_id),
     phone,
     name,
+    color,
     role: mapBranchRole(String(row.role)),
     joinedAt:
       createdAt !== undefined && createdAt !== null && String(createdAt).trim() !== ""
@@ -522,6 +526,7 @@ class LocalWorkApi {
         employeeId: membership.employeeId,
         phone: emp?.phone ?? membership.employeePhone,
         name: emp?.name ?? "직원",
+        color: emp?.color ?? null,
         role: membership.role,
         joinedAt: null,
       };
@@ -787,7 +792,7 @@ class LocalWorkApi {
       id: employee.id,
       name: employee.name,
       employeePhone: employee.phone,
-      color: "#22c55e",
+      color: employee.color ?? "#22c55e",
     }));
     await wait();
     return rows;
@@ -798,13 +803,16 @@ class LocalWorkApi {
     employeePhone: string;
     color: string;
   }): Promise<SchedulePersonRecord> {
-    const employee = upsertEmployee(normalizePhone(input.employeePhone), input.name.trim());
+    const phone = normalizePhone(input.employeePhone);
+    const employee = upsertEmployee(phone, input.name.trim(), input.color);
+    // 로컬은 이름 변경과 별개로 색도 확실히 동기화합니다.
+    const updatedColor = updateEmployeeColor(phone, input.color);
     await wait();
     return {
       id: employee.id,
       name: employee.name,
       employeePhone: employee.phone,
-      color: input.color,
+      color: updatedColor?.color ?? input.color,
     };
   }
 
@@ -826,11 +834,12 @@ class LocalWorkApi {
     if (!updated) {
       return null;
     }
+    const updatedColor = updateEmployeeColor(employee.phone, input.color);
     return {
       id: updated.id,
       name: updated.name,
       employeePhone: normalized,
-      color: input.color,
+      color: updatedColor?.color ?? input.color,
     };
   }
 
@@ -1562,7 +1571,7 @@ class SupabaseWorkApi {
     const { data, error } = await this.supabase
       .from("branch_memberships")
       .select(
-        "id, role, employee_id, created_at, employee:employees!employee_id ( phone, name )",
+        "id, role, employee_id, created_at, employee:employees!employee_id ( phone, name, color )",
       )
       .eq("branch_id", branchId)
       .is("ended_at", null)
@@ -1598,7 +1607,7 @@ class SupabaseWorkApi {
     const { data, error } = await this.supabase
       .from("branch_memberships")
       .select(
-        "id, role, employee_id, created_at, ended_at, employee:employees!employee_id ( phone, name )",
+        "id, role, employee_id, created_at, ended_at, employee:employees!employee_id ( phone, name, color )",
       )
       .eq("branch_id", branchId)
       .not("ended_at", "is", null)

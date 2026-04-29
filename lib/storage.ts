@@ -73,8 +73,9 @@ function defaultEmployeeName(phone: string): string {
   return `직원-${phone.slice(-4)}`;
 }
 
-export function upsertEmployee(phone: string, name?: string): Employee {
+export function upsertEmployee(phone: string, name?: string, color?: string): Employee {
   const resolvedName = name?.trim() || defaultEmployeeName(phone);
+  const resolvedColor = color?.trim() || "#22c55e";
   const employees = getEmployees();
   const existing = employees.find((employee) => employee.phone === phone);
   if (existing) {
@@ -82,6 +83,7 @@ export function upsertEmployee(phone: string, name?: string): Employee {
       ...existing,
       name: existing.name || resolvedName,
       displayNameConfirmedAt: existing.displayNameConfirmedAt,
+      color: existing.color ?? resolvedColor,
     };
     write(
       EMPLOYEE_KEY,
@@ -94,9 +96,28 @@ export function upsertEmployee(phone: string, name?: string): Employee {
     name: resolvedName,
     phone,
     displayNameConfirmedAt: null,
+    color: resolvedColor,
   };
   write(EMPLOYEE_KEY, [created, ...employees]);
   return created;
+}
+
+export function updateEmployeeColor(phone: string, color: string): Employee | null {
+  const employees = getEmployees();
+  const target = employees.find((employee) => employee.phone === phone);
+  if (!target) {
+    return null;
+  }
+  const updated: Employee = { ...target, color: color.trim() || "#22c55e" };
+  write(
+    EMPLOYEE_KEY,
+    employees.map((employee) => (employee.phone === phone ? updated : employee)),
+  );
+  const session = getSession();
+  if (session?.phone === phone) {
+    saveSession(updated);
+  }
+  return updated;
 }
 
 export function setEmployeeCurrentBranch(phone: string, branchId: string | null): Employee | null {

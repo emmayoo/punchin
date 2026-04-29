@@ -7,8 +7,9 @@ import { BottomNav } from "@/components/layout/bottom-nav";
 import { ProfileNameGate } from "@/components/layout/profile-name-gate";
 import { workApi } from "@/lib/api/work-api";
 
-/** `/workplace/history/YYYY-MM-DD` 상세에서 하단 탭 숨김 */
-const HIDE_TAB_FOR_PATH = /^\/(?:workplace\/history|history)\/\d{4}-\d{2}-\d{2}\/?$/;
+/** 상세 화면에서는 하단 탭 숨김 */
+const HIDE_TAB_FOR_PATH =
+  /^\/(?:(?:workplace\/stats)(?:\/.*)?|(?:workplace\/history)(?:\/\d{4}-\d{2}-\d{2})?|(?:workplace\/settings)(?:\/.*)?|(?:workplace\/schedule)(?:\/.*)?|(?:schedule)(?:\/.*)?|(?:history)(?:\/\d{4}-\d{2}-\d{2})?)\/?$/;
 
 type TabsShellProps = {
   children: ReactNode;

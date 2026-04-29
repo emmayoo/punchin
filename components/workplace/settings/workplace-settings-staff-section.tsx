@@ -64,6 +64,7 @@ export function WorkplaceSettingsStaffSection({
   const [invitePhone, setInvitePhone] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [rehireBusyKey, setRehireBusyKey] = useState<string | null>(null);
+  const [busyColorEmployeeId, setBusyColorEmployeeId] = useState<string | null>(null);
 
   const ownerCount = useMemo(
     () => members.filter((member) => member.role === "owner").length,
@@ -116,6 +117,27 @@ export function WorkplaceSettingsStaffSection({
       return;
     }
     toast.success("역할을 변경했습니다.");
+    await onReload();
+  };
+
+  const handleColorChange = async (
+    employeeId: string,
+    employeePhone: string,
+    employeeName: string,
+    nextColor: string,
+  ) => {
+    setBusyColorEmployeeId(employeeId);
+    const updated = await workApi.updateSchedulePerson(employeeId, {
+      name: employeeName,
+      employeePhone,
+      color: nextColor,
+    });
+    setBusyColorEmployeeId(null);
+    if (!updated) {
+      toast.error("색상을 변경하지 못했습니다.");
+      return;
+    }
+    toast.success("색상을 변경했습니다.");
     await onReload();
   };
 
@@ -199,6 +221,7 @@ export function WorkplaceSettingsStaffSection({
                   <th className="pb-2 font-medium">이름</th>
                   <th className="pb-2 font-medium">전화</th>
                   <th className="pb-2 font-medium">역할</th>
+                  <th className="pb-2 font-medium">색</th>
                   <th className="whitespace-nowrap pb-2 font-medium">입사일</th>
                   <th className="w-12 pb-2 font-medium text-right"> </th>
                 </tr>
@@ -245,6 +268,36 @@ export function WorkplaceSettingsStaffSection({
                           <span className="text-zinc-800 dark:text-neutral-200">
                             {ROLE_LABEL[row.role]}
                           </span>
+                        )}
+                      </td>
+                      <td className="py-2.5">
+                        {canEditRow ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="color"
+                              value={row.color ?? "#22c55e"}
+                              disabled={busyColorEmployeeId === row.employeeId}
+                              onChange={(e) =>
+                                void handleColorChange(row.employeeId, row.phone, row.name, e.target.value)
+                              }
+                              className="h-8 w-10 cursor-pointer rounded border border-zinc-200/90 bg-white p-0 dark:border-white/15"
+                              aria-label={`${isSelf ? `${row.name} (나)` : row.name} 색상 선택`}
+                            />
+                            <span className="text-xs tabular-nums text-zinc-600 dark:text-neutral-300">
+                              {(row.color ?? "#22c55e").toUpperCase()}
+                            </span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="inline-block h-4 w-4 rounded-full border border-zinc-200/80 dark:border-white/20"
+                              style={{ backgroundColor: row.color ?? "#22c55e" }}
+                              aria-hidden
+                            />
+                            <span className="text-xs text-zinc-600 dark:text-neutral-300">
+                              {(row.color ?? "#22c55e").toUpperCase()}
+                            </span>
+                          </div>
                         )}
                       </td>
                       <td className="whitespace-nowrap py-2.5 text-zinc-700 tabular-nums dark:text-neutral-300">

@@ -52,13 +52,11 @@ export function TabsShell({ children }: TabsShellProps) {
     };
   }, [router, pathname]);
 
-  if (!allowRender || guardedPath !== pathname) {
-    return null;
-  }
+  const showContent = allowRender && guardedPath === pathname;
 
   return (
     <>
-      <ProfileNameGate />
+      {showContent ? <ProfileNameGate /> : null}
       <div
         className={
           hideTab
@@ -66,7 +64,7 @@ export function TabsShell({ children }: TabsShellProps) {
             : "mx-auto flex w-full max-w-3xl flex-1 flex-col px-5 pb-20 pt-6 sm:px-8"
         }
       >
-        {children}
+        {showContent ? children : null}
       </div>
       {hideTab ? null : <BottomNav />}
     </>

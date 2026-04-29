@@ -470,7 +470,22 @@ class LocalWorkApi {
   }
 
   async deleteMyCreatedBranch(branchId: string, actorPhone: string): Promise<boolean> {
-    const ok = deleteBranchByOwner(branchId, normalizePhone(actorPhone));
+    const normalized = normalizePhone(actorPhone);
+    const ok = deleteBranchByOwner(branchId, normalized);
+    if (ok) {
+      const activeBranches = getBranches();
+      const activeBranchIds = new Set(activeBranches.map((branch) => branch.id));
+      const nextFromMembership =
+        getBranchMembershipsByPhone(normalized).find((m) => activeBranchIds.has(m.branchId))
+          ?.branchId ?? null;
+      const nextOwned =
+        activeBranches.find((branch) => branch.createdByPhone === normalized)?.id ?? null;
+      const nextDefault = nextFromMembership ?? nextOwned ?? null;
+      const updated = setEmployeeCurrentBranch(normalized, nextDefault);
+      if (updated) {
+        saveSession(updated);
+      }
+    }
     await wait();
     return ok;
   }
@@ -1011,7 +1026,13 @@ class SupabaseWorkApi {
       .eq("phone", phone)
       .is("deleted_at", null)
       .maybeSingle();
-    return data ? mapEmployeeRow(data as Record<string, unknown>) : null;
+    if (data) {
+      return mapEmployeeRow(data as Record<string, unknown>);
+    }
+    // auth 메타(phone)는 있는데 직원 행이 없으면 잘못된/만료 세션으로 간주하고 토큰 정리.
+    await this.supabase.auth.signOut();
+    clearSession();
+    return null;
   }
 
   private async getEmployeesRemote(): Promise<Employee[]> {
@@ -1481,6 +1502,7 @@ class SupabaseWorkApi {
   }
 
   async deleteMyCreatedBranch(branchId: string, actorPhone: string): Promise<boolean> {
+    const normalized = normalizePhone(actorPhone);
     const access = await this.resolveActorBranchAccess(branchId, actorPhone);
     if (!this.supabaseIsOwnerAccess(access)) {
       await wait();
@@ -1504,6 +1526,26 @@ class SupabaseWorkApi {
       .from("branches")
       .update({ deleted_at: new Date().toISOString() } as never)
       .eq("id", branchId);
+    if (!error) {
+      const actor = await this.getEmployeeByPhone(normalized);
+      if (actor?.id) {
+        const activeBranches = await this.getBranchesRemote();
+        const activeBranchIds = new Set(activeBranches.map((item) => item.id));
+        const memberships = await this.getBranchMembershipsByPhoneRemote(normalized);
+        const nextFromMembership =
+          memberships.find((m) => activeBranchIds.has(m.branchId))?.branchId ?? null;
+        const nextOwned =
+          activeBranches.find(
+            (branchRow) =>
+              branchRow.createdByPhone === normalized || branchRow.createdByEmployeeId === actor.id,
+          )?.id ?? null;
+        const nextDefault = nextFromMembership ?? nextOwned ?? null;
+        await this.supabase
+          .from("employees")
+          .update({ current_branch_id: nextDefault } as never)
+          .eq("id", actor.id);
+      }
+    }
     await wait();
     return !error;
   }

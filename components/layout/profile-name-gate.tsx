@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useDashboardData } from "@/components/dashboard/use-dashboard-data";
 import { FirstProfileForm } from "@/components/onboarding/first-profile-form";
@@ -13,18 +13,41 @@ import { toast } from "@/lib/toast";
  * 패턴 매칭 없음(DB 단일 근거).
  */
 export function ProfileNameGate() {
-  const { data, refresh } = useDashboardData({ pollMs: 120 * 1000 });
+  // 게이트는 "필요할 때만" 열리고, 닫힌 이후에는 polling을 멈춰 불필요한 fetch/렌더를 줄인다.
+  const { data, refresh } = useDashboardData({ pollMs: null });
   const [nameDraft, setNameDraft] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const initializedRef = useRef(false);
+  const lastSessionPhoneRef = useRef<string | null>(null);
 
   const session = data?.session ?? null;
   const needsGate = Boolean(session && session.displayNameConfirmedAt === null);
 
   useEffect(() => {
-    if (session?.name) {
-      setNameDraft(session.name);
+    if (!needsGate) {
+      initializedRef.current = false;
+      lastSessionPhoneRef.current = null;
+      return;
     }
-  }, [session?.phone, session?.name]);
+
+    const phone = session?.phone ?? null;
+    if (!phone) {
+      return;
+    }
+
+    // 로그인/세션이 바뀌면 다시 초기화
+    if (lastSessionPhoneRef.current !== phone) {
+      initializedRef.current = false;
+      lastSessionPhoneRef.current = phone;
+    }
+
+    // 사용자 입력 덮어쓰기를 막기 위해, 게이트가 열린 뒤 최초 1회만 name으로 채운다.
+    if (!initializedRef.current && session?.name) {
+      setNameDraft(session.name);
+      initializedRef.current = true;
+    }
+  }, [needsGate, session?.phone, session?.name]);
 
   const handleSubmit = async () => {
     if (!session) {

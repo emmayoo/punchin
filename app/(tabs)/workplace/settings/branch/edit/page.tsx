@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useDashboardData } from "@/components/dashboard/use-dashboard-data";
 import { DetailPageShell } from "@/components/layout/detail-page-shell";
@@ -22,6 +22,7 @@ export default function WorkplaceBranchBasicEditPage() {
   const [address, setAddress] = useState("");
   const [storePhone, setStorePhone] = useState("");
   const [saving, setSaving] = useState(false);
+  const isDirtyRef = useRef(false);
 
   const currentBranch = useMemo(() => {
     if (!data?.session?.currentBranchId) {
@@ -38,15 +39,33 @@ export default function WorkplaceBranchBasicEditPage() {
   const showSettingsChrome = access ? canOpenWorkplaceSettings(access) : false;
   const canEditBasic = access ? canEditBranchBasicInfo(access) : false;
 
+  const currentBranchId = currentBranch?.id ?? null;
+  const currentBranchName = currentBranch?.name ?? "";
+  const currentBranchBusinessNumber = currentBranch?.businessNumber ?? "";
+  const currentBranchAddress = currentBranch?.address ?? "";
+  const currentBranchStorePhone = currentBranch?.storePhone ?? "";
+
   useEffect(() => {
-    if (!currentBranch) {
+    if (!currentBranchId) {
       return;
     }
-    setName(currentBranch.name);
-    setBusinessNumber(currentBranch.businessNumber);
-    setAddress(currentBranch.address ?? "");
-    setStorePhone(currentBranch.storePhone ?? "");
-  }, [currentBranch]);
+    // 사용자가 편집 중이면(typing) 서버 폴링/refresh로 인한 값 덮어쓰기 방지
+    if (isDirtyRef.current) {
+      return;
+    }
+    (async () => {
+      setName(currentBranchName);
+      setBusinessNumber(currentBranchBusinessNumber);
+      setAddress(currentBranchAddress);
+      setStorePhone(currentBranchStorePhone);
+    })();
+  }, [
+    currentBranchId,
+    currentBranchName,
+    currentBranchBusinessNumber,
+    currentBranchAddress,
+    currentBranchStorePhone,
+  ]);
 
   const handleSave = async () => {
     if (!data?.session || !currentBranch || !canEditBasic) {
@@ -69,6 +88,7 @@ export default function WorkplaceBranchBasicEditPage() {
       toast.error("저장하지 못했습니다.");
       return;
     }
+    isDirtyRef.current = false;
     await refresh();
     window.dispatchEvent(new Event("workplace:changed"));
     toast.success("지점 정보를 저장했습니다.");
@@ -112,7 +132,10 @@ export default function WorkplaceBranchBasicEditPage() {
             <input
               id="edit-branch-name"
               value={name}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) => {
+                isDirtyRef.current = true;
+                setName(event.target.value);
+              }}
               placeholder="지점명을 입력하세요"
               className={fieldInputClass}
             />
@@ -127,7 +150,10 @@ export default function WorkplaceBranchBasicEditPage() {
             <input
               id="edit-branch-business-number"
               value={businessNumber}
-              onChange={(event) => setBusinessNumber(event.target.value)}
+              onChange={(event) => {
+                isDirtyRef.current = true;
+                setBusinessNumber(event.target.value);
+              }}
               placeholder="사업자등록번호"
               autoComplete="off"
               className={fieldInputClass}
@@ -140,7 +166,10 @@ export default function WorkplaceBranchBasicEditPage() {
             <input
               id="edit-branch-address"
               value={address}
-              onChange={(event) => setAddress(event.target.value)}
+              onChange={(event) => {
+                isDirtyRef.current = true;
+                setAddress(event.target.value);
+              }}
               placeholder="주소를 입력하세요"
               autoComplete="street-address"
               className={fieldInputClass}
@@ -156,7 +185,10 @@ export default function WorkplaceBranchBasicEditPage() {
             <input
               id="edit-branch-store-phone"
               value={storePhone}
-              onChange={(event) => setStorePhone(event.target.value)}
+              onChange={(event) => {
+                isDirtyRef.current = true;
+                setStorePhone(event.target.value);
+              }}
               placeholder="매장 전화번호"
               autoComplete="tel"
               inputMode="tel"

@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { DashboardData, workApi } from "@/lib/api/work-api";
 
 type UseDashboardDataOptions = {
-  pollMs?: number;
+  pollMs?: number | null;
   onData?: (dashboard: DashboardData) => void;
 };
 
@@ -54,14 +54,19 @@ export function useDashboardData(options?: UseDashboardDataOptions): {
 
     void load();
 
-    const timer = window.setInterval(() => {
-      void refresh();
-    }, pollMs);
+    const timer =
+      pollMs === null
+        ? null
+        : window.setInterval(() => {
+            void refresh();
+          }, pollMs);
 
     return () => {
       cancelled = true;
       mountedRef.current = false;
-      window.clearInterval(timer);
+      if (timer !== null) {
+        window.clearInterval(timer);
+      }
     };
   }, [pollMs, refresh]);
 

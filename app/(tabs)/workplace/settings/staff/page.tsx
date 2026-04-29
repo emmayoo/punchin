@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useDashboardData } from "@/components/dashboard/use-dashboard-data";
 import { DetailPageShell } from "@/components/layout/detail-page-shell";
@@ -38,32 +38,51 @@ export default function WorkplaceStaffEditPage() {
   const canStaff = access ? canManageBranchStaff(access) : false;
   const actorHasOwnerPowers = access ? canDeleteBranch(access) : false;
 
-  const loadMembers = useCallback(async () => {
-    if (!data?.session || !currentBranch) {
+  const currentBranchId = currentBranch?.id ?? null;
+  const sessionPhone = data?.session?.phone ?? null;
+
+  useEffect(() => {
+    if (!currentBranchId || !sessionPhone) {
       return;
     }
+
     const showLoading = !hasLoadedMembersRef.current;
     if (showLoading) {
       setMembersLoading(true);
     }
+
+    (async () => {
+      const [rows, formerRows] = await Promise.all([
+        workApi.listBranchMembers(currentBranchId, sessionPhone),
+        workApi.listFormerBranchMembers(currentBranchId, sessionPhone),
+      ]);
+
+      setMembers(rows);
+      setFormerMembers(formerRows);
+      hasLoadedMembersRef.current = true;
+
+      if (showLoading) {
+        setMembersLoading(false);
+      }
+    })().catch(() => {
+      if (showLoading) {
+        setMembersLoading(false);
+      }
+    });
+  }, [currentBranchId, sessionPhone]);
+
+  const handleReloadAfterStaffChange = async () => {
+    await refresh();
+    if (!currentBranchId || !sessionPhone) {
+      return;
+    }
     const [rows, formerRows] = await Promise.all([
-      workApi.listBranchMembers(currentBranch.id, data.session.phone),
-      workApi.listFormerBranchMembers(currentBranch.id, data.session.phone),
+      workApi.listBranchMembers(currentBranchId, sessionPhone),
+      workApi.listFormerBranchMembers(currentBranchId, sessionPhone),
     ]);
     setMembers(rows);
     setFormerMembers(formerRows);
     hasLoadedMembersRef.current = true;
-    if (showLoading) {
-      setMembersLoading(false);
-    }
-  }, [currentBranch, data?.session]);
-
-  useEffect(() => {
-    void loadMembers();
-  }, [loadMembers]);
-
-  const handleReloadAfterStaffChange = async () => {
-    await refresh();
   };
 
   if (!data) {

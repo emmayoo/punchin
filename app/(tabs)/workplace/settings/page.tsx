@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useDashboardData } from "@/components/dashboard/use-dashboard-data";
 import { DetailPageShell } from "@/components/layout/detail-page-shell";
@@ -22,6 +22,7 @@ export default function WorkplaceSettingsPage() {
   const { data, refresh } = useDashboardData();
   const [members, setMembers] = useState<BranchMemberListItem[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
+  const hasLoadedMembersRef = useRef(false);
 
   const currentBranch = useMemo(() => {
     if (!data?.session?.currentBranchId) {
@@ -40,19 +41,32 @@ export default function WorkplaceSettingsPage() {
   const canStaff = access ? canManageBranchStaff(access) : false;
   const canDelete = access ? canDeleteBranch(access) : false;
 
-  const loadMembers = useCallback(async () => {
-    if (!data?.session || !currentBranch) {
-      return;
-    }
-    setMembersLoading(true);
-    const rows = await workApi.listBranchMembers(currentBranch.id, data.session.phone);
-    setMembers(rows);
-    setMembersLoading(false);
-  }, [currentBranch, data?.session]);
+  const currentBranchId = currentBranch?.id ?? null;
+  const sessionPhone = data?.session?.phone ?? null;
 
   useEffect(() => {
-    void loadMembers();
-  }, [loadMembers]);
+    if (!sessionPhone || !currentBranchId) {
+      return;
+    }
+
+    const showLoading = !hasLoadedMembersRef.current;
+    if (showLoading) {
+      setMembersLoading(true);
+    }
+
+    (async () => {
+      const rows = await workApi.listBranchMembers(currentBranchId, sessionPhone);
+      setMembers(rows);
+      hasLoadedMembersRef.current = true;
+      if (showLoading) {
+        setMembersLoading(false);
+      }
+    })().catch(() => {
+      if (showLoading) {
+        setMembersLoading(false);
+      }
+    });
+  }, [currentBranchId, sessionPhone]);
 
   if (!data) {
     return (

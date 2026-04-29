@@ -53,7 +53,7 @@ export function MypageBranchDetailModal({
             <p className="text-sm font-semibold text-zinc-900 dark:text-white">{branch.name}</p>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">
               <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-700 dark:bg-white/10 dark:text-neutral-300">
-                {effectiveRole === "owner" ? "owner" : "member"}
+                {effectiveRole}
               </span>
               {isDefault ? (
                 <span className="rounded-full bg-zinc-200/90 px-2 py-0.5 text-[11px] font-medium text-zinc-800 dark:bg-white/15 dark:text-neutral-200">

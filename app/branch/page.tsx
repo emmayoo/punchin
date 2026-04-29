@@ -1,5 +1,11 @@
 import { BranchSelectClient } from "@/components/branch/branch-select-client";
+import { ProfileNameGate } from "@/components/layout/profile-name-gate";
 
 export default function BranchPage() {
-  return <BranchSelectClient />;
+  return (
+    <>
+      <ProfileNameGate />
+      <BranchSelectClient />
+    </>
+  );
 }

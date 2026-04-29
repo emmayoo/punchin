@@ -5,6 +5,7 @@ import { isToday } from "@/lib/time";
 import type {
   Branch,
   BranchMembership,
+  BranchRole,
   CalendarEvent,
   Employee,
   PunchRecord,
@@ -80,6 +81,7 @@ export function upsertEmployee(phone: string, name?: string): Employee {
     const updated: Employee = {
       ...existing,
       name: existing.name || resolvedName,
+      displayNameConfirmedAt: existing.displayNameConfirmedAt,
     };
     write(
       EMPLOYEE_KEY,
@@ -87,7 +89,12 @@ export function upsertEmployee(phone: string, name?: string): Employee {
     );
     return updated;
   }
-  const created = { id: id("emp"), name: resolvedName, phone };
+  const created: Employee = {
+    id: id("emp"),
+    name: resolvedName,
+    phone,
+    displayNameConfirmedAt: null,
+  };
   write(EMPLOYEE_KEY, [created, ...employees]);
   return created;
 }
@@ -116,7 +123,11 @@ export function updateEmployeeName(phone: string, name: string): Employee | null
   if (!target) {
     return null;
   }
-  const updated: Employee = { ...target, name: name.trim() };
+  const updated: Employee = {
+    ...target,
+    name: name.trim(),
+    displayNameConfirmedAt: new Date().toISOString(),
+  };
   write(
     EMPLOYEE_KEY,
     employees.map((employee) => (employee.phone === phone ? updated : employee)),
@@ -145,7 +156,11 @@ export function getShifts(): Shift[] {
 
 export function addShift(shift: Omit<Shift, "id">): Shift {
   const all = getShifts();
-  const created: Shift = { ...shift, id: id("shift") };
+  const resolvedEmployeeId =
+    shift.employeeId ||
+    getEmployees().find((e) => e.phone === shift.employeePhone)?.id ||
+    "";
+  const created: Shift = { ...shift, employeeId: resolvedEmployeeId, id: id("shift") };
   write(SHIFT_KEY, [...all, created]);
   return created;
 }
@@ -154,7 +169,16 @@ export function addShifts(shifts: Omit<Shift, "id">[]): void {
   const all = getShifts();
   write(
     SHIFT_KEY,
-    [...all, ...shifts.map((shift) => ({ ...shift, id: id("shift") }))].sort(
+    [
+      ...all,
+      ...shifts.map((shift) => {
+        const resolvedEmployeeId =
+          shift.employeeId ||
+          getEmployees().find((e) => e.phone === shift.employeePhone)?.id ||
+          "";
+        return { ...shift, employeeId: resolvedEmployeeId, id: id("shift") };
+      }),
+    ].sort(
       (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime(),
     ),
   );
@@ -163,7 +187,10 @@ export function addShifts(shifts: Omit<Shift, "id">[]): void {
 export function updateShift(
   shiftId: string,
   payload: Partial<
-    Pick<Shift, "employeeName" | "employeePhone" | "branchId" | "startAt" | "endAt">
+    Pick<
+      Shift,
+      "employeeId" | "employeeName" | "employeePhone" | "branchId" | "startAt" | "endAt"
+    >
   >,
 ): Shift | null {
   const all = getShifts();
@@ -174,6 +201,7 @@ export function updateShift(
     }
     updated = {
       ...shift,
+      employeeId: payload.employeeId ?? shift.employeeId,
       employeeName: payload.employeeName ?? shift.employeeName,
       employeePhone: payload.employeePhone ?? shift.employeePhone,
       branchId: payload.branchId ?? shift.branchId ?? null,
@@ -223,6 +251,7 @@ export function checkIn(
   }
   const created: PunchRecord = {
     id: id("punch"),
+    employeeId: employee.id,
     employeePhone: employee.phone,
     employeeName: employee.name,
     branchId,
@@ -277,6 +306,7 @@ export function createBranch(input: {
   address?: string | null;
   storePhone?: string | null;
   createdByPhone: string;
+  createdByEmployeeId: string;
 }): Branch {
   const created: Branch = {
     id: id("branch"),
@@ -285,23 +315,66 @@ export function createBranch(input: {
     businessNumber: input.businessNumber.trim(),
     address: input.address?.trim() || null,
     storePhone: input.storePhone?.trim() || null,
+    createdByEmployeeId: input.createdByEmployeeId,
     createdByPhone: input.createdByPhone,
   };
   write(BRANCH_KEY, [created, ...getBranches()]);
   return created;
 }
 
-export function updateBranchName(
+export function getBranchMembershipsForBranch(branchId: string): BranchMembership[] {
+  return getBranchMemberships().filter((item) => item.branchId === branchId);
+}
+
+export function updateBranchMembershipRole(
+  membershipId: string,
+  role: BranchRole,
+): BranchMembership | null {
+  const all = getBranchMemberships();
+  const idx = all.findIndex((item) => item.id === membershipId);
+  if (idx === -1) {
+    return null;
+  }
+  const next = [...all];
+  next[idx] = { ...next[idx], role };
+  write(BRANCH_MEMBERSHIP_KEY, next);
+  return next[idx];
+}
+
+export type BranchBasicFieldsPatch = {
+  name: string;
+  businessNumber: string;
+  address: string | null;
+  storePhone: string | null;
+};
+
+export function updateBranchBasicFields(
   branchId: string,
-  name: string,
   actorPhone: string,
+  patch: BranchBasicFieldsPatch,
 ): Branch | null {
   const all = getBranches();
   const target = all.find((item) => item.id === branchId) ?? null;
-  if (!target || target.createdByPhone !== actorPhone) {
+  if (!target) {
     return null;
   }
-  const updated: Branch = { ...target, name: name.trim() };
+  const mine = getBranchMemberships().find(
+    (item) => item.branchId === branchId && item.employeePhone === actorPhone,
+  );
+  const canEdit =
+    mine?.role === "owner" || target.createdByPhone === actorPhone;
+  if (!canEdit) {
+    return null;
+  }
+  const addressTrimmed = patch.address?.trim() ?? "";
+  const storeTrimmed = patch.storePhone?.trim() ?? "";
+  const updated: Branch = {
+    ...target,
+    name: patch.name.trim(),
+    businessNumber: patch.businessNumber.trim(),
+    address: addressTrimmed ? addressTrimmed : null,
+    storePhone: storeTrimmed ? storeTrimmed : null,
+  };
   write(
     BRANCH_KEY,
     all.map((item) => (item.id === branchId ? updated : item)),
@@ -312,7 +385,15 @@ export function updateBranchName(
 export function deleteBranchByOwner(branchId: string, actorPhone: string): boolean {
   const all = getBranches();
   const target = all.find((item) => item.id === branchId) ?? null;
-  if (!target || target.createdByPhone !== actorPhone) {
+  if (!target) {
+    return false;
+  }
+  const mine = getBranchMemberships().find(
+    (item) => item.branchId === branchId && item.employeePhone === actorPhone,
+  );
+  const isOwner =
+    mine?.role === "owner" || target.createdByPhone === actorPhone;
+  if (!isOwner) {
     return false;
   }
 
@@ -350,11 +431,17 @@ export function getBranchMembershipsByPhone(phone: string): BranchMembership[] {
 export function addBranchMembership(
   branchId: string,
   employeePhone: string,
-  role: "owner" | "member",
+  role: BranchRole,
 ): BranchMembership {
+  const employee = getEmployees().find((e) => e.phone === employeePhone);
+  if (!employee?.id) {
+    throw new Error("addBranchMembership: unknown employee phone");
+  }
   const existing =
     getBranchMemberships().find(
-      (item) => item.branchId === branchId && item.employeePhone === employeePhone,
+      (item) =>
+        item.branchId === branchId &&
+        (item.employeePhone === employeePhone || item.employeeId === employee.id),
     ) ?? null;
   if (existing) {
     return existing;
@@ -362,6 +449,7 @@ export function addBranchMembership(
   const created: BranchMembership = {
     id: id("branch-member"),
     branchId,
+    employeeId: employee.id,
     employeePhone,
     role,
   };

@@ -9,6 +9,12 @@ type FirstProfileFormProps = {
   busy: boolean;
   onNameChange: (value: string) => void;
   onSubmit: () => void;
+  /** 기본: 프로필 등록 */
+  heading?: string;
+  /** 제목 아래 설명 (선택) */
+  description?: string | null;
+  /** 기본: 프로필 완료 */
+  submitLabel?: string;
 };
 
 export function FirstProfileForm({
@@ -17,12 +23,18 @@ export function FirstProfileForm({
   busy,
   onNameChange,
   onSubmit,
+  heading = "프로필 등록",
+  description = null,
+  submitLabel = "프로필 완료",
 }: FirstProfileFormProps) {
   return (
     <div className="space-y-4">
       <div className="space-y-1">
-        <h2 className="text-base font-semibold text-zinc-900 dark:text-white">프로필 등록</h2>
+        <h2 className="text-base font-semibold text-zinc-900 dark:text-white">{heading}</h2>
         <p className="text-xs text-zinc-500 dark:text-neutral-500">{formatPhoneNumber(phone)}</p>
+        {description ? (
+          <p className="text-xs leading-relaxed text-zinc-600 dark:text-neutral-400">{description}</p>
+        ) : null}
       </div>
 
       <div className="flex flex-col items-center gap-2">
@@ -49,7 +61,7 @@ export function FirstProfileForm({
         disabled={busy || !name.trim()}
         className="w-full rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 dark:bg-white dark:text-neutral-950"
       >
-        {busy ? "처리 중..." : "프로필 완료"}
+        {busy ? "처리 중..." : submitLabel}
       </button>
     </div>
   );

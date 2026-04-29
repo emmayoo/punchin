@@ -195,7 +195,7 @@ export function MyPageClient() {
                 data.session.phone,
                 branchDetail.membership,
               )
-            : "member"
+            : "staff"
         }
         isDefault={branchDetail ? data.session.currentBranchId === branchDetail.branch.id : false}
         onClose={() => setBranchDetail(null)}

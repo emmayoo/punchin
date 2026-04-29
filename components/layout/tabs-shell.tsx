@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
 import { BottomNav } from "@/components/layout/bottom-nav";
+import { ProfileNameGate } from "@/components/layout/profile-name-gate";
 import { workApi } from "@/lib/api/work-api";
 
 /** `/workplace/history/YYYY-MM-DD` 상세에서 하단 탭 숨김 */
@@ -36,6 +37,7 @@ export function TabsShell({ children }: TabsShellProps) {
 
   return (
     <>
+      <ProfileNameGate />
       <div
         className={
           hideTab

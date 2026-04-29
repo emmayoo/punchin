@@ -177,6 +177,7 @@ export function ScheduleClient() {
 
     setBusy(true);
     await workApi.createShift({
+      employeeId: person.id,
       employeeName: person.name,
       employeePhone: person.employeePhone,
       startAt: start.toISOString(),
@@ -296,6 +297,7 @@ export function ScheduleClient() {
       const startAt = new Date(new Date(shift.startAt).getTime() + deltaMs).toISOString();
       const endAt = new Date(new Date(shift.endAt).getTime() + deltaMs).toISOString();
       return {
+        employeeId: shift.employeeId,
         employeeName: shift.employeeName,
         employeePhone: shift.employeePhone,
         branchId: shift.branchId ?? null,
@@ -313,7 +315,9 @@ export function ScheduleClient() {
   };
 
   const openShiftEditModal = (shift: Shift) => {
-    const person = people.find((item) => item.employeePhone === shift.employeePhone);
+    const person =
+      people.find((item) => item.id === shift.employeeId) ??
+      people.find((item) => item.employeePhone === shift.employeePhone);
     setEditingShiftId(shift.id);
     setEditDate(dateKey(new Date(shift.startAt)));
     setEditStartTime(toHHMM(shift.startAt));
@@ -351,6 +355,7 @@ export function ScheduleClient() {
 
     setEditingShiftBusy(true);
     await workApi.updateShift(editingShiftId, {
+      employeeId: person.id,
       employeeName: person.name,
       employeePhone: person.employeePhone,
       branchId: targetShift?.branchId ?? null,

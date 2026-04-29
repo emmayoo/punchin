@@ -1,3 +1,19 @@
+/** 입사일 등 날짜만. 값 없거나 파싱 실패 시 — */
+export function formatDateOnlyKo(value: string | null | undefined): string {
+  if (!value?.trim()) {
+    return "—";
+  }
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) {
+    return "—";
+  }
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  }).format(d);
+}
+
 export function formatDateTime(value: string): string {
   return new Intl.DateTimeFormat("ko-KR", {
     month: "2-digit",

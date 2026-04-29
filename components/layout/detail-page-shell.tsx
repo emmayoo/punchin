@@ -21,7 +21,10 @@ type DetailPageShellBase = {
 };
 
 export type DetailPageShellProps = DetailPageShellBase &
-  ({ backHref: string; onBack?: never } | { onBack: () => void; backHref?: never });
+  (
+    | { backHref: string; onBack?: never }
+    | { onBack: () => void; backHref?: never }
+  );
 
 const backButtonClassName =
   "inline-flex w-fit min-h-10 min-w-10 shrink-0 items-center justify-center gap-0.5 rounded-xl pl-1 pr-3 text-sm text-zinc-700 transition-colors hover:bg-zinc-200/60 hover:text-zinc-900 active:bg-zinc-300/50 dark:text-neutral-300 dark:hover:bg-white/5 dark:hover:text-white dark:active:bg-white/10 touch-manipulation";
@@ -33,7 +36,7 @@ const defaultLoadingContent = (
 function resolveBody(
   loading: boolean,
   children: DetailPageShellChildren,
-  loadingContent: ReactNode | undefined,
+  loadingContent: ReactNode | undefined
 ): ReactNode {
   if (loading) {
     return loadingContent ?? defaultLoadingContent;
@@ -51,7 +54,7 @@ function resolveBody(
  */
 export function DetailPageShell(props: DetailPageShellProps) {
   const {
-    backLabel = "뒤로",
+    backLabel = "",
     title,
     children,
     className = "",
@@ -68,7 +71,9 @@ export function DetailPageShell(props: DetailPageShellProps) {
       backLabel
     );
 
-  const backIcon = <ChevronLeft className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />;
+  const backIcon = (
+    <ChevronLeft className="h-5 w-5 shrink-0" strokeWidth={2} aria-hidden />
+  );
 
   let backControl: ReactNode;
   if ("backHref" in props) {
@@ -77,7 +82,11 @@ export function DetailPageShell(props: DetailPageShellProps) {
       throw new Error("DetailPageShell: `backHref`이 올바르지 않습니다.");
     }
     backControl = (
-      <Link href={href} className={backButtonClassName} aria-label="이전 화면으로 돌아가기">
+      <Link
+        href={href}
+        className={backButtonClassName}
+        aria-label="이전 화면으로 돌아가기"
+      >
         {backIcon}
         {labelNode}
       </Link>
@@ -99,7 +108,9 @@ export function DetailPageShell(props: DetailPageShellProps) {
 
   return (
     <main
-      className={["flex min-h-0 flex-1 flex-col gap-4", className].filter(Boolean).join(" ")}
+      className={["flex min-h-0 flex-1 flex-col gap-4", className]
+        .filter(Boolean)
+        .join(" ")}
       aria-label={ariaLabel}
     >
       <header className="shrink-0">

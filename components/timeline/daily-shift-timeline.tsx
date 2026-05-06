@@ -61,7 +61,7 @@ type ActualTimelineItem = {
 
 type TimelineHeaderProps = {
   title: string;
-  activeLabel: string;
+  activeLabel: React.ReactNode;
   showActiveLabel: boolean;
   onScrollToNow: () => void;
 };
@@ -77,7 +77,7 @@ function TimelineHeader({
       <div>
         <p className="text-xs text-zinc-500 dark:text-neutral-500">{title}</p>
         {showActiveLabel ? (
-          <p className="mt-1 text-xs text-zinc-600 dark:text-neutral-300">{activeLabel}</p>
+          <div className="mt-1 text-xs text-zinc-600 dark:text-neutral-300">{activeLabel}</div>
         ) : null}
       </div>
       <button
@@ -291,20 +291,22 @@ export function DailyShiftTimeline({
 
   const activeWorkers = useMemo(() => {
     const nowMs = new Date(nowIso).getTime();
-    return punches.filter((record) => {
+    return punches
+      .filter((record) => {
       const checkedInMs = new Date(record.checkedInAt).getTime();
       const checkedOutMs = record.checkedOutAt
         ? new Date(record.checkedOutAt).getTime()
         : Number.POSITIVE_INFINITY;
       return checkedInMs <= nowMs && nowMs < checkedOutMs;
-    });
+      })
+      .sort((a, b) => new Date(a.checkedInAt).getTime() - new Date(b.checkedInAt).getTime());
   }, [punches, nowIso]);
   const activeLabel =
     activeWorkers.length === 0
-      ? "근무 중: 없음"
-      : activeWorkers.length === 1
-        ? `근무 중: ${activeWorkers[0].employeeName}님`
-        : `근무 중: ${activeWorkers[0].employeeName}님 외 ${activeWorkers.length - 1}명`;
+      ? "근무중 (0명) : 없음"
+      : `근무중 (${activeWorkers.length}명) : ${activeWorkers
+          .map((worker) => `${worker.employeeName}(${hhmm(worker.checkedInAt)}~)`)
+          .join(" / ")}`;
 
   return (
     <section className="space-y-3 rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">

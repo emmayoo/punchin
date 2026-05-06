@@ -73,9 +73,8 @@ function defaultEmployeeName(phone: string): string {
   return `직원-${phone.slice(-4)}`;
 }
 
-export function upsertEmployee(phone: string, name?: string, color?: string): Employee {
+export function upsertEmployee(phone: string, name?: string): Employee {
   const resolvedName = name?.trim() || defaultEmployeeName(phone);
-  const resolvedColor = color?.trim() || "#22c55e";
   const employees = getEmployees();
   const existing = employees.find((employee) => employee.phone === phone);
   if (existing) {
@@ -83,7 +82,6 @@ export function upsertEmployee(phone: string, name?: string, color?: string): Em
       ...existing,
       name: existing.name || resolvedName,
       displayNameConfirmedAt: existing.displayNameConfirmedAt,
-      color: existing.color ?? resolvedColor,
     };
     write(
       EMPLOYEE_KEY,
@@ -96,28 +94,9 @@ export function upsertEmployee(phone: string, name?: string, color?: string): Em
     name: resolvedName,
     phone,
     displayNameConfirmedAt: null,
-    color: resolvedColor,
   };
   write(EMPLOYEE_KEY, [created, ...employees]);
   return created;
-}
-
-export function updateEmployeeColor(phone: string, color: string): Employee | null {
-  const employees = getEmployees();
-  const target = employees.find((employee) => employee.phone === phone);
-  if (!target) {
-    return null;
-  }
-  const updated: Employee = { ...target, color: color.trim() || "#22c55e" };
-  write(
-    EMPLOYEE_KEY,
-    employees.map((employee) => (employee.phone === phone ? updated : employee)),
-  );
-  const session = getSession();
-  if (session?.phone === phone) {
-    saveSession(updated);
-  }
-  return updated;
 }
 
 export function setEmployeeCurrentBranch(phone: string, branchId: string | null): Employee | null {
@@ -362,6 +341,21 @@ export function updateBranchMembershipRole(
   return next[idx];
 }
 
+export function updateBranchMembershipColor(
+  membershipId: string,
+  color: string,
+): BranchMembership | null {
+  const all = getBranchMemberships();
+  const idx = all.findIndex((item) => item.id === membershipId);
+  if (idx === -1) {
+    return null;
+  }
+  const next = [...all];
+  next[idx] = { ...next[idx], color: color.trim() || "#22c55e" };
+  write(BRANCH_MEMBERSHIP_KEY, next);
+  return next[idx];
+}
+
 export type BranchBasicFieldsPatch = {
   name: string;
   businessNumber: string;
@@ -472,6 +466,7 @@ export function addBranchMembership(
     branchId,
     employeeId: employee.id,
     employeePhone,
+    color: "#22c55e",
     role,
   };
   write(BRANCH_MEMBERSHIP_KEY, [created, ...getBranchMemberships()]);

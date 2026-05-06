@@ -27,11 +27,11 @@ import {
   removeBranchMembership,
   saveSession,
   setEmployeeCurrentBranch,
+  updateBranchMembershipColor,
   updateBranchMembershipRole,
   updateBranchBasicFields,
   updateCalendarEvent,
   updateEmployeeName,
-  updateEmployeeColor,
   updateShift,
   upsertEmployee,
 } from "@/lib/storage";
@@ -159,7 +159,6 @@ function mapEmployeeRow(row: Record<string, unknown>): Employee {
     id: String(row.id),
     phone: String(row.phone),
     name: String(row.name),
-    color: row.color !== undefined && row.color !== null ? String(row.color) : undefined,
     currentBranchId: row.current_branch_id ? String(row.current_branch_id) : null,
     displayNameConfirmedAt: mapDisplayNameConfirmedAt(row),
   };
@@ -231,6 +230,10 @@ function mapBranchMembershipRow(
     branchId: String(row.branch_id),
     employeeId: String(row.employee_id),
     employeePhone,
+    color:
+      row.color !== undefined && row.color !== null && String(row.color).trim() !== ""
+        ? String(row.color)
+        : "#22c55e",
     role: mapBranchRole(String(row.role)),
   };
 }
@@ -250,7 +253,9 @@ function mapBranchMemberListRow(row: Record<string, unknown>): BranchMemberListI
   const phone = emp && typeof emp.phone === "string" ? emp.phone : "";
   const name = emp && typeof emp.name === "string" ? emp.name : "";
   const color =
-    emp && typeof emp.color === "string" && emp.color.trim().length > 0 ? emp.color : null;
+    row.color !== undefined && row.color !== null && String(row.color).trim().length > 0
+      ? String(row.color)
+      : null;
   const createdAt = row.created_at;
   return {
     membershipId: String(row.id),
@@ -526,7 +531,7 @@ class LocalWorkApi {
         employeeId: membership.employeeId,
         phone: emp?.phone ?? membership.employeePhone,
         name: emp?.name ?? "직원",
-        color: emp?.color ?? null,
+        color: membership.color ?? "#22c55e",
         role: membership.role,
         joinedAt: null,
       };
@@ -595,6 +600,28 @@ class LocalWorkApi {
       return false;
     }
     const updated = updateBranchMembershipRole(membershipId, newRole);
+    await wait();
+    return Boolean(updated);
+  }
+
+  async updateBranchMemberColor(
+    branchId: string,
+    membershipId: string,
+    nextColor: string,
+    actorPhone: string,
+  ): Promise<boolean> {
+    const access = localResolveActorBranchRole(branchId, actorPhone);
+    if (!localIsManagerUp(access)) {
+      await wait();
+      return false;
+    }
+    const rows = getBranchMembershipsForBranch(branchId);
+    const target = rows.find((membership) => membership.id === membershipId);
+    if (!target) {
+      await wait();
+      return false;
+    }
+    const updated = updateBranchMembershipColor(membershipId, nextColor);
     await wait();
     return Boolean(updated);
   }
@@ -792,7 +819,7 @@ class LocalWorkApi {
       id: employee.id,
       name: employee.name,
       employeePhone: employee.phone,
-      color: employee.color ?? "#22c55e",
+      color: "#22c55e",
     }));
     await wait();
     return rows;
@@ -804,15 +831,13 @@ class LocalWorkApi {
     color: string;
   }): Promise<SchedulePersonRecord> {
     const phone = normalizePhone(input.employeePhone);
-    const employee = upsertEmployee(phone, input.name.trim(), input.color);
-    // 로컬은 이름 변경과 별개로 색도 확실히 동기화합니다.
-    const updatedColor = updateEmployeeColor(phone, input.color);
+    const employee = upsertEmployee(phone, input.name.trim());
     await wait();
     return {
       id: employee.id,
       name: employee.name,
       employeePhone: employee.phone,
-      color: updatedColor?.color ?? input.color,
+      color: input.color,
     };
   }
 
@@ -834,12 +859,11 @@ class LocalWorkApi {
     if (!updated) {
       return null;
     }
-    const updatedColor = updateEmployeeColor(employee.phone, input.color);
     return {
       id: updated.id,
       name: updated.name,
       employeePhone: normalized,
-      color: updatedColor?.color ?? input.color,
+      color: input.color,
     };
   }
 
@@ -1060,7 +1084,6 @@ class SupabaseWorkApi {
   private async upsertEmployeeByPhone(input: {
     phone: string;
     name: string;
-    color?: string;
     markDisplayNameConfirmed?: boolean;
   }): Promise<Employee> {
     const normalized = normalizePhone(input.phone);
@@ -1077,7 +1100,6 @@ class SupabaseWorkApi {
         .insert({
           phone: normalized,
           name: input.name.trim(),
-          ...(input.color !== undefined ? { color: input.color } : {}),
           deleted_at: null,
           display_name_confirmed_at: input.markDisplayNameConfirmed ? nowIso : null,
         } as never)
@@ -1093,7 +1115,6 @@ class SupabaseWorkApi {
     const patch: Record<string, unknown> = {
       name: input.name.trim(),
       deleted_at: null,
-      ...(input.color !== undefined ? { color: input.color } : {}),
     };
     if (input.markDisplayNameConfirmed) {
       patch.display_name_confirmed_at = nowIso;
@@ -1423,6 +1444,38 @@ class SupabaseWorkApi {
     return !error;
   }
 
+  async updateBranchMemberColor(
+    branchId: string,
+    membershipId: string,
+    nextColor: string,
+    actorPhone: string,
+  ): Promise<boolean> {
+    const access = await this.resolveActorBranchAccess(branchId, actorPhone);
+    if (!this.supabaseIsManagerUp(access)) {
+      await wait();
+      return false;
+    }
+    const { data: targetRaw } = await this.supabase
+      .from("branch_memberships")
+      .select("id")
+      .eq("id", membershipId)
+      .eq("branch_id", branchId)
+      .is("ended_at", null)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (!targetRaw) {
+      await wait();
+      return false;
+    }
+    const { error } = await this.supabase
+      .from("branch_memberships")
+      .update({ color: nextColor } as never)
+      .eq("id", membershipId)
+      .eq("branch_id", branchId);
+    await wait();
+    return !error;
+  }
+
   async disconnectBranch(phone: string, branchId: string): Promise<boolean> {
     const normalized = normalizePhone(phone);
     const employee = await this.getEmployeeByPhone(normalized);
@@ -1571,7 +1624,7 @@ class SupabaseWorkApi {
     const { data, error } = await this.supabase
       .from("branch_memberships")
       .select(
-        "id, role, employee_id, created_at, employee:employees!employee_id ( phone, name, color )",
+        "id, role, color, employee_id, created_at, employee:employees!employee_id ( phone, name )",
       )
       .eq("branch_id", branchId)
       .is("ended_at", null)
@@ -1607,7 +1660,7 @@ class SupabaseWorkApi {
     const { data, error } = await this.supabase
       .from("branch_memberships")
       .select(
-        "id, role, employee_id, created_at, ended_at, employee:employees!employee_id ( phone, name, color )",
+        "id, role, color, employee_id, created_at, ended_at, employee:employees!employee_id ( phone, name )",
       )
       .eq("branch_id", branchId)
       .not("ended_at", "is", null)
@@ -2051,11 +2104,16 @@ class SupabaseWorkApi {
   async getSchedulePeople(): Promise<SchedulePersonRecord[]> {
     const { data } = await this.supabase
       .from("employees")
-      .select("id,name,phone,color")
+      .select("id,name,phone")
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
     await wait();
-    return (data ?? []).map((row) => mapSchedulePersonRow(row as Record<string, unknown>));
+    return (data ?? []).map((row) => ({
+      id: String((row as Record<string, unknown>).id),
+      name: String((row as Record<string, unknown>).name),
+      employeePhone: String((row as Record<string, unknown>).phone),
+      color: "#22c55e",
+    }));
   }
 
   async createSchedulePerson(input: {
@@ -2067,14 +2125,13 @@ class SupabaseWorkApi {
     const employee = await this.upsertEmployeeByPhone({
       phone: normalized,
       name: input.name.trim(),
-      color: input.color,
     });
     await wait();
     return {
       id: employee.id,
       name: employee.name,
       employeePhone: employee.phone,
-      color: employee.color ?? input.color,
+      color: input.color,
     };
   }
 
@@ -2088,13 +2145,19 @@ class SupabaseWorkApi {
       .update({
         name: input.name.trim(),
         phone: normalized,
-        color: input.color,
       } as never)
       .eq("id", personId)
-      .select("id,name,phone,color")
+      .select("id,name,phone")
       .maybeSingle();
     await wait();
-    return data ? mapSchedulePersonRow(data as Record<string, unknown>) : null;
+    return data
+      ? {
+          id: String((data as Record<string, unknown>).id),
+          name: String((data as Record<string, unknown>).name),
+          employeePhone: String((data as Record<string, unknown>).phone),
+          color: input.color,
+        }
+      : null;
   }
 
   async deleteSchedulePerson(personId: string): Promise<void> {

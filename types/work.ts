@@ -2,8 +2,6 @@ export type Employee = {
   id: string;
   phone: string;
   name: string;
-  /** 스케줄 등에서 사용하는 표시 색 (DB `employees.color`) */
-  color?: string;
   currentBranchId?: string | null;
   /**
    * 본인 표시 이름 확정 시각(ISO). `null`이면 아직 임시·매장 입력 이름만 있는 상태(확인 필요).
@@ -31,6 +29,7 @@ export type BranchMembership = {
   branchId: string;
   employeeId: string;
   employeePhone: string;
+  color?: string | null;
   role: BranchRole;
 };
 

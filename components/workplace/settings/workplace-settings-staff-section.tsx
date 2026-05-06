@@ -137,17 +137,17 @@ export function WorkplaceSettingsStaffSection({
   };
 
   const handleColorChange = async (
+    membershipId: string,
     employeeId: string,
-    employeePhone: string,
-    employeeName: string,
     nextColor: string,
   ) => {
     setBusyColorEmployeeId(employeeId);
-    const updated = await workApi.updateSchedulePerson(employeeId, {
-      name: employeeName,
-      employeePhone,
-      color: nextColor,
-    });
+    const updated = await workApi.updateBranchMemberColor(
+      branchId,
+      membershipId,
+      nextColor,
+      session.phone,
+    );
     setBusyColorEmployeeId(null);
     if (!updated) {
       toast.error("색상을 변경하지 못했습니다.");
@@ -295,7 +295,7 @@ export function WorkplaceSettingsStaffSection({
                               value={row.color ?? "#22c55e"}
                               disabled={busyColorEmployeeId === row.employeeId}
                               onChange={(hex) =>
-                                void handleColorChange(row.employeeId, row.phone, row.name, hex)
+                                void handleColorChange(row.membershipId, row.employeeId, hex)
                               }
                               aria-label={`${isSelf ? `${row.name} (나)` : row.name} 색상 선택`}
                             />

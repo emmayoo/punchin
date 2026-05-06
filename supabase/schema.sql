@@ -12,7 +12,6 @@ create table public.employees (
   id uuid primary key default gen_random_uuid(),
   phone text not null,
   name text not null,
-  color text not null default '#22c55e',
   current_branch_id uuid null,
   deleted_at timestamptz null,
   -- 본인이 표시 이름을 확정한 시각. NULL이면 매장/앱이 넣은 임시 이름만 있는 상태(확인 UI 대상). 형식은 고정하지 않음.
@@ -65,6 +64,7 @@ create table public.branch_memberships (
   id uuid primary key default gen_random_uuid(),
   branch_id uuid not null references public.branches (id) on delete restrict,
   employee_id uuid not null references public.employees (id) on delete restrict,
+  color text not null default '#22c55e',
   role text not null check (role in ('owner', 'manager', 'staff')),
   started_at timestamptz not null default now(),
   ended_at timestamptz null,

@@ -74,7 +74,7 @@ export function WorkplaceSettingsStaffSummary({
           <p className="text-sm text-zinc-600 dark:text-neutral-400">등록된 직원이 없습니다.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[280px] text-left text-sm">
+            <table className="w-full min-w-[320px] text-left text-sm">
               <thead>
                 <tr className="border-b border-zinc-200/80 text-xs text-zinc-500 dark:border-white/10 dark:text-neutral-500">
                   <th className="pb-2 font-medium">이름</th>
@@ -85,12 +85,21 @@ export function WorkplaceSettingsStaffSummary({
               <tbody className="divide-y divide-zinc-200/70 dark:divide-white/10">
                 {sortedMembers.map((row) => {
                   const isSelf = normalizePhone(row.phone) === sessionNp;
+                  const fill = row.color ?? "#22c55e";
                   return (
                     <tr key={row.membershipId}>
-                      <td className="py-2 pr-2 text-zinc-900 dark:text-neutral-100">
+                      <td className="py-2 pr-2 text-zinc-900 dark:text-neutral-100 flex items-center gap-2">
+                        <span
+                          className="inline-block size-4 shrink-0 rounded-full border border-zinc-200/80 dark:border-white/20"
+                          style={{ backgroundColor: fill }}
+                          title={fill.toUpperCase()}
+                          aria-label={`${isSelf ? `${row.name} (나)` : row.name} 스케줄 색`}
+                        />
                         {isSelf ? `${row.name} (나)` : row.name}
                       </td>
-                      <td className="py-2 pr-2 text-zinc-700 dark:text-neutral-300">{ROLE_LABEL[row.role]}</td>
+                      <td className="py-2 pr-2 text-zinc-700 dark:text-neutral-300">
+                        {ROLE_LABEL[row.role]}
+                      </td>
                       <td className="whitespace-nowrap py-2 text-zinc-700 dark:text-neutral-300 tabular-nums">
                         {formatDateOnlyKo(row.joinedAt)}
                       </td>

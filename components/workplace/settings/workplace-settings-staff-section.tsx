@@ -1,9 +1,11 @@
 "use client";
 
-import { Unlink2, UserPlus } from "lucide-react";
+import { UserPlus, UserRoundX } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { ColorPresetPicker } from "@/components/color-preset-picker";
 import { workApi } from "@/lib/api/work-api";
+import { formatPhoneNumber } from "@/lib/phone";
 import { formatDateOnlyKo } from "@/lib/time";
 import { toast } from "@/lib/toast";
 import type {
@@ -21,6 +23,11 @@ const ROLE_LABEL: Record<BranchRole, string> = {
 
 function normalizePhone(input: string): string {
   return input.replace(/\D/g, "").slice(0, 11);
+}
+
+/** 휴대폰 010xxxxxxxx (11자리) */
+function isMobile010(digits: string): boolean {
+  return /^010\d{8}$/.test(digits);
 }
 
 /** 표 작업 열과 동일한 규칙 — 역할 변경 가능 대상 중 지점 제외 가능한 사람만 */
@@ -79,6 +86,11 @@ export function WorkplaceSettingsStaffSection({
   }, [members]);
 
   const sessionNp = useMemo(() => normalizePhone(session.phone), [session.phone]);
+  const invitePhoneReady = useMemo(
+    () => busyId === null && isMobile010(normalizePhone(invitePhone)),
+    [busyId, invitePhone],
+  );
+
   const latestFormerMembers = useMemo(() => {
     const byEmployee = new Map<string, BranchFormerMemberListItem>();
     for (const row of formerMembers) {
@@ -98,7 +110,11 @@ export function WorkplaceSettingsStaffSection({
   }, [formerMembers]);
 
   const handleInvite = async () => {
-    const ok = await workApi.inviteStaffMember(branchId, invitePhone, session.phone);
+    const digits = normalizePhone(invitePhone);
+    if (!isMobile010(digits)) {
+      return;
+    }
+    const ok = await workApi.inviteStaffMember(branchId, digits, session.phone);
     if (!ok) {
       toast.error("직원을 추가하지 못했습니다.");
       return;
@@ -190,23 +206,23 @@ export function WorkplaceSettingsStaffSection({
         <p className="text-xs font-medium text-zinc-500 dark:text-neutral-500">직원 관리</p>
 
         <div className="mt-4 flex flex-wrap gap-2">
-        <input
-          type="tel"
-          inputMode="numeric"
-          autoComplete="tel"
-          placeholder="휴대폰 번호 (숫자만)"
-          value={invitePhone}
-          onChange={(e) => setInvitePhone(e.target.value)}
-          className="min-w-[200px] flex-1 rounded-xl border border-zinc-200/90 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-white/35"
-        />
-        <button
-          type="button"
-          disabled={busyId !== null || !invitePhone.trim()}
-          onClick={() => void handleInvite()}
-          className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 dark:bg-white dark:text-neutral-950"
-        >
-          직원 추가
-        </button>
+          <input
+            type="tel"
+            inputMode="numeric"
+            autoComplete="tel"
+            placeholder="01012345678"
+            value={invitePhone}
+            onChange={(e) => setInvitePhone(normalizePhone(e.target.value))}
+            className="min-w-[200px] flex-1 rounded-xl border border-zinc-200/90 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-white/35"
+          />
+          <button
+            type="button"
+            disabled={!invitePhoneReady}
+            onClick={() => void handleInvite()}
+            className="rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 dark:bg-white dark:text-neutral-950"
+          >
+            직원 추가
+          </button>
         </div>
 
         <div className="mt-4 overflow-x-auto">
@@ -244,7 +260,9 @@ export function WorkplaceSettingsStaffSection({
                       <td className="py-2.5 text-zinc-900 dark:text-neutral-100">
                         {isSelf ? `${row.name} (나)` : row.name}
                       </td>
-                      <td className="py-2.5 text-zinc-700 dark:text-neutral-300">{row.phone}</td>
+                      <td className="py-2.5 text-zinc-700 dark:text-neutral-300">
+                        {formatPhoneNumber(row.phone)}
+                      </td>
                       <td className="py-2.5">
                         {canEditRow ? (
                           <select
@@ -273,19 +291,14 @@ export function WorkplaceSettingsStaffSection({
                       <td className="py-2.5">
                         {canEditRow ? (
                           <div className="flex items-center gap-2">
-                            <input
-                              type="color"
+                            <ColorPresetPicker
                               value={row.color ?? "#22c55e"}
                               disabled={busyColorEmployeeId === row.employeeId}
-                              onChange={(e) =>
-                                void handleColorChange(row.employeeId, row.phone, row.name, e.target.value)
+                              onChange={(hex) =>
+                                void handleColorChange(row.employeeId, row.phone, row.name, hex)
                               }
-                              className="h-8 w-10 cursor-pointer rounded border border-zinc-200/90 bg-white p-0 dark:border-white/15"
                               aria-label={`${isSelf ? `${row.name} (나)` : row.name} 색상 선택`}
                             />
-                            <span className="text-xs tabular-nums text-zinc-600 dark:text-neutral-300">
-                              {(row.color ?? "#22c55e").toUpperCase()}
-                            </span>
                           </div>
                         ) : (
                           <div className="flex items-center gap-2">
@@ -313,7 +326,7 @@ export function WorkplaceSettingsStaffSection({
                             aria-label={`${isSelf ? `${row.name} (나)` : row.name} 지점 연결 끊기`}
                             title="지점 연결 끊기"
                           >
-                            <Unlink2 className="h-4 w-4" />
+                            <UserRoundX className="h-4 w-4" />
                           </button>
                         ) : null}
                       </td>
@@ -332,7 +345,9 @@ export function WorkplaceSettingsStaffSection({
           {loading ? (
             <p className="text-sm text-zinc-500 dark:text-neutral-500">불러오는 중...</p>
           ) : latestFormerMembers.length === 0 ? (
-            <p className="text-sm text-zinc-600 dark:text-neutral-400">아직 제외된 직원이 없습니다.</p>
+            <p className="text-sm text-zinc-600 dark:text-neutral-400">
+              아직 제외된 직원이 없습니다.
+            </p>
           ) : (
             <table className="w-full min-w-[520px] text-left text-sm">
               <thead>
@@ -352,7 +367,9 @@ export function WorkplaceSettingsStaffSection({
                       <td className="py-2.5 text-zinc-900 dark:text-neutral-100">
                         {isSelf ? `${row.name} (나)` : row.name}
                       </td>
-                      <td className="py-2.5 text-zinc-700 dark:text-neutral-300">{row.phone}</td>
+                      <td className="py-2.5 text-zinc-700 dark:text-neutral-300">
+                        {formatPhoneNumber(row.phone)}
+                      </td>
                       <td className="whitespace-nowrap py-2.5 tabular-nums text-zinc-700 dark:text-neutral-300">
                         {formatDateOnlyKo(row.leftAt)}
                       </td>

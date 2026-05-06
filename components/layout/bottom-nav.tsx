@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { workApi } from "@/lib/api/work-api";
+import { onWorkplaceChanged } from "@/lib/constants/dom-event";
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -38,9 +39,9 @@ export function BottomNav() {
     (async () => {
       await loadCurrentBranch();
     })();
-    window.addEventListener("workplace:changed", requestLoadCurrentBranch);
+    const off = onWorkplaceChanged(requestLoadCurrentBranch);
     return () => {
-      window.removeEventListener("workplace:changed", requestLoadCurrentBranch);
+      off();
       if (debounceTimerRef.current !== null) {
         window.clearTimeout(debounceTimerRef.current);
       }

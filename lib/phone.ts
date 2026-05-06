@@ -1,5 +1,9 @@
+export function normalizePhone(value: string): string {
+  return value.replace(/\D/g, "").slice(0, 11);
+}
+
 export function formatPhoneNumber(value: string): string {
-  const digits = value.replace(/\D/g, "").slice(0, 11);
+  const digits = normalizePhone(value);
 
   if (digits.length <= 3) {
     return digits;

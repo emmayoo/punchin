@@ -7,6 +7,7 @@ import {
   DAY_COLUMN_HEIGHT,
   DISPLAY_HOURS,
   floorToHour,
+  formatMinutesFromMidnightHHMM,
   HOUR_ROW_HEIGHT,
   minuteOffsetInDay,
   MINUTES_PER_DAY,
@@ -146,7 +147,11 @@ export function ScheduleWeekGrid({
                 const start = new Date(shift.startAt);
                 const end = new Date(shift.endAt);
                 const startMin = Math.max(0, floorToHour(minuteOffsetInDay(start)));
-                const endMin = Math.min(MINUTES_PER_DAY, ceilToHour(minuteOffsetInDay(end)));
+                const startDay = new Date(start);
+                startDay.setHours(0, 0, 0, 0);
+                // shift.endAt 가 다음날 자정(00:00)인 경우 endMinRaw 는 1440이 됩니다.
+                const endMinRaw = (end.getTime() - startDay.getTime()) / 60000;
+                const endMin = Math.min(MINUTES_PER_DAY, ceilToHour(endMinRaw));
                 return {
                   shift,
                   startMin,
@@ -171,7 +176,8 @@ export function ScheduleWeekGrid({
                   {segments.map((segment) => {
                     const start = new Date(segment.shift.startAt);
                     const end = new Date(segment.shift.endAt);
-                    const timeLabel = `${timeFmt.format(start)}-${timeFmt.format(end)}`;
+                    const fullShiftLabel = `${timeFmt.format(start)}-${timeFmt.format(end)}`;
+                    const sliceLabel = `${formatMinutesFromMidnightHHMM(segment.startMin)}-${formatMinutesFromMidnightHHMM(segment.endMin)}`;
                     const top = (segment.startMin / MINUTES_PER_DAY) * DAY_COLUMN_HEIGHT;
                     const rawHeight =
                       ((segment.endMin - segment.startMin) / MINUTES_PER_DAY) * DAY_COLUMN_HEIGHT;
@@ -192,11 +198,11 @@ export function ScheduleWeekGrid({
                           backgroundColor: `${person?.color ?? "#a3a3a3"}33`,
                         }}
                         onClick={() => onShiftClick(segment.shift)}
-                        title={`${segment.shift.employeeName} ${timeLabel}`}
+                        title={`${segment.shift.employeeName} · 전체 ${fullShiftLabel} · 표시 구간 ${sliceLabel}`}
                       >
                         <div>{segment.shift.employeeName}</div>
                         <div className="text-[11px] text-zinc-800/90 dark:text-neutral-200/90">
-                          {timeLabel}
+                          {sliceLabel}
                         </div>
                       </div>
                     );

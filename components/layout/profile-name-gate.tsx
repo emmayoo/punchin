@@ -7,6 +7,7 @@ import { FirstProfileForm } from "@/components/onboarding/first-profile-form";
 import { FullscreenModal } from "@/components/overlay/fullscreen-modal";
 import { workApi } from "@/lib/api/work-api";
 import { toast } from "@/lib/toast";
+import { emitWorkplaceChanged } from "@/lib/constants/dom-event";
 
 /**
  * `employees.display_name_confirmed_at` 가 NULL일 때만 표시 이름 확인 모달.
@@ -66,7 +67,7 @@ export function ProfileNameGate() {
       return;
     }
     await refresh();
-    window.dispatchEvent(new Event("workplace:changed"));
+    emitWorkplaceChanged();
     toast.success("이름을 저장했습니다.");
   };
 

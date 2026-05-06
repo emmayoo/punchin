@@ -1,8 +1,12 @@
 import { FullscreenModal } from "@/components/overlay/fullscreen-modal";
 import { SchedulePerson } from "@/components/schedule/schedule-types";
+import { ScheduleTimePicker24 } from "@/components/schedule/schedule-time-picker-24";
 
 const fieldClass =
   "w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-white/15 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-white/35";
+
+const timeInputClass =
+  "min-h-10 w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2 font-mono text-sm tabular-nums text-zinc-900 outline-none focus:border-zinc-400 dark:border-white/15 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-white/35";
 
 const fieldLabelClass = "text-xs text-zinc-600 dark:text-neutral-400";
 
@@ -164,22 +168,20 @@ export function ShiftEditModal({
           </label>
           <label className="space-y-1">
             <span className={fieldLabelClass}>시작</span>
-            <input
-              type="time"
-              step={3600}
+            <ScheduleTimePicker24
               value={startTime}
-              onChange={(event) => onStartTimeChange(event.target.value)}
-              className={fieldClass}
+              onChange={onStartTimeChange}
+              disabled={saving}
+              inputClassName={timeInputClass}
             />
           </label>
           <label className="space-y-1">
             <span className={fieldLabelClass}>종료</span>
-            <input
-              type="time"
-              step={3600}
+            <ScheduleTimePicker24
               value={endTime}
-              onChange={(event) => onEndTimeChange(event.target.value)}
-              className={fieldClass}
+              onChange={onEndTimeChange}
+              disabled={saving}
+              inputClassName={timeInputClass}
             />
           </label>
         </div>

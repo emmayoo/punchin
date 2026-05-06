@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { ConfirmDialog } from "@/components/overlay/confirm-dialog";
 import { workApi } from "@/lib/api/work-api";
+import { emitWorkplaceChanged } from "@/lib/constants/dom-event";
 import { toast } from "@/lib/toast";
 import type { Branch, Employee } from "@/types/work";
 
@@ -35,7 +36,7 @@ export function WorkplaceSettingsDangerZone({
       return;
     }
     toast.success("지점을 삭제했습니다.");
-    window.dispatchEvent(new Event("workplace:changed"));
+    emitWorkplaceChanged();
     await onAfterDelete();
     router.push("/workplace");
   };

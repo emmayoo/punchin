@@ -2,7 +2,9 @@
 
 import { useMemo, useRef } from "react";
 
+import { ScheduleDownloadButton } from "@/components/schedule/schedule-download-button";
 import type { SchedulePerson, WeekDayItem } from "@/components/schedule/schedule-types";
+import { useScheduleImageDownload } from "@/components/schedule/use-schedule-image-download";
 import {
   addDays,
   dateKey,
@@ -12,19 +14,30 @@ import {
 import { ScheduleWeekGrid } from "@/components/schedule/schedule-week-grid";
 import { WorkplaceSectionCard } from "@/components/workplace/workplace-section-card";
 import { WorkplaceSectionLink } from "@/components/workplace/workplace-section-link";
+import { normalizePhone } from "@/lib/phone";
 import type { Shift } from "@/types/work";
 
 type WorkplaceScheduleOverviewSectionProps = {
   shifts: Shift[];
+  /** 현재 매장 활성 멤버십 기준 직원 전화번호 → 표시색(hex) */
+  memberColorByPhone?: ReadonlyMap<string, string>;
+  /** 매니저 이상만 스케줄 상세 링크 표시 */
+  canManageSchedule?: boolean;
 };
 
 export function WorkplaceScheduleOverviewSection({
   shifts,
+  memberColorByPhone,
+  canManageSchedule = false,
 }: WorkplaceScheduleOverviewSectionProps) {
   const scheduleGridRef = useRef<HTMLDivElement>(null);
   const weekStart = startOfWeek(new Date());
   const nextWeekStart = new Date(weekStart);
   nextWeekStart.setDate(nextWeekStart.getDate() + 7);
+  const { exportingImage, downloadScheduleImage } = useScheduleImageDownload({
+    targetRef: scheduleGridRef,
+    fileName: `스케줄_${dateKey(weekStart)}.png`,
+  });
 
   const weekShifts = shifts
     .filter((shift) => {
@@ -56,23 +69,49 @@ export function WorkplaceScheduleOverviewSection({
   const peopleByPhone = useMemo(() => {
     const palette = ["#22c55e", "#38bdf8", "#f59e0b", "#a78bfa", "#fb7185"];
     const map = new Map<string, SchedulePerson>();
-    weekShifts.forEach((shift, index) => {
-      if (!map.has(shift.employeePhone)) {
-        map.set(shift.employeePhone, {
-          id: shift.employeePhone,
-          name: shift.employeeName,
-          employeePhone: shift.employeePhone,
-          color: palette[index % palette.length],
-        });
+    let paletteIndex = 0;
+    weekShifts.forEach((shift) => {
+      const rawPhone = shift.employeePhone;
+      if (map.has(rawPhone)) {
+        return;
       }
+      let color: string;
+      if (memberColorByPhone !== undefined) {
+        const key = normalizePhone(rawPhone);
+        if (memberColorByPhone.has(key)) {
+          const hex = memberColorByPhone.get(key)?.trim();
+          color = hex && hex.length > 0 ? hex : "#22c55e";
+        } else {
+          color = "#a3a3a3";
+        }
+      } else {
+        color = palette[paletteIndex++ % palette.length];
+      }
+      map.set(rawPhone, {
+        id: shift.employeeId || rawPhone,
+        name: shift.employeeName,
+        employeePhone: rawPhone,
+        color,
+      });
     });
     return map;
-  }, [weekShifts]);
+  }, [weekShifts, memberColorByPhone]);
 
   return (
     <WorkplaceSectionCard
       title="이번주 스케줄"
-      action={<WorkplaceSectionLink href="/workplace/schedule" label="스케줄 상세" />}
+      action={
+        <div className="flex items-center gap-2">
+          <ScheduleDownloadButton
+            onClick={downloadScheduleImage}
+            busy={exportingImage}
+            ariaLabel={`${dateKey(weekStart)} 주간 스케줄 다운로드`}
+          />
+          {canManageSchedule ? (
+            <WorkplaceSectionLink href="/workplace/schedule" label="스케줄 상세" />
+          ) : null}
+        </div>
+      }
     >
       {weekShifts.length > 0 ? (
         <ScheduleWeekGrid

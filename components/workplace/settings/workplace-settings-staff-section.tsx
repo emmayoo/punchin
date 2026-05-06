@@ -8,6 +8,7 @@ import { workApi } from "@/lib/api/work-api";
 import { formatPhoneNumber } from "@/lib/phone";
 import { formatDateOnlyKo } from "@/lib/time";
 import { toast } from "@/lib/toast";
+import { emitWorkplaceChanged } from "@/lib/constants/dom-event";
 import type {
   BranchFormerMemberListItem,
   BranchMemberListItem,
@@ -155,6 +156,7 @@ export function WorkplaceSettingsStaffSection({
     }
     toast.success("색상을 변경했습니다.");
     await onReload();
+    emitWorkplaceChanged();
   };
 
   const handleTerminate = async (membershipId: string) => {

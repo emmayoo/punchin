@@ -11,6 +11,7 @@ import {
 } from "@/components/workplace/settings/workplace-settings-access";
 import { workApi } from "@/lib/api/work-api";
 import { toast } from "@/lib/toast";
+import { emitWorkplaceChanged } from "@/lib/constants/dom-event";
 
 const fieldInputClass =
   "mt-2 w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2 text-sm text-zinc-900 outline-none transition-colors focus:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-70 dark:border-white/10 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-white/35";
@@ -90,7 +91,7 @@ export default function WorkplaceBranchBasicEditPage() {
     }
     isDirtyRef.current = false;
     await refresh();
-    window.dispatchEvent(new Event("workplace:changed"));
+    emitWorkplaceChanged();
     toast.success("지점 정보를 저장했습니다.");
   };
 

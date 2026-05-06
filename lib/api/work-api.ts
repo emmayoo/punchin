@@ -27,9 +27,9 @@ import {
   removeBranchMembership,
   saveSession,
   setEmployeeCurrentBranch,
+  updateBranchBasicFields,
   updateBranchMembershipColor,
   updateBranchMembershipRole,
-  updateBranchBasicFields,
   updateCalendarEvent,
   updateEmployeeName,
   updateShift,
@@ -141,9 +141,7 @@ function embeddedEmployeePhone(row: Record<string, unknown>): string {
   return "";
 }
 
-function mapDisplayNameConfirmedAt(
-  row: Record<string, unknown>,
-): string | null | undefined {
+function mapDisplayNameConfirmedAt(row: Record<string, unknown>): string | null | undefined {
   if (!("display_name_confirmed_at" in row)) {
     return undefined;
   }
@@ -198,15 +196,6 @@ function mapEventRow(row: Record<string, unknown>): CalendarEvent {
   };
 }
 
-function mapSchedulePersonRow(row: Record<string, unknown>): SchedulePersonRecord {
-  return {
-    id: String(row.id),
-    name: String(row.name),
-    employeePhone: String(row.phone),
-    color: String(row.color ?? "#22c55e"),
-  };
-}
-
 function mapBranchRow(row: Record<string, unknown>, creatorPhone?: string): Branch {
   const cid = String(row.created_by_employee_id ?? "");
   return {
@@ -247,9 +236,7 @@ function mapBranchMemberListRow(row: Record<string, unknown>): BranchMemberListI
     | null
     | undefined;
   const emp =
-    embedded && !Array.isArray(embedded) && typeof embedded === "object"
-      ? embedded
-      : null;
+    embedded && !Array.isArray(embedded) && typeof embedded === "object" ? embedded : null;
   const phone = emp && typeof emp.phone === "string" ? emp.phone : "";
   const name = emp && typeof emp.name === "string" ? emp.name : "";
   const color =
@@ -307,11 +294,7 @@ function localIsOwnerAccess(access: ActorBranchAccess): boolean {
 }
 
 function localIsManagerUp(access: ActorBranchAccess): boolean {
-  return (
-    access === "creator" ||
-    access?.role === "owner" ||
-    access?.role === "manager"
-  );
+  return access === "creator" || access?.role === "owner" || access?.role === "manager";
 }
 
 function localCountOwners(branchId: string): number {
@@ -499,10 +482,7 @@ class LocalWorkApi {
     return ok;
   }
 
-  async listBranchMembers(
-    branchId: string,
-    actorPhone: string,
-  ): Promise<BranchMemberListItem[]> {
+  async listBranchMembers(branchId: string, actorPhone: string): Promise<BranchMemberListItem[]> {
     const normalized = normalizePhone(actorPhone);
     const actor = getEmployees().find((item) => item.phone === normalized) ?? null;
     const branch = getBranches().find((item) => item.id === branchId) ?? null;
@@ -660,7 +640,11 @@ class LocalWorkApi {
     return ok;
   }
 
-  async inviteStaffMember(branchId: string, inviteePhone: string, actorPhone: string): Promise<boolean> {
+  async inviteStaffMember(
+    branchId: string,
+    inviteePhone: string,
+    actorPhone: string,
+  ): Promise<boolean> {
     const access = localResolveActorBranchRole(branchId, actorPhone);
     if (!localIsManagerUp(access)) {
       await wait();
@@ -815,13 +799,35 @@ class LocalWorkApi {
   }
 
   async getSchedulePeople(): Promise<SchedulePersonRecord[]> {
-    const rows = getEmployees().map((employee) => ({
-      id: employee.id,
-      name: employee.name,
-      employeePhone: employee.phone,
-      color: "#22c55e",
-    }));
     await wait();
+    const branchId = getSession()?.currentBranchId ?? null;
+    if (!branchId) {
+      return getEmployees().map((employee) => ({
+        id: employee.id,
+        name: employee.name,
+        employeePhone: employee.phone,
+        color: "#22c55e",
+      }));
+    }
+
+    const memberByEmpId = new Map(
+      getBranchMembershipsForBranch(branchId).map((m) => [m.employeeId, m]),
+    );
+    const rows: SchedulePersonRecord[] = [];
+    for (const employee of getEmployees()) {
+      const membership = memberByEmpId.get(employee.id);
+      if (!membership) {
+        continue;
+      }
+      const hex = membership.color?.trim();
+      rows.push({
+        id: employee.id,
+        name: employee.name,
+        employeePhone: employee.phone,
+        color: hex ? hex : "#22c55e",
+      });
+    }
+    rows.sort((a, b) => a.name.localeCompare(b.name, "ko"));
     return rows;
   }
 
@@ -893,15 +899,16 @@ class LocalWorkApi {
     return created;
   }
 
-  async createShifts(shifts: Omit<Shift, "id">[]): Promise<void> {
+  async createShifts(shifts: Omit<Shift, "id">[]): Promise<string[]> {
     const defaultBranchId = getSession()?.currentBranchId ?? null;
-    addShifts(
+    const ids = addShifts(
       shifts.map((shift) => ({
         ...shift,
         branchId: shift.branchId ?? defaultBranchId,
       })),
     );
     await wait();
+    return ids;
   }
 
   async updateShift(
@@ -1223,11 +1230,7 @@ class SupabaseWorkApi {
   }
 
   private supabaseIsManagerUp(access: ActorBranchAccess): boolean {
-    return (
-      access === "creator" ||
-      access?.role === "owner" ||
-      access?.role === "manager"
-    );
+    return access === "creator" || access?.role === "owner" || access?.role === "manager";
   }
 
   private async getShiftsRemote(): Promise<Shift[]> {
@@ -1612,10 +1615,7 @@ class SupabaseWorkApi {
     return !error;
   }
 
-  async listBranchMembers(
-    branchId: string,
-    actorPhone: string,
-  ): Promise<BranchMemberListItem[]> {
+  async listBranchMembers(branchId: string, actorPhone: string): Promise<BranchMemberListItem[]> {
     const access = await this.resolveActorBranchAccess(branchId, actorPhone);
     if (!access) {
       await wait();
@@ -1699,9 +1699,7 @@ class SupabaseWorkApi {
       await wait();
       return false;
     }
-    const targetRole = mapBranchRole(
-      String((targetRaw as Record<string, unknown>).role),
-    );
+    const targetRole = mapBranchRole(String((targetRaw as Record<string, unknown>).role));
     const actorIsOwner = this.supabaseIsOwnerAccess(access);
     if (!actorIsOwner) {
       if (targetRole !== "staff") {
@@ -1748,9 +1746,7 @@ class SupabaseWorkApi {
       await wait();
       return false;
     }
-    const targetRole = mapBranchRole(
-      String((targetRaw as Record<string, unknown>).role),
-    );
+    const targetRole = mapBranchRole(String((targetRaw as Record<string, unknown>).role));
     const actorIsOwner = this.supabaseIsOwnerAccess(access);
     if (!actorIsOwner && targetRole !== "staff") {
       await wait();
@@ -1777,11 +1773,7 @@ class SupabaseWorkApi {
       .maybeSingle();
     const empRec = empRow as Record<string, unknown> | null;
     const empPhone = empRec && typeof empRec.phone === "string" ? empRec.phone : "";
-    if (
-      empPhone &&
-      empRec?.current_branch_id &&
-      String(empRec.current_branch_id) === branchId
-    ) {
+    if (empPhone && empRec?.current_branch_id && String(empRec.current_branch_id) === branchId) {
       const remain = await this.getBranchMembershipsByPhoneRemote(empPhone);
       const nextDefault = remain[0]?.branchId ?? null;
       await this.supabase
@@ -1793,7 +1785,11 @@ class SupabaseWorkApi {
     return true;
   }
 
-  async inviteStaffMember(branchId: string, inviteePhone: string, actorPhone: string): Promise<boolean> {
+  async inviteStaffMember(
+    branchId: string,
+    inviteePhone: string,
+    actorPhone: string,
+  ): Promise<boolean> {
     const access = await this.resolveActorBranchAccess(branchId, actorPhone);
     if (!this.supabaseIsManagerUp(access)) {
       await wait();
@@ -2102,18 +2098,49 @@ class SupabaseWorkApi {
   }
 
   async getSchedulePeople(): Promise<SchedulePersonRecord[]> {
+    const session = await this.getSessionEmployeeFromAuth();
+    const branchId = session?.currentBranchId ?? null;
+
+    if (!branchId) {
+      const { data } = await this.supabase
+        .from("employees")
+        .select("id,name,phone")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
+      await wait();
+      return (data ?? []).map((row) => ({
+        id: String((row as Record<string, unknown>).id),
+        name: String((row as Record<string, unknown>).name),
+        employeePhone: String((row as Record<string, unknown>).phone),
+        color: "#22c55e",
+      }));
+    }
+
     const { data } = await this.supabase
-      .from("employees")
-      .select("id,name,phone")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false });
+      .from("branch_memberships")
+      .select("color, employee:employees!employee_id(id,name,phone,deleted_at)")
+      .eq("branch_id", branchId)
+      .is("ended_at", null)
+      .is("deleted_at", null);
     await wait();
-    return (data ?? []).map((row) => ({
-      id: String((row as Record<string, unknown>).id),
-      name: String((row as Record<string, unknown>).name),
-      employeePhone: String((row as Record<string, unknown>).phone),
-      color: "#22c55e",
-    }));
+
+    const rows: SchedulePersonRecord[] = [];
+    for (const rowRaw of data ?? []) {
+      const row = rowRaw as Record<string, unknown>;
+      const emp = row.employee as Record<string, unknown> | null | undefined;
+      if (!emp || emp.deleted_at != null) {
+        continue;
+      }
+      const hexRaw = row.color !== undefined && row.color !== null ? String(row.color).trim() : "";
+      rows.push({
+        id: String(emp.id),
+        name: String(emp.name ?? ""),
+        employeePhone: normalizePhone(String(emp.phone ?? "")),
+        color: hexRaw ? hexRaw : "#22c55e",
+      });
+    }
+    rows.sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    return rows;
   }
 
   async createSchedulePerson(input: {
@@ -2179,8 +2206,7 @@ class SupabaseWorkApi {
     const session = await this.getSessionEmployeeFromAuth();
     const resolvedBranchId = shift.branchId ?? session?.currentBranchId ?? null;
     const resolvedEmployeeId =
-      shift.employeeId ||
-      (await this.getEmployeeByPhone(normalizePhone(shift.employeePhone)))?.id;
+      shift.employeeId || (await this.getEmployeeByPhone(normalizePhone(shift.employeePhone)))?.id;
     if (!resolvedEmployeeId) {
       throw new Error("스케줄 담당 직원을 찾을 수 없습니다.");
     }
@@ -2199,9 +2225,9 @@ class SupabaseWorkApi {
     return data ? mapShiftRow(data as Record<string, unknown>) : { id: "", ...shift };
   }
 
-  async createShifts(shifts: Omit<Shift, "id">[]): Promise<void> {
+  async createShifts(shifts: Omit<Shift, "id">[]): Promise<string[]> {
     if (shifts.length === 0) {
-      return;
+      return [];
     }
     const session = await this.getSessionEmployeeFromAuth();
     const defaultBranchId = session?.currentBranchId ?? null;
@@ -2223,10 +2249,14 @@ class SupabaseWorkApi {
     }
     if (rows.length === 0) {
       await wait();
-      return;
+      return [];
     }
-    await this.supabase.from("shifts").insert(rows as never);
+    const { data } = await this.supabase
+      .from("shifts")
+      .insert(rows as never)
+      .select("id");
     await wait();
+    return (data ?? []).map((row) => String((row as Record<string, unknown>).id));
   }
 
   async updateShift(

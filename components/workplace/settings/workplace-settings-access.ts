@@ -39,6 +39,11 @@ export function canManageBranchStaff(access: WorkplaceBranchAccess): boolean {
   );
 }
 
+/** 스케줄 관리(편집·복사 등) — 매니저 이상 */
+export function canManageWorkplaceSchedule(access: WorkplaceBranchAccess): boolean {
+  return canManageBranchStaff(access);
+}
+
 /** 설정 화면 진입(톱니 표시) — 매니저 이상과 소유자 플로우 */
 export function canOpenWorkplaceSettings(access: WorkplaceBranchAccess): boolean {
   return canManageBranchStaff(access);

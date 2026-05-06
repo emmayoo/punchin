@@ -2,7 +2,7 @@
 
 import { Settings } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { useDashboardData } from "@/components/dashboard/use-dashboard-data";
 import { TabPageShell } from "@/components/layout/tab-page-shell";
@@ -16,13 +16,27 @@ import { WorkplaceMonthlyStatsSection } from "@/components/workplace/workplace-m
 import { WorkplaceNoticesSection } from "@/components/workplace/workplace-notices-section";
 import { WorkplaceScheduleOverviewSection } from "@/components/workplace/workplace-schedule-overview-section";
 import { WorkplaceTimelineSection } from "@/components/workplace/workplace-timeline-section";
+import { useBranchMemberColors } from "@/components/workplace/use-branch-member-colors";
 import { workApi } from "@/lib/api/work-api";
+import { emitWorkplaceChanged } from "@/lib/constants/dom-event";
 import { toast } from "@/lib/toast";
 
 export default function WorkplacePage() {
   const { data } = useDashboardData();
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [switchingBranch, setSwitchingBranch] = useState(false);
+
+  const currentBranchId = useMemo(() => {
+    if (!data) {
+      return null;
+    }
+    return selectedBranchId ?? data.session?.currentBranchId ?? data.myBranches[0]?.id ?? null;
+  }, [data, selectedBranchId]);
+
+  const { colorByPhone: scheduleMemberColorByPhone } = useBranchMemberColors({
+    branchId: currentBranchId,
+    actorPhone: data?.session?.phone ?? null,
+  });
 
   if (!data) {
     return (
@@ -32,8 +46,6 @@ export default function WorkplacePage() {
     );
   }
 
-  const currentBranchId =
-    selectedBranchId ?? data.session?.currentBranchId ?? data.myBranches[0]?.id ?? null;
   const currentBranch = data.branches.find((branch) => branch.id === currentBranchId) ?? null;
   const branchAccess =
     currentBranch && data.session
@@ -49,6 +61,7 @@ export default function WorkplacePage() {
   const branchEvents = data.todayEvents.filter((event) =>
     currentBranchId ? event.branchId === currentBranchId : event.branchId == null,
   );
+
   const handleSelectBranch = async (branchId: string) => {
     if (!data.session || branchId === currentBranchId) {
       return;
@@ -62,7 +75,7 @@ export default function WorkplacePage() {
       toast.error("지점 변경에 실패했습니다.");
     }
     setSwitchingBranch(false);
-    window.dispatchEvent(new Event("workplace:changed"));
+    emitWorkplaceChanged();
   };
 
   return (
@@ -96,7 +109,11 @@ export default function WorkplacePage() {
         <WorkplaceHistoryEventsSection punches={branchPunches} events={branchEvents} />
         <WorkplaceMonthlyStatsSection punches={branchPunches} />
         <WorkplaceNoticesSection />
-        <WorkplaceScheduleOverviewSection shifts={branchShifts} />
+        <WorkplaceScheduleOverviewSection
+          shifts={branchShifts}
+          memberColorByPhone={scheduleMemberColorByPhone}
+          canManageSchedule={canManageCurrentBranch}
+        />
       </>
     </TabPageShell>
   );

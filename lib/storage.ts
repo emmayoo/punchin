@@ -165,23 +165,22 @@ export function addShift(shift: Omit<Shift, "id">): Shift {
   return created;
 }
 
-export function addShifts(shifts: Omit<Shift, "id">[]): void {
+export function addShifts(shifts: Omit<Shift, "id">[]): string[] {
   const all = getShifts();
+  const newRows: Shift[] = shifts.map((shift) => {
+    const resolvedEmployeeId =
+      shift.employeeId ||
+      getEmployees().find((e) => e.phone === shift.employeePhone)?.id ||
+      "";
+    return { ...shift, employeeId: resolvedEmployeeId, id: id("shift") };
+  });
   write(
     SHIFT_KEY,
-    [
-      ...all,
-      ...shifts.map((shift) => {
-        const resolvedEmployeeId =
-          shift.employeeId ||
-          getEmployees().find((e) => e.phone === shift.employeePhone)?.id ||
-          "";
-        return { ...shift, employeeId: resolvedEmployeeId, id: id("shift") };
-      }),
-    ].sort(
+    [...all, ...newRows].sort(
       (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime(),
     ),
   );
+  return newRows.map((row) => row.id);
 }
 
 export function updateShift(

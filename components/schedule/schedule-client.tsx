@@ -1,10 +1,10 @@
 "use client";
 
-import { toPng } from "html-to-image";
-import { ChevronLeft, ChevronRight, Copy, ImageDown } from "lucide-react";
+import { ChevronLeft, ChevronRight, Copy } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { DetailPageShell } from "@/components/layout/detail-page-shell";
+import { ConfirmDialog } from "@/components/overlay/confirm-dialog";
 import {
   CopyScheduleModal,
   ShiftEditModal,
@@ -12,11 +12,16 @@ import {
 } from "@/components/schedule/schedule-modals";
 import { ScheduleSlotForm } from "@/components/schedule/schedule-slot-form";
 import { SchedulePerson } from "@/components/schedule/schedule-types";
+import { ScheduleDownloadButton } from "@/components/schedule/schedule-download-button";
+import { useScheduleImageDownload } from "@/components/schedule/use-schedule-image-download";
 import {
   addDays,
+  collectOverlappingShiftIdsForProposals,
   dateKey,
+  filterShiftsStartingInWeek,
   fromDateInput,
   parseTimeHHMM,
+  shiftRowToCreatePayload,
   startOfWeek,
   toMinutes,
   WEEKDAY_LABELS,
@@ -27,11 +32,18 @@ import { workApi } from "@/lib/api/work-api";
 import { toast } from "@/lib/toast";
 import { Shift } from "@/types/work";
 
+const UNDO_TOAST_DURATION_MS = 12_000;
+
+type SlotBatchUndo = {
+  createdShiftIds: string[];
+  restorePayloads: Omit<Shift, "id">[];
+};
+
 export function ScheduleClient() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [people, setPeople] = useState<SchedulePerson[]>([]);
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
-  const [weekday, setWeekday] = useState(0);
+  const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([0]);
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("13:00");
   const [selectedPersonId, setSelectedPersonId] = useState("");
@@ -43,7 +55,6 @@ export function ScheduleClient() {
   );
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [exportingImage, setExportingImage] = useState(false);
   const [copying, setCopying] = useState(false);
   const [shiftEditOpen, setShiftEditOpen] = useState(false);
   const [editingShiftId, setEditingShiftId] = useState<string | null>(null);
@@ -52,7 +63,20 @@ export function ScheduleClient() {
   const [editEndTime, setEditEndTime] = useState("13:00");
   const [editPersonId, setEditPersonId] = useState("");
   const [editingShiftBusy, setEditingShiftBusy] = useState(false);
+  const [overlapConfirmOpen, setOverlapConfirmOpen] = useState(false);
+  const [overwriteBusy, setOverwriteBusy] = useState(false);
+  const [pendingSlotCreate, setPendingSlotCreate] = useState<{
+    payloads: Omit<Shift, "id">[];
+    conflictingIds: string[];
+    dayIndexes: number[];
+    personName: string;
+  } | null>(null);
+  const slotUndoRef = useRef<SlotBatchUndo | null>(null);
   const scheduleGridRef = useRef<HTMLDivElement>(null);
+  const { exportingImage, downloadScheduleImage } = useScheduleImageDownload({
+    targetRef: scheduleGridRef,
+    fileName: `스케줄_${dateKey(weekStart)}.png`,
+  });
 
   const loadSchedule = async () => {
     const list = await workApi.getSchedule();
@@ -97,14 +121,7 @@ export function ScheduleClient() {
     [weekStart],
   );
 
-  const weekShifts = useMemo(() => {
-    const nextWeek = addDays(weekStart, 7).getTime();
-    const weekStartMs = weekStart.getTime();
-    return shifts.filter((shift) => {
-      const startMs = new Date(shift.startAt).getTime();
-      return startMs >= weekStartMs && startMs < nextWeek;
-    });
-  }, [shifts, weekStart]);
+  const weekShifts = useMemo(() => filterShiftsStartingInWeek(shifts, weekStart), [shifts, weekStart]);
 
   const shiftMap = useMemo(() => {
     const map = new Map<string, Shift[]>();
@@ -136,39 +153,171 @@ export function ScheduleClient() {
     return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
   };
 
+  const toggleWeekday = (idx: number) => {
+    setSelectedWeekdays((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) {
+        next.delete(idx);
+      } else {
+        next.add(idx);
+      }
+      return [...next].sort((a, b) => a - b);
+    });
+  };
+
+  const buildSlotPayloads = (
+    person: SchedulePerson,
+    dayIndexes: number[],
+  ): Omit<Shift, "id">[] => {
+    const startClock = parseTimeHHMM(startTime);
+    const endClock = parseTimeHHMM(endTime);
+    return dayIndexes.map((weekday) => {
+      const base = addDays(weekStart, weekday);
+      const start = new Date(base);
+      const end = new Date(base);
+      start.setHours(startClock.hour, startClock.minute, 0, 0);
+      // 종료가 `00:00`이면 "다음날 00:00" (즉 24:00)으로 해석한다.
+      // 예: 23:00 - 00:00 => 23:00 - (다음날) 00:00
+      const resolvedEndHour = endTime === "00:00" && startTime !== "00:00" ? 24 : endClock.hour;
+      end.setHours(resolvedEndHour, endClock.minute, 0, 0);
+      return {
+        employeeId: person.id,
+        employeeName: person.name,
+        employeePhone: person.employeePhone,
+        startAt: start.toISOString(),
+        endAt: end.toISOString(),
+      };
+    });
+  };
+
+  const slotCreateToastLabel = (dayIndexes: number[]) =>
+    dayIndexes.map((i) => WEEKDAY_LABELS[i]).join(", ");
+
+  const effectiveEndMinutes = (startHHMM: string, endHHMM: string): number => {
+    if (endHHMM === "00:00" && startHHMM !== "00:00") {
+      return 24 * 60;
+    }
+    return toMinutes(endHHMM);
+  };
+
+  const performSlotUndo = async () => {
+    const entry = slotUndoRef.current;
+    if (!entry) {
+      return;
+    }
+    const hasWork = entry.createdShiftIds.length > 0 || entry.restorePayloads.length > 0;
+    if (!hasWork) {
+      slotUndoRef.current = null;
+      return;
+    }
+    slotUndoRef.current = null;
+    setBusy(true);
+    try {
+      await Promise.all(entry.createdShiftIds.map((id) => workApi.deleteShift(id)));
+      if (entry.restorePayloads.length > 0) {
+        await workApi.createShifts(entry.restorePayloads);
+      }
+      await loadSchedule();
+      toast.success("실행 취소했습니다.");
+    } catch {
+      toast.error("실행 취소하지 못했습니다.");
+      await loadSchedule();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const finalizeSlotBatch = async (
+    payloads: Omit<Shift, "id">[],
+    dayIndexes: number[],
+    personName: string,
+    restoreDeletedPayloads: Omit<Shift, "id">[],
+  ) => {
+    if (payloads.length === 0) {
+      return;
+    }
+    toast.dismiss();
+    slotUndoRef.current = null;
+    const createdShiftIds = await workApi.createShifts(payloads);
+    const listAfter = await workApi.getSchedule();
+    setShifts(listAfter);
+    slotUndoRef.current = {
+      createdShiftIds,
+      restorePayloads: restoreDeletedPayloads,
+    };
+    toast.success(
+      `${slotCreateToastLabel(dayIndexes)} · ${startTime}-${endTime} · ${personName} 스케줄을 추가했습니다.`,
+      {
+        duration: UNDO_TOAST_DURATION_MS,
+        action: {
+          label: "실행 취소",
+          onClick: () => void performSlotUndo(),
+        },
+      },
+    );
+  };
+
   const createSlot = async () => {
     const person = people.find((item) => item.id === selectedPersonId);
     if (!person) {
       toast.error("담당자를 선택해주세요.");
       return;
     }
-    if (toMinutes(endTime) <= toMinutes(startTime)) {
+    if (selectedWeekdays.length === 0) {
+      toast.error("요일을 하나 이상 선택해 주세요.");
+      return;
+    }
+    if (effectiveEndMinutes(startTime, endTime) <= toMinutes(startTime)) {
       toast.error("종료 시간이 시작 시간보다 늦어야 합니다.");
       return;
     }
 
-    const base = addDays(weekStart, weekday);
-    const start = new Date(base);
-    const end = new Date(base);
-    const startClock = parseTimeHHMM(startTime);
-    const endClock = parseTimeHHMM(endTime);
-    // 스케줄은 1시간 단위만 허용한다.
-    start.setHours(startClock.hour, 0, 0, 0);
-    end.setHours(endClock.hour, 0, 0, 0);
+    const dayIndexes = [...selectedWeekdays].sort((a, b) => a - b);
+    const payloads = buildSlotPayloads(person, dayIndexes);
+    const conflictingIds = collectOverlappingShiftIdsForProposals(payloads, weekShifts, person);
+
+    if (conflictingIds.length > 0) {
+      setPendingSlotCreate({
+        payloads,
+        conflictingIds,
+        dayIndexes,
+        personName: person.name,
+      });
+      setOverlapConfirmOpen(true);
+      return;
+    }
 
     setBusy(true);
-    await workApi.createShift({
-      employeeId: person.id,
-      employeeName: person.name,
-      employeePhone: person.employeePhone,
-      startAt: start.toISOString(),
-      endAt: end.toISOString(),
-    });
-    await loadSchedule();
-    toast.success(
-      `${WEEKDAY_LABELS[weekday]} ${startTime}-${endTime} ${person.name} 스케줄을 추가했습니다.`,
-    );
-    setBusy(false);
+    try {
+      await finalizeSlotBatch(payloads, dayIndexes, person.name, []);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmOverwriteOverlappingSlots = async () => {
+    if (!pendingSlotCreate) {
+      return;
+    }
+    const { payloads, conflictingIds, dayIndexes, personName } = pendingSlotCreate;
+    const restoreDeletedPayloads = conflictingIds
+      .map((id) => shifts.find((row) => row.id === id))
+      .filter((row): row is Shift => Boolean(row))
+      .map((row) => shiftRowToCreatePayload(row));
+    setOverwriteBusy(true);
+    try {
+      await Promise.all(conflictingIds.map((id) => workApi.deleteShift(id)));
+      await finalizeSlotBatch(payloads, dayIndexes, personName, restoreDeletedPayloads);
+      setOverlapConfirmOpen(false);
+      setPendingSlotCreate(null);
+    } finally {
+      setOverwriteBusy(false);
+    }
+  };
+
+  const cancelOverwriteOverlappingSlots = () => {
+    setOverlapConfirmOpen(false);
+    setPendingSlotCreate(null);
   };
 
   const applyWeekPicker = () => {
@@ -251,7 +400,7 @@ export function ScheduleClient() {
       toast.error("담당자를 선택해주세요.");
       return;
     }
-    if (toMinutes(editEndTime) <= toMinutes(editStartTime)) {
+    if (effectiveEndMinutes(editStartTime, editEndTime) <= toMinutes(editStartTime)) {
       toast.error("종료 시간이 시작 시간보다 늦어야 합니다.");
       return;
     }
@@ -264,9 +413,10 @@ export function ScheduleClient() {
     const startClock = parseTimeHHMM(editStartTime);
     const endClock = parseTimeHHMM(editEndTime);
     const startAt = new Date(baseDate);
-    startAt.setHours(startClock.hour, 0, 0, 0);
+    startAt.setHours(startClock.hour, startClock.minute, 0, 0);
     const endAt = new Date(baseDate);
-    endAt.setHours(endClock.hour, 0, 0, 0);
+    const resolvedEndHour = editEndTime === "00:00" && editStartTime !== "00:00" ? 24 : endClock.hour;
+    endAt.setHours(resolvedEndHour, endClock.minute, 0, 0);
 
     setEditingShiftBusy(true);
     await workApi.updateShift(editingShiftId, {
@@ -295,49 +445,10 @@ export function ScheduleClient() {
     toast.success("스케줄을 삭제했습니다.");
   };
 
-  const downloadScheduleImage = async () => {
-    const el = scheduleGridRef.current;
-    if (!el) {
-      return;
-    }
-    setExportingImage(true);
-    try {
-      // 폰트/레이아웃이 완전히 렌더된 뒤 캡처해야 프로덕션에서 빈 이미지가 덜 나옵니다.
-      if (typeof document !== "undefined" && "fonts" in document) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (document as any).fonts?.ready;
-      }
-      await new Promise<void>((resolve) => {
-        window.requestAnimationFrame(() => resolve());
-      });
-
-      const dataUrl = await toPng(el, {
-        cacheBust: true,
-        pixelRatio: Math.min(2, typeof window !== "undefined" ? window.devicePixelRatio : 1),
-        backgroundColor: "#0a0a0a",
-      });
-
-      const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = `스케줄_${dateKey(weekStart)}.png`;
-      a.rel = "noreferrer";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      toast.success("스케줄 이미지를 저장했습니다.");
-    } catch (err) {
-      // 프로덕션에서 원인을 알아야 재현/해결이 빨라집니다.
-      console.error("Failed to export schedule image:", err);
-      toast.error("이미지를 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.");
-    } finally {
-      setExportingImage(false);
-    }
-  };
-
   return (
     <DetailPageShell
       backHref="/workplace"
-      title="스케줄"
+      title="스케줄 관리"
       loading={loading}
       className="gap-6"
       contentClassName="gap-6"
@@ -392,16 +503,11 @@ export function ScheduleClient() {
           onShiftClick={openShiftEditModal}
         />
         <div>
-          <button
-            type="button"
+          <ScheduleDownloadButton
             onClick={downloadScheduleImage}
-            disabled={exportingImage}
-            className="inline-flex h-7 items-center gap-1 rounded-lg border border-zinc-300/90 bg-zinc-200/50 px-2 text-xs text-zinc-800 shadow-sm backdrop-blur-sm enabled:hover:bg-zinc-300/50 disabled:opacity-50 dark:border-white/20 dark:bg-black/50 dark:text-neutral-200 dark:enabled:hover:bg-white/10"
-            aria-label={`${weekLabel(weekStart)} 주간 스케줄 다운로드`}
-          >
-            <ImageDown className="h-3.5 w-3.5" aria-hidden />
-            {exportingImage ? "저장 중" : "스케줄 다운로드"}
-          </button>
+            busy={exportingImage}
+            ariaLabel={`${weekLabel(weekStart)} 주간 스케줄 다운로드`}
+          />
           <button
             type="button"
             onClick={openCopyModal}
@@ -413,17 +519,33 @@ export function ScheduleClient() {
         </div>
       </section>
       <ScheduleSlotForm
-        weekday={weekday}
+        selectedWeekdays={selectedWeekdays}
         startTime={startTime}
         endTime={endTime}
         selectedPersonId={selectedPersonId}
         people={people}
-        busy={busy}
-        onWeekdayChange={setWeekday}
+        busy={busy || overwriteBusy || overlapConfirmOpen}
+        onToggleWeekday={toggleWeekday}
         onStartTimeChange={setStartTime}
         onEndTimeChange={setEndTime}
         onSelectedPersonChange={setSelectedPersonId}
-        onCreateSlot={createSlot}
+        onCreateSlot={() => void createSlot()}
+      />
+
+      <ConfirmDialog
+        open={overlapConfirmOpen}
+        title="스케줄이 겹칩니다"
+        description={
+          pendingSlotCreate
+            ? `겹치는 기존 일정 ${pendingSlotCreate.conflictingIds.length}건을 삭제한 뒤 새 일정을 넣습니다. 기존꺼는 삭제하고 덮어쓰겠습니까?`
+            : "기존꺼는 삭제하고 덮어쓰겠습니까?"
+        }
+        confirmText="덮어쓰기"
+        cancelText="취소"
+        tone="danger"
+        busy={overwriteBusy}
+        onConfirm={() => void confirmOverwriteOverlappingSlots()}
+        onCancel={cancelOverwriteOverlappingSlots}
       />
 
       <WeekPickerModal

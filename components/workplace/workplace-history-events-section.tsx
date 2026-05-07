@@ -3,6 +3,7 @@
 import { WorkplaceSectionCard } from "@/components/workplace/workplace-section-card";
 import { WorkplaceSectionLink } from "@/components/workplace/workplace-section-link";
 import { formatTime } from "@/lib/time";
+import { isToday } from "@/lib/time";
 import type { CalendarEvent, PunchRecord } from "@/types/work";
 
 type WorkplaceHistoryEventsSectionProps = {
@@ -14,8 +15,9 @@ export function WorkplaceHistoryEventsSection({
   punches,
   events,
 }: WorkplaceHistoryEventsSectionProps) {
-  const recentPunches = [...punches]
-    .sort((a, b) => new Date(b.checkedInAt).getTime() - new Date(a.checkedInAt).getTime())
+  const todayPunches = punches.filter((record) => isToday(record.checkedInAt));
+  const recentPunches = [...todayPunches]
+    .sort((a, b) => new Date(a.checkedInAt).getTime() - new Date(b.checkedInAt).getTime())
     .slice(0, 3);
 
   return (
@@ -26,7 +28,7 @@ export function WorkplaceHistoryEventsSection({
       <div className="space-y-3">
         <div>
           <p className="text-xs text-zinc-500 dark:text-neutral-500">
-            근무 건수 ({punches.length}개)
+            근무 건수 ({todayPunches.length}개)
           </p>
           {recentPunches.length > 0 ? (
             <div className="mt-2 space-y-1">

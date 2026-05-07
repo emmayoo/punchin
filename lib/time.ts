@@ -1,3 +1,9 @@
+import {
+  formatKoDateOnly,
+  formatKoDateTimeMonthDayHourMinute,
+  formatKoTimeHourMinuteSecond,
+} from "@/lib/date-format";
+
 /** 입사일 등 날짜만. 값 없거나 파싱 실패 시 — */
 export function formatDateOnlyKo(value: string | null | undefined): string {
   if (!value?.trim()) {
@@ -7,28 +13,15 @@ export function formatDateOnlyKo(value: string | null | undefined): string {
   if (Number.isNaN(d.getTime())) {
     return "—";
   }
-  return new Intl.DateTimeFormat("ko-KR", {
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-  }).format(d);
+  return formatKoDateOnly(d);
 }
 
 export function formatDateTime(value: string): string {
-  return new Intl.DateTimeFormat("ko-KR", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
+  return formatKoDateTimeMonthDayHourMinute(value);
 }
 
 export function formatTime(value: string): string {
-  return new Intl.DateTimeFormat("ko-KR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).format(new Date(value));
+  return formatKoTimeHourMinuteSecond(value);
 }
 
 export function isToday(value: string): boolean {

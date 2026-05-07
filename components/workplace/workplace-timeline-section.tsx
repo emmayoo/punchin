@@ -1,6 +1,7 @@
 "use client";
 
 import { DailyShiftTimeline } from "@/components/timeline/daily-shift-timeline";
+import { formatKoMonthDayWeekdayShort } from "@/lib/date-format";
 import type { PunchRecord, Shift } from "@/types/work";
 
 type WorkplaceTimelineSectionProps = {
@@ -14,11 +15,7 @@ export function WorkplaceTimelineSection({
   punches,
   nowIso,
 }: WorkplaceTimelineSectionProps) {
-  const todayLabel = new Intl.DateTimeFormat("ko-KR", {
-    month: "long",
-    day: "numeric",
-    weekday: "short",
-  }).format(new Date(nowIso));
+  const todayLabel = formatKoMonthDayWeekdayShort(nowIso);
 
   return (
     <div className="-mx-1 overflow-x-auto px-1 sm:mx-0 sm:px-0">

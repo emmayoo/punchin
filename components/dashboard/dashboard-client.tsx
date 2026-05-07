@@ -23,6 +23,7 @@ import { TabPageShell } from "@/components/layout/tab-page-shell";
 import { ConfirmDialog } from "@/components/overlay/confirm-dialog";
 import { DailyShiftTimeline } from "@/components/timeline/daily-shift-timeline";
 import { workApi } from "@/lib/api/work-api";
+import { formatKoYearMonthDayWeekdayLong } from "@/lib/date-format";
 
 export function DashboardClient() {
   const router = useRouter();
@@ -41,12 +42,7 @@ export function DashboardClient() {
   const { data, loading, refresh } = useDashboardData({
     onData: handleDashboardData,
   });
-  const todayLabel = new Intl.DateTimeFormat("ko-KR", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-    weekday: "long",
-  }).format(new Date());
+  const todayLabel = formatKoYearMonthDayWeekdayLong(new Date());
 
   const handleCheckIn = async () => {
     if (!data?.session) {

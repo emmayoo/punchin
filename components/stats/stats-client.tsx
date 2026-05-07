@@ -12,6 +12,7 @@ import {
 } from "@/components/workplace/use-branch-member-colors";
 import { type RangeWorkDetail, RangeWorkStatRow, workApi } from "@/lib/api/work-api";
 import { onWorkplaceChanged } from "@/lib/constants/dom-event";
+import { formatKoDateTimeClip, formatKoDateTimeFull } from "@/lib/date-format";
 import { normalizePhone } from "@/lib/phone";
 
 function dateKey(date: Date): string {
@@ -28,29 +29,10 @@ function formatSecondsToHms(seconds: number): string {
   return `${hh}:${mm}:${ss}`;
 }
 
-const statsDetailDateTimeFull = new Intl.DateTimeFormat("ko-KR", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false,
-});
-
-const statsDetailDateTimeClip = new Intl.DateTimeFormat("ko-KR", {
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false,
-});
-
 function formatStatsDetailRangeLabel(detail: RangeWorkDetail): ReactNode {
-  const start = statsDetailDateTimeFull.format(new Date(detail.checkedInAt));
+  const start = formatKoDateTimeFull(detail.checkedInAt);
   if (detail.ongoing) {
-    const clip = statsDetailDateTimeClip.format(new Date(detail.checkedOutAt));
+    const clip = formatKoDateTimeClip(detail.checkedOutAt);
     return (
       <>
         {start}
@@ -62,7 +44,7 @@ function formatStatsDetailRangeLabel(detail: RangeWorkDetail): ReactNode {
       </>
     );
   }
-  const end = statsDetailDateTimeFull.format(new Date(detail.checkedOutAt));
+  const end = formatKoDateTimeFull(detail.checkedOutAt);
   return (
     <>
       {start} ~ {end}

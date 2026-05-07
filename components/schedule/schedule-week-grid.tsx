@@ -11,6 +11,7 @@ import {
   MINUTES_PER_DAY,
   SEGMENT_SHOW_TIME_MIN_HEIGHT_PX,
 } from "@/components/schedule/schedule-utils";
+import { formatKoMonthDayNumeric, formatKoTimeHourMinute24 } from "@/lib/date-format";
 import type { Shift } from "@/types/work";
 
 type ScheduleWeekGridProps = {
@@ -94,12 +95,6 @@ export function ScheduleWeekGrid({
   scheduleGridRef,
   onShiftClick,
 }: ScheduleWeekGridProps) {
-  const timeFmt = new Intl.DateTimeFormat("ko-KR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-
   return (
     <div className="overflow-x-auto border border-zinc-200/90 dark:border-white/10">
       <div className="relative min-w-[760px]">
@@ -115,10 +110,7 @@ export function ScheduleWeekGrid({
               >
                 {day.label}
                 <span className="ml-1 text-zinc-500 dark:text-neutral-500">
-                  {new Intl.DateTimeFormat("ko-KR", {
-                    month: "numeric",
-                    day: "numeric",
-                  }).format(day.date)}
+                  {formatKoMonthDayNumeric(day.date)}
                 </span>
               </div>
             ))}
@@ -178,7 +170,7 @@ export function ScheduleWeekGrid({
                   {segments.map((segment) => {
                     const start = new Date(segment.shift.startAt);
                     const end = new Date(segment.shift.endAt);
-                    const fullShiftLabel = `${timeFmt.format(start)}-${timeFmt.format(end)}`;
+                    const fullShiftLabel = `${formatKoTimeHourMinute24(start)}-${formatKoTimeHourMinute24(end)}`;
                     const sliceLabel = `${formatMinutesFromMidnightHHMM(segment.startMin)}-${formatMinutesFromMidnightHHMM(segment.endMin)}`;
                     const top = (segment.startMin / MINUTES_PER_DAY) * DAY_COLUMN_HEIGHT;
                     const rawHeight =

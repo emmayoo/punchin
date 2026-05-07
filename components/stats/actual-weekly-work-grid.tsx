@@ -26,6 +26,7 @@ import {
 } from "@/components/workplace/use-branch-member-colors";
 import { workApi } from "@/lib/api/work-api";
 import { emitWorkplaceChanged } from "@/lib/constants/dom-event";
+import { formatKoMonthDayNumeric } from "@/lib/date-format";
 import { normalizePhone } from "@/lib/phone";
 import { toast } from "@/lib/toast";
 import type { BranchMemberListItem, PunchRecord, Shift } from "@/types/work";
@@ -646,9 +647,7 @@ export function ActualWeeklyWorkGridSection({
                     className="border-b border-r border-zinc-200/90 bg-zinc-100/80 px-1.5 py-1.5 text-[11px] text-zinc-800 dark:border-white/10 dark:bg-white/5 dark:text-neutral-200"
                   >
                     {["일", "월", "화", "수", "목", "금", "토"][day.getDay()]}{" "}
-                    {new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric" }).format(
-                      day,
-                    )}
+                    {formatKoMonthDayNumeric(day)}
                   </div>
                 ))}
 

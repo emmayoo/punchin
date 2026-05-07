@@ -7,6 +7,7 @@ import { HistoryCalendarHeader } from "@/components/history/history-calendar-hea
 import { HistoryMonthPickerModal } from "@/components/history/history-month-picker-modal";
 import { DetailPageShell } from "@/components/layout/detail-page-shell";
 import { workApi } from "@/lib/api/work-api";
+import { formatKoYearMonthLong } from "@/lib/date-format";
 import type { CalendarEvent, PunchRecord } from "@/types/work";
 
 function pad2(value: number): string {
@@ -18,10 +19,7 @@ function toDateKey(date: Date): string {
 }
 
 function monthLabel(date: Date): string {
-  return new Intl.DateTimeFormat("ko-KR", {
-    year: "numeric",
-    month: "long",
-  }).format(date);
+  return formatKoYearMonthLong(date);
 }
 
 export function HistoryClient() {

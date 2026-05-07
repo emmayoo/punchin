@@ -1,4 +1,5 @@
 import type { Shift } from "@/types/work";
+import { formatKoMonthDayNumeric } from "@/lib/date-format";
 
 export const SCHEDULE_PEOPLE_KEY = "punchin:schedule-people";
 export const WEEKDAY_LABELS = ["월", "화", "수", "목", "금", "토", "일"] as const;
@@ -69,11 +70,7 @@ export function shiftRowToCreatePayload(shift: Shift): Omit<Shift, "id"> {
 
 export function weekLabel(weekStart: Date): string {
   const weekEnd = addDays(weekStart, 6);
-  const fmt = new Intl.DateTimeFormat("ko-KR", {
-    month: "numeric",
-    day: "numeric",
-  });
-  return `${fmt.format(weekStart)} - ${fmt.format(weekEnd)}`;
+  return `${formatKoMonthDayNumeric(weekStart)} - ${formatKoMonthDayNumeric(weekEnd)}`;
 }
 
 export function dateKey(date: Date): string {

@@ -77,3 +77,23 @@ export type CalendarEvent = {
   color: string; // hex color
   branchId?: string | null;
 };
+
+export type NoticeAttachment = {
+  id: string;
+  noticeId: string;
+  imageUrl: string;
+  sortOrder: number;
+};
+
+export type Notice = {
+  id: string;
+  branchId: string;
+  authorEmployeeId: string;
+  authorName: string;
+  title: string;
+  content: string;
+  isPinned: boolean;
+  attachments: NoticeAttachment[];
+  createdAt: string;
+  updatedAt: string;
+};

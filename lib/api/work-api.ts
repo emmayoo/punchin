@@ -6,6 +6,7 @@ import {
   addShift,
   addShifts,
   addPunchRecord,
+  createNotice as createNoticeLocal,
   checkIn,
   checkOut,
   clearSession,
@@ -13,6 +14,7 @@ import {
   deleteBranchByOwner,
   deleteCalendarEvent,
   deletePunchRecord,
+  deleteNotice as deleteNoticeLocal,
   deleteShift,
   getActivePunch,
   getBranches,
@@ -21,6 +23,8 @@ import {
   getBranchMembershipsForBranch,
   getCalendarEvents,
   getEmployees,
+  getNoticeAttachments,
+  getNotices,
   getPunches,
   getSession,
   getShifts,
@@ -34,6 +38,7 @@ import {
   updateBranchMembershipRole,
   updateCalendarEvent,
   updateEmployeeName,
+  updateNotice as updateNoticeLocal,
   updatePunchRecordTimes,
   updateShift,
   upsertEmployee,
@@ -48,6 +53,8 @@ import type {
   BranchRole,
   CalendarEvent,
   Employee,
+  Notice,
+  NoticeAttachment,
   PunchRecord,
   Shift,
 } from "@/types/work";
@@ -81,6 +88,13 @@ export type SchedulePersonRecord = {
   name: string;
   employeePhone: string;
   color: string;
+};
+
+export type NoticeInput = {
+  title: string;
+  content: string;
+  isPinned: boolean;
+  attachments: string[];
 };
 
 export type BranchSetupInput =
@@ -201,6 +215,30 @@ function mapEventRow(row: Record<string, unknown>): CalendarEvent {
   };
 }
 
+function mapNoticeRow(row: Record<string, unknown>): Notice {
+  return {
+    id: String(row.id),
+    branchId: String(row.branch_id),
+    authorEmployeeId: String(row.author_employee_id),
+    authorName: String(row.author_name ?? ""),
+    title: String(row.title ?? ""),
+    content: String(row.body ?? ""),
+    isPinned: Boolean(row.is_pinned),
+    attachments: [],
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at ?? row.created_at),
+  };
+}
+
+function mapNoticeAttachmentRow(row: Record<string, unknown>): NoticeAttachment {
+  return {
+    id: String(row.id),
+    noticeId: String(row.notice_id),
+    imageUrl: String(row.image_url ?? ""),
+    sortOrder: Number(row.sort_order ?? 0),
+  };
+}
+
 function mapBranchRow(row: Record<string, unknown>, creatorPhone?: string): Branch {
   const cid = String(row.created_by_employee_id ?? "");
   return {
@@ -300,6 +338,25 @@ function localIsOwnerAccess(access: ActorBranchAccess): boolean {
 
 function localIsManagerUp(access: ActorBranchAccess): boolean {
   return access === "creator" || access?.role === "owner" || access?.role === "manager";
+}
+
+function canEditNoticeByRole(
+  actorAccess: ActorBranchAccess,
+  authorRole: BranchRole | null,
+  isAuthor: boolean,
+): boolean {
+  if (isAuthor) {
+    return true;
+  }
+  const actorRole: BranchRole | "creator" | null =
+    actorAccess === "creator" ? "creator" : actorAccess?.role ?? null;
+  if (actorRole === "creator" || actorRole === "owner") {
+    return authorRole === "manager" || authorRole === "staff" || authorRole === null;
+  }
+  if (actorRole === "manager") {
+    return authorRole === "staff" || authorRole === null;
+  }
+  return false;
 }
 
 function localCountOwners(branchId: string): number {
@@ -922,6 +979,100 @@ class LocalWorkApi {
   async deleteCalendarEvent(eventId: string): Promise<void> {
     deleteCalendarEvent(eventId);
     await wait();
+  }
+
+  async listNotices(branchId: string): Promise<Notice[]> {
+    const notices = getNotices().filter((notice) => notice.branchId === branchId);
+    const attachments = getNoticeAttachments();
+    const attachByNotice = new Map<string, NoticeAttachment[]>();
+    for (const item of attachments) {
+      const current = attachByNotice.get(item.noticeId) ?? [];
+      current.push(item);
+      attachByNotice.set(item.noticeId, current);
+    }
+    await wait();
+    return notices
+      .map((notice) => ({
+        ...notice,
+        attachments: (attachByNotice.get(notice.id) ?? []).sort((a, b) => a.sortOrder - b.sortOrder),
+      }))
+      .sort(
+        (a, b) =>
+          Number(b.isPinned) - Number(a.isPinned) ||
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      );
+  }
+
+  async createNotice(branchId: string, input: NoticeInput, actorPhone: string): Promise<Notice | null> {
+    const actor = getEmployees().find((employee) => employee.phone === normalizePhone(actorPhone)) ?? null;
+    if (!actor) {
+      await wait();
+      return null;
+    }
+    const created = createNoticeLocal({
+      branchId,
+      authorEmployeeId: actor.id,
+      authorName: actor.name,
+      title: input.title.trim(),
+      content: input.content.trim(),
+      isPinned: input.isPinned,
+      attachments: input.attachments,
+    });
+    await wait();
+    return created;
+  }
+
+  async updateNotice(
+    noticeId: string,
+    input: NoticeInput,
+    actorPhone: string,
+  ): Promise<Notice | null> {
+    const actor = getEmployees().find((employee) => employee.phone === normalizePhone(actorPhone)) ?? null;
+    const target = getNotices().find((notice) => notice.id === noticeId) ?? null;
+    if (!actor || !target) {
+      await wait();
+      return null;
+    }
+    const actorAccess = localResolveActorBranchRole(target.branchId, actorPhone);
+    const memberships = getBranchMembershipsForBranch(target.branchId);
+    const authorMembership =
+      memberships.find((membership) => membership.employeeId === target.authorEmployeeId) ?? null;
+    const authorRole = authorMembership?.role ?? null;
+    const isAuthor = actor.id === target.authorEmployeeId;
+    if (!canEditNoticeByRole(actorAccess, authorRole, isAuthor)) {
+      await wait();
+      return null;
+    }
+    const updated = updateNoticeLocal(noticeId, {
+      title: input.title.trim(),
+      content: input.content.trim(),
+      isPinned: input.isPinned,
+      attachments: input.attachments,
+    });
+    await wait();
+    return updated;
+  }
+
+  async deleteNotice(noticeId: string, actorPhone: string): Promise<boolean> {
+    const actor = getEmployees().find((employee) => employee.phone === normalizePhone(actorPhone)) ?? null;
+    const target = getNotices().find((notice) => notice.id === noticeId) ?? null;
+    if (!actor || !target) {
+      await wait();
+      return false;
+    }
+    const actorAccess = localResolveActorBranchRole(target.branchId, actorPhone);
+    const memberships = getBranchMembershipsForBranch(target.branchId);
+    const authorMembership =
+      memberships.find((membership) => membership.employeeId === target.authorEmployeeId) ?? null;
+    const authorRole = authorMembership?.role ?? null;
+    const isAuthor = actor.id === target.authorEmployeeId;
+    if (!canEditNoticeByRole(actorAccess, authorRole, isAuthor)) {
+      await wait();
+      return false;
+    }
+    const ok = deleteNoticeLocal(noticeId);
+    await wait();
+    return ok;
   }
 
   async getSchedule(): Promise<Shift[]> {
@@ -2284,6 +2435,208 @@ class SupabaseWorkApi {
       .update({ deleted_at: new Date().toISOString() } as never)
       .eq("id", eventId);
     await wait();
+  }
+
+  async listNotices(branchId: string): Promise<Notice[]> {
+    const { data, error } = await this.supabase
+      .from("notices")
+      .select("*")
+      .eq("branch_id", branchId)
+      .is("deleted_at", null)
+      .order("is_pinned", { ascending: false })
+      .order("created_at", { ascending: false });
+    if (error) {
+      await wait();
+      return [];
+    }
+    const notices = (data ?? []).map((row) => mapNoticeRow(row as Record<string, unknown>));
+    if (notices.length === 0) {
+      await wait();
+      return [];
+    }
+    const noticeIds = notices.map((notice) => notice.id);
+    const { data: attachmentRows } = await this.supabase
+      .from("notice_attachments")
+      .select("*")
+      .in("notice_id", noticeIds)
+      .is("deleted_at", null)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+    const attachmentMap = new Map<string, NoticeAttachment[]>();
+    for (const rowRaw of attachmentRows ?? []) {
+      const attachment = mapNoticeAttachmentRow(rowRaw as Record<string, unknown>);
+      const current = attachmentMap.get(attachment.noticeId) ?? [];
+      current.push(attachment);
+      attachmentMap.set(attachment.noticeId, current);
+    }
+    await wait();
+    return notices.map((notice) => ({
+      ...notice,
+      attachments: attachmentMap.get(notice.id) ?? [],
+    }));
+  }
+
+  async createNotice(branchId: string, input: NoticeInput, actorPhone: string): Promise<Notice | null> {
+    const actor = await this.getEmployeeByPhone(normalizePhone(actorPhone));
+    if (!actor?.id) {
+      await wait();
+      return null;
+    }
+    const { data, error } = await this.supabase
+      .from("notices")
+      .insert({
+        branch_id: branchId,
+        author_employee_id: actor.id,
+        author_name: actor.name,
+        title: input.title.trim(),
+        body: input.content.trim(),
+        is_pinned: input.isPinned,
+      } as never)
+      .select("*")
+      .maybeSingle();
+    if (error || !data) {
+      await wait();
+      return null;
+    }
+    const notice = mapNoticeRow(data as Record<string, unknown>);
+    if (input.attachments.length > 0) {
+      await this.supabase.from("notice_attachments").insert(
+        input.attachments.map((imageUrl, index) => ({
+          notice_id: notice.id,
+          image_url: imageUrl,
+          sort_order: index,
+        })) as never,
+      );
+    }
+    const [created] = await this.listNotices(branchId).then((rows) => rows.filter((n) => n.id === notice.id));
+    await wait();
+    return created ?? { ...notice, attachments: [] };
+  }
+
+  async updateNotice(
+    noticeId: string,
+    input: NoticeInput,
+    actorPhone: string,
+  ): Promise<Notice | null> {
+    const actor = await this.getEmployeeByPhone(normalizePhone(actorPhone));
+    if (!actor?.id) {
+      await wait();
+      return null;
+    }
+    const { data: noticeRow } = await this.supabase
+      .from("notices")
+      .select("id, branch_id, author_employee_id")
+      .eq("id", noticeId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (!noticeRow) {
+      await wait();
+      return null;
+    }
+    const noticeRec = noticeRow as Record<string, unknown>;
+    const branchId = String(noticeRec.branch_id ?? "");
+    const authorEmployeeId = String(noticeRec.author_employee_id ?? "");
+    const access = await this.resolveActorBranchAccess(branchId, actorPhone);
+    const isAuthor = actor.id === authorEmployeeId;
+    const { data: authorMembership } = await this.supabase
+      .from("branch_memberships")
+      .select("role")
+      .eq("branch_id", branchId)
+      .eq("employee_id", authorEmployeeId)
+      .is("ended_at", null)
+      .is("deleted_at", null)
+      .maybeSingle();
+    const authorRole = authorMembership
+      ? mapBranchRole(String((authorMembership as Record<string, unknown>).role))
+      : null;
+    if (!canEditNoticeByRole(access, authorRole, isAuthor)) {
+      await wait();
+      return null;
+    }
+    const { data, error } = await this.supabase
+      .from("notices")
+      .update({
+        title: input.title.trim(),
+        body: input.content.trim(),
+        is_pinned: input.isPinned,
+        updated_at: new Date().toISOString(),
+      } as never)
+      .eq("id", noticeId)
+      .is("deleted_at", null)
+      .select("*")
+      .maybeSingle();
+    if (error || !data) {
+      await wait();
+      return null;
+    }
+    await this.supabase
+      .from("notice_attachments")
+      .update({ deleted_at: new Date().toISOString() } as never)
+      .eq("notice_id", noticeId)
+      .is("deleted_at", null);
+    if (input.attachments.length > 0) {
+      await this.supabase.from("notice_attachments").insert(
+        input.attachments.map((imageUrl, index) => ({
+          notice_id: noticeId,
+          image_url: imageUrl,
+          sort_order: index,
+        })) as never,
+      );
+    }
+    const [updatedNotice] = await this.listNotices(branchId).then((rows) => rows.filter((n) => n.id === noticeId));
+    await wait();
+    return updatedNotice ?? { ...mapNoticeRow(data as Record<string, unknown>), attachments: [] };
+  }
+
+  async deleteNotice(noticeId: string, actorPhone: string): Promise<boolean> {
+    const actor = await this.getEmployeeByPhone(normalizePhone(actorPhone));
+    if (!actor?.id) {
+      await wait();
+      return false;
+    }
+    const { data: noticeRow } = await this.supabase
+      .from("notices")
+      .select("id, branch_id, author_employee_id")
+      .eq("id", noticeId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (!noticeRow) {
+      await wait();
+      return false;
+    }
+    const noticeRec = noticeRow as Record<string, unknown>;
+    const branchId = String(noticeRec.branch_id ?? "");
+    const authorEmployeeId = String(noticeRec.author_employee_id ?? "");
+    const access = await this.resolveActorBranchAccess(branchId, actorPhone);
+    const isAuthor = actor.id === authorEmployeeId;
+    const { data: authorMembership } = await this.supabase
+      .from("branch_memberships")
+      .select("role")
+      .eq("branch_id", branchId)
+      .eq("employee_id", authorEmployeeId)
+      .is("ended_at", null)
+      .is("deleted_at", null)
+      .maybeSingle();
+    const authorRole = authorMembership
+      ? mapBranchRole(String((authorMembership as Record<string, unknown>).role))
+      : null;
+    if (!canEditNoticeByRole(access, authorRole, isAuthor)) {
+      await wait();
+      return false;
+    }
+    const now = new Date().toISOString();
+    await this.supabase
+      .from("notice_attachments")
+      .update({ deleted_at: now } as never)
+      .eq("notice_id", noticeId)
+      .is("deleted_at", null);
+    const { error } = await this.supabase
+      .from("notices")
+      .update({ deleted_at: now } as never)
+      .eq("id", noticeId)
+      .is("deleted_at", null);
+    await wait();
+    return !error;
   }
 
   async getSchedule(): Promise<Shift[]> {

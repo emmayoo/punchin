@@ -166,8 +166,10 @@ create table public.notices (
   id uuid primary key default gen_random_uuid(),
   branch_id uuid not null references public.branches (id) on delete restrict,
   author_employee_id uuid not null references public.employees (id) on delete restrict,
+  author_name text not null default '',
   title text not null,
   body text not null default '',
+  is_pinned boolean not null default false,
   deleted_at timestamptz null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -175,6 +177,23 @@ create table public.notices (
 
 create index notices_branch_created_active_idx
   on public.notices (branch_id, created_at desc)
+  where deleted_at is null;
+
+create index notices_branch_pinned_created_active_idx
+  on public.notices (branch_id, is_pinned desc, created_at desc)
+  where deleted_at is null;
+
+create table public.notice_attachments (
+  id uuid primary key default gen_random_uuid(),
+  notice_id uuid not null references public.notices (id) on delete cascade,
+  image_url text not null,
+  sort_order int not null default 0,
+  deleted_at timestamptz null,
+  created_at timestamptz not null default now()
+);
+
+create index notice_attachments_notice_sort_active_idx
+  on public.notice_attachments (notice_id, sort_order asc, created_at asc)
   where deleted_at is null;
 
 -- ---------------------------------------------------------------------------
@@ -295,6 +314,7 @@ alter table public.shifts enable row level security;
 alter table public.punch_records enable row level security;
 alter table public.calendar_events enable row level security;
 alter table public.notices enable row level security;
+alter table public.notice_attachments enable row level security;
 alter table public.audit_logs enable row level security;
 
 drop policy if exists employees_authenticated_all on public.employees;
@@ -422,9 +442,173 @@ on public.calendar_events for all
 to authenticated using (true) with check (true);
 
 drop policy if exists notices_authenticated_all on public.notices;
-create policy notices_authenticated_all
-on public.notices for all
-to authenticated using (true) with check (true);
+drop policy if exists notices_select_policy on public.notices;
+drop policy if exists notices_insert_policy on public.notices;
+drop policy if exists notices_update_policy on public.notices;
+drop policy if exists notices_delete_policy on public.notices;
+
+create policy notices_select_policy
+on public.notices for select
+to authenticated
+using (deleted_at is null);
+
+create policy notices_insert_policy
+on public.notices for insert
+to authenticated
+with check (
+  exists (
+    select 1
+    from public.employees actor
+    where actor.phone = public.current_user_phone()
+      and actor.deleted_at is null
+      and actor.id = author_employee_id
+      and (
+        exists (
+          select 1
+          from public.branch_memberships bm
+          where bm.branch_id = notices.branch_id
+            and bm.employee_id = actor.id
+            and bm.ended_at is null
+            and bm.deleted_at is null
+        )
+        or exists (
+          select 1
+          from public.branches b
+          where b.id = notices.branch_id
+            and b.created_by_employee_id = actor.id
+            and b.deleted_at is null
+        )
+      )
+  )
+);
+
+create policy notices_update_policy
+on public.notices for update
+to authenticated
+using (
+  deleted_at is null
+  and exists (
+    select 1
+    from public.employees actor
+    left join public.branch_memberships author_m
+      on author_m.branch_id = notices.branch_id
+     and author_m.employee_id = notices.author_employee_id
+     and author_m.ended_at is null
+     and author_m.deleted_at is null
+    where actor.phone = public.current_user_phone()
+      and actor.deleted_at is null
+      and (
+        actor.id = notices.author_employee_id
+        or (
+          (
+            exists (
+              select 1 from public.branch_memberships bm
+              where bm.branch_id = notices.branch_id
+                and bm.employee_id = actor.id
+                and bm.role in ('owner', 'manager')
+                and bm.ended_at is null
+                and bm.deleted_at is null
+            )
+            or exists (
+              select 1 from public.branches b
+              where b.id = notices.branch_id
+                and b.created_by_employee_id = actor.id
+                and b.deleted_at is null
+            )
+          )
+          and (
+            coalesce(author_m.role, 'staff') = 'staff'
+            or (
+              coalesce(author_m.role, 'staff') = 'manager'
+              and (
+                exists (
+                  select 1 from public.branch_memberships bm2
+                  where bm2.branch_id = notices.branch_id
+                    and bm2.employee_id = actor.id
+                    and bm2.role = 'owner'
+                    and bm2.ended_at is null
+                    and bm2.deleted_at is null
+                )
+                or exists (
+                  select 1 from public.branches b2
+                  where b2.id = notices.branch_id
+                    and b2.created_by_employee_id = actor.id
+                    and b2.deleted_at is null
+                )
+              )
+            )
+          )
+        )
+      )
+  )
+)
+with check (true);
+
+create policy notices_delete_policy
+on public.notices for delete
+to authenticated
+using (
+  exists (
+    select 1
+    from public.employees actor
+    left join public.branch_memberships author_m
+      on author_m.branch_id = notices.branch_id
+     and author_m.employee_id = notices.author_employee_id
+     and author_m.ended_at is null
+     and author_m.deleted_at is null
+    where actor.phone = public.current_user_phone()
+      and actor.deleted_at is null
+      and (
+        actor.id = notices.author_employee_id
+        or (
+          (
+            exists (
+              select 1 from public.branch_memberships bm
+              where bm.branch_id = notices.branch_id
+                and bm.employee_id = actor.id
+                and bm.role in ('owner', 'manager')
+                and bm.ended_at is null
+                and bm.deleted_at is null
+            )
+            or exists (
+              select 1 from public.branches b
+              where b.id = notices.branch_id
+                and b.created_by_employee_id = actor.id
+                and b.deleted_at is null
+            )
+          )
+          and (
+            coalesce(author_m.role, 'staff') = 'staff'
+            or (
+              coalesce(author_m.role, 'staff') = 'manager'
+              and (
+                exists (
+                  select 1 from public.branch_memberships bm2
+                  where bm2.branch_id = notices.branch_id
+                    and bm2.employee_id = actor.id
+                    and bm2.role = 'owner'
+                    and bm2.ended_at is null
+                    and bm2.deleted_at is null
+                )
+                or exists (
+                  select 1 from public.branches b2
+                  where b2.id = notices.branch_id
+                    and b2.created_by_employee_id = actor.id
+                    and b2.deleted_at is null
+                )
+              )
+            )
+          )
+        )
+      )
+  )
+);
+
+drop policy if exists notice_attachments_authenticated_all on public.notice_attachments;
+create policy notice_attachments_authenticated_all
+on public.notice_attachments for all
+to authenticated
+using (true) with check (true);
 
 drop policy if exists audit_logs_authenticated_all on public.audit_logs;
 create policy audit_logs_authenticated_all

@@ -10,13 +10,13 @@ import {
   canOpenWorkplaceSettings,
   resolveWorkplaceBranchAccess,
 } from "@/components/workplace/settings/workplace-settings-access";
+import { useBranchMemberColors } from "@/components/workplace/use-branch-member-colors";
 import { WorkplaceBranchSwitcher } from "@/components/workplace/workplace-branch-switcher";
 import { WorkplaceHistoryEventsSection } from "@/components/workplace/workplace-history-events-section";
 import { WorkplaceMonthlyStatsSection } from "@/components/workplace/workplace-monthly-stats-section";
 import { WorkplaceNoticesSection } from "@/components/workplace/workplace-notices-section";
 import { WorkplaceScheduleOverviewSection } from "@/components/workplace/workplace-schedule-overview-section";
 import { WorkplaceTimelineSection } from "@/components/workplace/workplace-timeline-section";
-import { useBranchMemberColors } from "@/components/workplace/use-branch-member-colors";
 import { workApi } from "@/lib/api/work-api";
 import { emitWorkplaceChanged } from "@/lib/constants/dom-event";
 import { toast } from "@/lib/toast";
@@ -108,7 +108,7 @@ export default function WorkplacePage() {
         />
         <WorkplaceHistoryEventsSection punches={branchPunches} events={branchEvents} />
         <WorkplaceMonthlyStatsSection punches={branchPunches} />
-        <WorkplaceNoticesSection />
+        <WorkplaceNoticesSection branchId={currentBranchId} />
         <WorkplaceScheduleOverviewSection
           shifts={branchShifts}
           memberColorByPhone={scheduleMemberColorByPhone}

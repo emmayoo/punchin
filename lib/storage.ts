@@ -8,6 +8,8 @@ import type {
   BranchRole,
   CalendarEvent,
   Employee,
+  Notice,
+  NoticeAttachment,
   PunchRecord,
   Shift,
 } from "@/types/work";
@@ -19,6 +21,8 @@ const SESSION_KEY = "punchin:session";
 const CALENDAR_EVENT_KEY = "punchin:calendar-events";
 const BRANCH_KEY = "punchin:branches";
 const BRANCH_MEMBERSHIP_KEY = "punchin:branch-memberships";
+const NOTICE_KEY = "punchin:notices";
+const NOTICE_ATTACHMENT_KEY = "punchin:notice-attachments";
 
 function id(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
@@ -56,6 +60,8 @@ function seedIfNeeded(): void {
   write(PUNCH_KEY, []);
   write(BRANCH_KEY, []);
   write(BRANCH_MEMBERSHIP_KEY, []);
+  write(NOTICE_KEY, []);
+  write(NOTICE_ATTACHMENT_KEY, []);
 }
 
 export function initStorage(): void {
@@ -323,6 +329,105 @@ export function deletePunchRecord(recordId: string): boolean {
 
 export function getTodayPunches(): PunchRecord[] {
   return getPunches().filter((record) => isToday(record.checkedInAt));
+}
+
+export function getNotices(): Notice[] {
+  return read<Notice[]>(NOTICE_KEY, []).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+}
+
+export function getNoticeAttachments(): NoticeAttachment[] {
+  return read<NoticeAttachment[]>(NOTICE_ATTACHMENT_KEY, []).sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+export function createNotice(input: {
+  branchId: string;
+  authorEmployeeId: string;
+  authorName: string;
+  title: string;
+  content: string;
+  isPinned: boolean;
+  attachments: string[];
+}): Notice {
+  const notices = getNotices();
+  const attachments = getNoticeAttachments();
+  const noticeId = id("notice");
+  const now = new Date().toISOString();
+  const created: Notice = {
+    id: noticeId,
+    branchId: input.branchId,
+    authorEmployeeId: input.authorEmployeeId,
+    authorName: input.authorName,
+    title: input.title,
+    content: input.content,
+    isPinned: input.isPinned,
+    attachments: [],
+    createdAt: now,
+    updatedAt: now,
+  };
+  const nextAttachments: NoticeAttachment[] = input.attachments.map((imageUrl, index) => ({
+    id: id("notice-file"),
+    noticeId,
+    imageUrl,
+    sortOrder: index,
+  }));
+  write(NOTICE_KEY, [created, ...notices]);
+  write(NOTICE_ATTACHMENT_KEY, [...attachments, ...nextAttachments]);
+  return {
+    ...created,
+    attachments: nextAttachments,
+  };
+}
+
+export function updateNotice(
+  noticeId: string,
+  input: { title: string; content: string; isPinned: boolean; attachments: string[] },
+): Notice | null {
+  const notices = getNotices();
+  const target = notices.find((notice) => notice.id === noticeId) ?? null;
+  if (!target) {
+    return null;
+  }
+  const now = new Date().toISOString();
+  const updated: Notice = {
+    ...target,
+    title: input.title,
+    content: input.content,
+    isPinned: input.isPinned,
+    updatedAt: now,
+    attachments: [],
+  };
+  write(
+    NOTICE_KEY,
+    notices.map((notice) => (notice.id === noticeId ? updated : notice)),
+  );
+  const attachments = getNoticeAttachments().filter((item) => item.noticeId !== noticeId);
+  const nextAttachments: NoticeAttachment[] = input.attachments.map((imageUrl, index) => ({
+    id: id("notice-file"),
+    noticeId,
+    imageUrl,
+    sortOrder: index,
+  }));
+  write(NOTICE_ATTACHMENT_KEY, [...attachments, ...nextAttachments]);
+  return {
+    ...updated,
+    attachments: nextAttachments,
+  };
+}
+
+export function deleteNotice(noticeId: string): boolean {
+  const notices = getNotices();
+  const next = notices.filter((notice) => notice.id !== noticeId);
+  if (next.length === notices.length) {
+    return false;
+  }
+  write(NOTICE_KEY, next);
+  write(
+    NOTICE_ATTACHMENT_KEY,
+    getNoticeAttachments().filter((attachment) => attachment.noticeId !== noticeId),
+  );
+  return true;
 }
 
 export function saveSession(employee: Employee): void {

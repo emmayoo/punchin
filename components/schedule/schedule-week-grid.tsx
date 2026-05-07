@@ -2,11 +2,9 @@ import { RefObject } from "react";
 
 import { SchedulePerson, ShiftMap, WeekDayItem } from "@/components/schedule/schedule-types";
 import {
-  ceilToHour,
   dateKey,
   DAY_COLUMN_HEIGHT,
   DISPLAY_HOURS,
-  floorToHour,
   formatMinutesFromMidnightHHMM,
   HOUR_ROW_HEIGHT,
   minuteOffsetInDay,
@@ -35,6 +33,9 @@ type ShiftSegment = {
   laneIndex: number;
   laneCount: number;
 };
+
+/** 이름+시간 두 줄을 넣기 위한 최소 높이(px). 이보다 작으면 이름만 표시 */
+const SEGMENT_SHOW_TIME_MIN_HEIGHT_PX = 36;
 
 function buildShiftSegments(shifts: PositionedShift[]): ShiftSegment[] {
   if (shifts.length === 0) {
@@ -146,16 +147,19 @@ export function ScheduleWeekGrid({
               const positionedEntries: PositionedShift[] = dayEntries.map((shift) => {
                 const start = new Date(shift.startAt);
                 const end = new Date(shift.endAt);
-                const startMin = Math.max(0, floorToHour(minuteOffsetInDay(start)));
+                const startMin = Math.max(0, minuteOffsetInDay(start));
                 const startDay = new Date(start);
                 startDay.setHours(0, 0, 0, 0);
                 // shift.endAt 가 다음날 자정(00:00)인 경우 endMinRaw 는 1440이 됩니다.
-                const endMinRaw = (end.getTime() - startDay.getTime()) / 60000;
-                const endMin = Math.min(MINUTES_PER_DAY, ceilToHour(endMinRaw));
+                const endMinRaw = Math.round((end.getTime() - startDay.getTime()) / 60000);
+                let endMin = Math.min(MINUTES_PER_DAY, endMinRaw);
+                if (endMin <= startMin) {
+                  endMin = Math.min(MINUTES_PER_DAY, startMin + 1);
+                }
                 return {
                   shift,
                   startMin,
-                  endMin: Math.max(endMin, startMin + 60),
+                  endMin,
                 };
               });
               const segments = buildShiftSegments(positionedEntries);
@@ -181,14 +185,17 @@ export function ScheduleWeekGrid({
                     const top = (segment.startMin / MINUTES_PER_DAY) * DAY_COLUMN_HEIGHT;
                     const rawHeight =
                       ((segment.endMin - segment.startMin) / MINUTES_PER_DAY) * DAY_COLUMN_HEIGHT;
-                    const height = Math.max(18, rawHeight);
+                    const height = Math.max(14, rawHeight);
+                    const showTimeRange = height >= SEGMENT_SHOW_TIME_MIN_HEIGHT_PX;
                     const person = peopleByPhone.get(segment.shift.employeePhone);
                     const laneWidth = 100 / segment.laneCount;
                     const leftPct = laneWidth * segment.laneIndex;
                     return (
                       <div
                         key={`${segment.shift.id}-${segment.startMin}-${segment.endMin}-${segment.laneIndex}`}
-                        className="absolute cursor-pointer rounded-md border px-1 py-1 text-[10px] font-medium leading-tight hover:ring-1 hover:ring-zinc-400/50 dark:hover:ring-white/40"
+                        className={`absolute cursor-pointer rounded-md border px-1 text-[10px] font-medium leading-tight hover:ring-1 hover:ring-zinc-400/50 dark:hover:ring-white/40 ${
+                          showTimeRange ? "py-1" : "overflow-hidden py-0.5"
+                        }`}
                         style={{
                           top: `${top}px`,
                           height: `${height}px`,
@@ -200,10 +207,14 @@ export function ScheduleWeekGrid({
                         onClick={() => onShiftClick(segment.shift)}
                         title={`${segment.shift.employeeName} · 전체 ${fullShiftLabel} · 표시 구간 ${sliceLabel}`}
                       >
-                        <div>{segment.shift.employeeName}</div>
-                        <div className="text-[11px] text-zinc-800/90 dark:text-neutral-200/90">
-                          {sliceLabel}
+                        <div className={showTimeRange ? undefined : "truncate"}>
+                          {segment.shift.employeeName}
                         </div>
+                        {showTimeRange ? (
+                          <div className="text-[11px] text-zinc-800/90 dark:text-neutral-200/90">
+                            {sliceLabel}
+                          </div>
+                        ) : null}
                       </div>
                     );
                   })}

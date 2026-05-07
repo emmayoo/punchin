@@ -9,6 +9,7 @@ import {
   HOUR_ROW_HEIGHT,
   minuteOffsetInDay,
   MINUTES_PER_DAY,
+  SEGMENT_SHOW_TIME_MIN_HEIGHT_PX,
 } from "@/components/schedule/schedule-utils";
 import type { Shift } from "@/types/work";
 
@@ -33,9 +34,6 @@ type ShiftSegment = {
   laneIndex: number;
   laneCount: number;
 };
-
-/** 이름+시간 두 줄을 넣기 위한 최소 높이(px). 이보다 작으면 이름만 표시 */
-const SEGMENT_SHOW_TIME_MIN_HEIGHT_PX = 36;
 
 function buildShiftSegments(shifts: PositionedShift[]): ShiftSegment[] {
   if (shifts.length === 0) {

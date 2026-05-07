@@ -5,12 +5,14 @@ import {
   addCalendarEvent,
   addShift,
   addShifts,
+  addPunchRecord,
   checkIn,
   checkOut,
   clearSession,
   createBranch,
   deleteBranchByOwner,
   deleteCalendarEvent,
+  deletePunchRecord,
   deleteShift,
   getActivePunch,
   getBranches,
@@ -32,6 +34,7 @@ import {
   updateBranchMembershipRole,
   updateCalendarEvent,
   updateEmployeeName,
+  updatePunchRecordTimes,
   updateShift,
   upsertEmployee,
 } from "@/lib/storage";
@@ -61,6 +64,8 @@ export type RangeWorkDetail = {
   checkedInAt: string;
   checkedOutAt: string;
   workedSeconds: number;
+  /** 퇴근 기록 없이 집계 구간만큼 반영된 근무 */
+  ongoing?: boolean;
 };
 
 export type RangeWorkStatRow = {
@@ -299,6 +304,77 @@ function localIsManagerUp(access: ActorBranchAccess): boolean {
 
 function localCountOwners(branchId: string): number {
   return getBranchMembershipsForBranch(branchId).filter((item) => item.role === "owner").length;
+}
+
+/** 조회 구간과 겹치는 근무를 집계. 퇴근 전(`checkedOutAt` 없음)은 현재 시각까지 clip 해 그리드와 맞춘다. */
+function buildRangeWorkStatsFromPunches(
+  punches: PunchRecord[],
+  start: Date,
+  end: Date,
+): { rows: RangeWorkStatRow[]; totalSeconds: number } {
+  const map = new Map<string, RangeWorkStatRow>();
+  const rangeStartMs = start.getTime();
+  const rangeEndMs = end.getTime();
+  const nowMs = Date.now();
+
+  for (const record of punches) {
+    const checkedInMs = new Date(record.checkedInAt).getTime();
+    if (Number.isNaN(checkedInMs)) {
+      continue;
+    }
+
+    let effectiveEndMs: number;
+    if (record.checkedOutAt) {
+      const endMs = new Date(record.checkedOutAt).getTime();
+      if (Number.isNaN(endMs)) {
+        continue;
+      }
+      effectiveEndMs = endMs;
+    } else {
+      effectiveEndMs = nowMs;
+    }
+
+    const clippedStart = Math.max(checkedInMs, rangeStartMs);
+    const clippedEnd = Math.min(effectiveEndMs, rangeEndMs);
+    if (clippedEnd <= clippedStart) {
+      continue;
+    }
+
+    const workedSeconds = Math.floor((clippedEnd - clippedStart) / 1000);
+    const key = normalizePhone(record.employeePhone) || record.employeePhone;
+    let current = map.get(key);
+    if (!current) {
+      current = {
+        phone: key,
+        name: record.employeeName,
+        totalSeconds: 0,
+        workCount: 0,
+        details: [],
+      };
+      map.set(key, current);
+    }
+    current.name = record.employeeName;
+    current.totalSeconds += workedSeconds;
+    current.workCount += 1;
+    current.details.push({
+      recordId: record.id,
+      checkedInAt: new Date(clippedStart).toISOString(),
+      checkedOutAt: new Date(clippedEnd).toISOString(),
+      workedSeconds,
+      ongoing: !record.checkedOutAt,
+    });
+  }
+
+  const rows = [...map.values()]
+    .map((row) => ({
+      ...row,
+      details: row.details.sort(
+        (a, b) => new Date(b.checkedInAt).getTime() - new Date(a.checkedInAt).getTime(),
+      ),
+    }))
+    .sort((a, b) => b.totalSeconds - a.totalSeconds);
+  const totalSeconds = rows.reduce((sum, row) => sum + row.totalSeconds, 0);
+  return { rows, totalSeconds };
 }
 
 class LocalWorkApi {
@@ -682,6 +758,61 @@ class LocalWorkApi {
     await wait();
   }
 
+  async updatePunchRecord(
+    recordId: string,
+    next: { checkedInAt: string; checkedOutAt: string | null },
+    actorPhone: string,
+  ): Promise<boolean> {
+    const session = getSession();
+    if (!session || normalizePhone(session.phone) !== normalizePhone(actorPhone)) {
+      await wait();
+      return false;
+    }
+    const updated = updatePunchRecordTimes(recordId, next.checkedInAt, next.checkedOutAt);
+    await wait();
+    return updated !== null;
+  }
+
+  async createPunchRecord(
+    input: Omit<PunchRecord, "id">,
+    actorPhone: string,
+  ): Promise<PunchRecord | null> {
+    const branchId = input.branchId ?? null;
+    if (!branchId) {
+      await wait();
+      return null;
+    }
+    const access = localResolveActorBranchRole(branchId, actorPhone);
+    if (!localIsManagerUp(access)) {
+      await wait();
+      return null;
+    }
+    const created = addPunchRecord(input);
+    await wait();
+    return created;
+  }
+
+  async deletePunchRecord(recordId: string, actorPhone: string): Promise<boolean> {
+    const target = getPunches().find((record) => record.id === recordId) ?? null;
+    if (!target) {
+      await wait();
+      return false;
+    }
+    const branchId = target.branchId ?? null;
+    if (!branchId) {
+      await wait();
+      return false;
+    }
+    const access = localResolveActorBranchRole(branchId, actorPhone);
+    if (!localIsManagerUp(access)) {
+      await wait();
+      return false;
+    }
+    const ok = deletePunchRecord(recordId);
+    await wait();
+    return ok;
+  }
+
   async getDashboard(): Promise<DashboardData> {
     if (this.dashboardInFlight) {
       return this.dashboardInFlight;
@@ -977,52 +1108,9 @@ class LocalWorkApi {
       return { rows: [], totalSeconds: 0 };
     }
 
-    const map = new Map<string, RangeWorkStatRow>();
-    for (const record of getPunches()) {
-      if (!record.checkedOutAt) {
-        continue;
-      }
-      const checkedInMs = new Date(record.checkedInAt).getTime();
-      const checkedOutMs = new Date(record.checkedOutAt).getTime();
-      if (Number.isNaN(checkedInMs) || Number.isNaN(checkedOutMs)) {
-        continue;
-      }
-      const clippedStart = Math.max(checkedInMs, start.getTime());
-      const clippedEnd = Math.min(checkedOutMs, end.getTime());
-      if (clippedEnd <= clippedStart) {
-        continue;
-      }
-      const workedSeconds = Math.floor((clippedEnd - clippedStart) / 1000);
-      const key = record.employeePhone;
-      const current = map.get(key) ?? {
-        phone: record.employeePhone,
-        name: record.employeeName,
-        totalSeconds: 0,
-        workCount: 0,
-        details: [],
-      };
-      current.totalSeconds += workedSeconds;
-      current.workCount += 1;
-      current.details.push({
-        recordId: record.id,
-        checkedInAt: new Date(clippedStart).toISOString(),
-        checkedOutAt: new Date(clippedEnd).toISOString(),
-        workedSeconds,
-      });
-      map.set(key, current);
-    }
-
-    const rows = [...map.values()]
-      .map((row) => ({
-        ...row,
-        details: row.details.sort(
-          (a, b) => new Date(b.checkedInAt).getTime() - new Date(a.checkedInAt).getTime(),
-        ),
-      }))
-      .sort((a, b) => b.totalSeconds - a.totalSeconds);
-    const totalSeconds = rows.reduce((sum, row) => sum + row.totalSeconds, 0);
+    const built = buildRangeWorkStatsFromPunches(getPunches(), start, end);
     await wait();
-    return { rows, totalSeconds };
+    return { rows: built.rows, totalSeconds: built.totalSeconds };
   }
 }
 
@@ -1949,6 +2037,113 @@ class SupabaseWorkApi {
     await wait();
   }
 
+  async updatePunchRecord(
+    recordId: string,
+    next: { checkedInAt: string; checkedOutAt: string | null },
+    actorPhone: string,
+  ): Promise<boolean> {
+    await this.ensureAuthUser();
+    const session = await this.getSessionEmployeeFromAuth();
+    if (!session || normalizePhone(session.phone) !== normalizePhone(actorPhone)) {
+      await wait();
+      return false;
+    }
+
+    const { data: target } = await this.supabase
+      .from("punch_records")
+      .select("id, branch_id")
+      .eq("id", recordId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (!target) {
+      await wait();
+      return false;
+    }
+    const branchId = String((target as Record<string, unknown>).branch_id ?? "");
+    if (!branchId) {
+      await wait();
+      return false;
+    }
+    const access = await this.resolveActorBranchAccess(branchId, actorPhone);
+    if (!this.supabaseIsManagerUp(access)) {
+      await wait();
+      return false;
+    }
+
+    const { data, error } = await this.supabase
+      .from("punch_records")
+      .update({
+        checked_in_at: next.checkedInAt,
+        checked_out_at: next.checkedOutAt,
+      } as never)
+      .eq("id", recordId)
+      .is("deleted_at", null)
+      .select("id")
+      .maybeSingle();
+    await wait();
+    return !error && data !== null;
+  }
+
+  async createPunchRecord(
+    input: Omit<PunchRecord, "id">,
+    actorPhone: string,
+  ): Promise<PunchRecord | null> {
+    const branchId = input.branchId ?? null;
+    if (!branchId) {
+      await wait();
+      return null;
+    }
+    const access = await this.resolveActorBranchAccess(branchId, actorPhone);
+    if (!this.supabaseIsManagerUp(access)) {
+      await wait();
+      return null;
+    }
+    const { data, error } = await this.supabase
+      .from("punch_records")
+      .insert({
+        employee_id: input.employeeId,
+        employee_name: input.employeeName,
+        branch_id: branchId,
+        checked_in_at: input.checkedInAt,
+        checked_out_at: input.checkedOutAt,
+      } as never)
+      .select("*, employee:employees!employee_id(phone)")
+      .maybeSingle();
+    await wait();
+    return !error && data ? mapPunchRow(data as Record<string, unknown>) : null;
+  }
+
+  async deletePunchRecord(recordId: string, actorPhone: string): Promise<boolean> {
+    await this.ensureAuthUser();
+    const { data: target } = await this.supabase
+      .from("punch_records")
+      .select("id, branch_id")
+      .eq("id", recordId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (!target) {
+      await wait();
+      return false;
+    }
+    const branchId = String((target as Record<string, unknown>).branch_id ?? "");
+    if (!branchId) {
+      await wait();
+      return false;
+    }
+    const access = await this.resolveActorBranchAccess(branchId, actorPhone);
+    if (!this.supabaseIsManagerUp(access)) {
+      await wait();
+      return false;
+    }
+    const { error } = await this.supabase
+      .from("punch_records")
+      .update({ deleted_at: new Date().toISOString() } as never)
+      .eq("id", recordId)
+      .is("deleted_at", null);
+    await wait();
+    return !error;
+  }
+
   async getDashboard(): Promise<DashboardData> {
     if (this.dashboardInFlight) {
       return this.dashboardInFlight;
@@ -2350,51 +2545,9 @@ class SupabaseWorkApi {
     }
 
     const punches = await this.getPunchesRemote();
-    const map = new Map<string, RangeWorkStatRow>();
-    for (const record of punches) {
-      if (!record.checkedOutAt) {
-        continue;
-      }
-      const checkedInMs = new Date(record.checkedInAt).getTime();
-      const checkedOutMs = new Date(record.checkedOutAt).getTime();
-      if (Number.isNaN(checkedInMs) || Number.isNaN(checkedOutMs)) {
-        continue;
-      }
-      const clippedStart = Math.max(checkedInMs, start.getTime());
-      const clippedEnd = Math.min(checkedOutMs, end.getTime());
-      if (clippedEnd <= clippedStart) {
-        continue;
-      }
-      const workedSeconds = Math.floor((clippedEnd - clippedStart) / 1000);
-      const key = record.employeePhone;
-      const current = map.get(key) ?? {
-        phone: record.employeePhone,
-        name: record.employeeName,
-        totalSeconds: 0,
-        workCount: 0,
-        details: [],
-      };
-      current.totalSeconds += workedSeconds;
-      current.workCount += 1;
-      current.details.push({
-        recordId: record.id,
-        checkedInAt: new Date(clippedStart).toISOString(),
-        checkedOutAt: new Date(clippedEnd).toISOString(),
-        workedSeconds,
-      });
-      map.set(key, current);
-    }
-    const rows = [...map.values()]
-      .map((row) => ({
-        ...row,
-        details: row.details.sort(
-          (a, b) => new Date(b.checkedInAt).getTime() - new Date(a.checkedInAt).getTime(),
-        ),
-      }))
-      .sort((a, b) => b.totalSeconds - a.totalSeconds);
-    const totalSeconds = rows.reduce((sum, row) => sum + row.totalSeconds, 0);
+    const built = buildRangeWorkStatsFromPunches(punches, start, end);
     await wait();
-    return { rows, totalSeconds };
+    return { rows: built.rows, totalSeconds: built.totalSeconds };
   }
 }
 

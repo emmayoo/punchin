@@ -1,10 +1,18 @@
 "use client";
 
 import { ChevronDown, ChevronUp } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
+import { useDashboardData } from "@/components/dashboard/use-dashboard-data";
 import { DetailPageShell } from "@/components/layout/detail-page-shell";
-import { RangeWorkStatRow, workApi } from "@/lib/api/work-api";
+import { ActualWeeklyWorkGridSection } from "@/components/stats/actual-weekly-work-grid";
+import {
+  DEFAULT_MEMBER_COLOR,
+  useBranchMemberColors,
+} from "@/components/workplace/use-branch-member-colors";
+import { type RangeWorkDetail, RangeWorkStatRow, workApi } from "@/lib/api/work-api";
+import { onWorkplaceChanged } from "@/lib/constants/dom-event";
+import { normalizePhone } from "@/lib/phone";
 
 function dateKey(date: Date): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
@@ -20,10 +28,57 @@ function formatSecondsToHms(seconds: number): string {
   return `${hh}:${mm}:${ss}`;
 }
 
+const statsDetailDateTimeFull = new Intl.DateTimeFormat("ko-KR", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+
+const statsDetailDateTimeClip = new Intl.DateTimeFormat("ko-KR", {
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+
+function formatStatsDetailRangeLabel(detail: RangeWorkDetail): ReactNode {
+  const start = statsDetailDateTimeFull.format(new Date(detail.checkedInAt));
+  if (detail.ongoing) {
+    const clip = statsDetailDateTimeClip.format(new Date(detail.checkedOutAt));
+    return (
+      <>
+        {start}
+        {" ~ "}
+        <span className="font-medium text-amber-700 dark:text-amber-400">진행 중</span>
+        <span className="text-zinc-500 dark:text-neutral-500">
+          {" "}(집계 시점 {clip})
+        </span>
+      </>
+    );
+  }
+  const end = statsDetailDateTimeFull.format(new Date(detail.checkedOutAt));
+  return (
+    <>
+      {start} ~ {end}
+    </>
+  );
+}
+
 const inputClass =
   "w-full rounded-xl border border-zinc-200/90 bg-white px-2 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-white/15 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-white/35";
 
 export function StatsClient() {
+  const { data: dashData } = useDashboardData({ pollMs: null });
+  const branchId = dashData?.session?.currentBranchId ?? dashData?.myBranches[0]?.id ?? null;
+  const actorPhone = dashData?.session?.phone ?? null;
+  const { colorByPhone } = useBranchMemberColors({ branchId, actorPhone });
+
   const [rows, setRows] = useState<RangeWorkStatRow[]>([]);
   const [expandedPhones, setExpandedPhones] = useState<string[]>([]);
   const [startDate, setStartDate] = useState(() => {
@@ -33,28 +88,40 @@ export function StatsClient() {
   const [endDate, setEndDate] = useState(() => dateKey(new Date()));
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
+  const loadStats = useCallback(
+    async (mountedRef?: { current: boolean }) => {
       await workApi.init();
       if (startDate > endDate) {
-        if (mounted) {
+        if (!mountedRef || mountedRef.current) {
           setRows([]);
           setLoading(false);
         }
         return;
       }
       const stats = await workApi.getRangeWorkStats(startDate, endDate);
-      if (!mounted) {
+      if (mountedRef && !mountedRef.current) {
         return;
       }
       setRows(stats.rows);
       setLoading(false);
-    })();
+    },
+    [startDate, endDate],
+  );
+
+  useEffect(() => {
+    const mountedRef = { current: true };
+    void loadStats(mountedRef);
     return () => {
-      mounted = false;
+      mountedRef.current = false;
     };
-  }, [startDate, endDate]);
+  }, [loadStats]);
+
+  useEffect(() => {
+    const off = onWorkplaceChanged(() => {
+      void loadStats();
+    });
+    return off;
+  }, [loadStats]);
 
   const invalidRange = useMemo(() => startDate > endDate, [startDate, endDate]);
 
@@ -92,16 +159,19 @@ export function StatsClient() {
           <section className="space-y-2">
             {!invalidRange && rows.length === 0 ? (
               <p className="rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 text-sm text-zinc-600 dark:border-white/10 dark:bg-white/5 dark:text-neutral-400">
-                선택한 기간의 완료된 근무 기록이 없습니다.
+                선택한 기간에 표시할 근무 기록이 없습니다.
               </p>
             ) : null}
             {!invalidRange
               ? rows.map((row) => {
                   const open = expandedPhones.includes(row.phone);
+                  const accent =
+                    colorByPhone?.get(normalizePhone(row.phone)) ?? DEFAULT_MEMBER_COLOR;
                   return (
                     <article
                       key={row.phone}
-                      className="rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5"
+                      className="rounded-2xl border-y border-r border-zinc-200/90 border-l-4 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5"
+                      style={{ borderLeftColor: accent }}
                     >
                       <button
                         type="button"
@@ -139,25 +209,7 @@ export function StatsClient() {
                               className="rounded-xl border border-zinc-200/80 bg-zinc-100/80 px-3 py-2 dark:border-white/10 dark:bg-black/20"
                             >
                               <p className="text-xs text-zinc-600 dark:text-neutral-300">
-                                {new Intl.DateTimeFormat("ko-KR", {
-                                  year: "numeric",
-                                  month: "2-digit",
-                                  day: "2-digit",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                  second: "2-digit",
-                                  hour12: false,
-                                }).format(new Date(detail.checkedInAt))}
-                                {" ~ "}
-                                {new Intl.DateTimeFormat("ko-KR", {
-                                  year: "numeric",
-                                  month: "2-digit",
-                                  day: "2-digit",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                  second: "2-digit",
-                                  hour12: false,
-                                }).format(new Date(detail.checkedOutAt))}
+                                {formatStatsDetailRangeLabel(detail)}
                               </p>
                               <p className="mt-1 text-sm font-medium text-zinc-900 dark:text-white">
                                 근무시간 {formatSecondsToHms(detail.workedSeconds)}
@@ -171,6 +223,8 @@ export function StatsClient() {
                 })
               : null}
           </section>
+
+          <ActualWeeklyWorkGridSection startDate={startDate} endDate={endDate} />
         </>
       )}
     </DetailPageShell>

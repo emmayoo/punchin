@@ -329,10 +329,29 @@ to authenticated, anon
 with check (
   public.current_user_phone() = ''
   or exists (
-    select 1 from public.employees e
-    where e.id = employee_id
-      and e.phone = public.current_user_phone()
-      and e.deleted_at is null
+    select 1
+    from public.employees actor
+    where actor.phone = public.current_user_phone()
+      and actor.deleted_at is null
+      and (
+        actor.id = employee_id
+        or exists (
+          select 1
+          from public.branch_memberships bm
+          where bm.branch_id = punch_records.branch_id
+            and bm.employee_id = actor.id
+            and bm.role in ('owner', 'manager')
+            and bm.ended_at is null
+            and bm.deleted_at is null
+        )
+        or exists (
+          select 1
+          from public.branches b
+          where b.id = punch_records.branch_id
+            and b.created_by_employee_id = actor.id
+            and b.deleted_at is null
+        )
+      )
   )
 );
 
@@ -343,19 +362,57 @@ to authenticated, anon
 using (
   public.current_user_phone() = ''
   or exists (
-    select 1 from public.employees e
-    where e.id = employee_id
-      and e.phone = public.current_user_phone()
-      and e.deleted_at is null
+    select 1
+    from public.employees actor
+    where actor.phone = public.current_user_phone()
+      and actor.deleted_at is null
+      and (
+        actor.id = employee_id
+        or exists (
+          select 1
+          from public.branch_memberships bm
+          where bm.branch_id = punch_records.branch_id
+            and bm.employee_id = actor.id
+            and bm.role in ('owner', 'manager')
+            and bm.ended_at is null
+            and bm.deleted_at is null
+        )
+        or exists (
+          select 1
+          from public.branches b
+          where b.id = punch_records.branch_id
+            and b.created_by_employee_id = actor.id
+            and b.deleted_at is null
+        )
+      )
   )
 )
 with check (
   public.current_user_phone() = ''
   or exists (
-    select 1 from public.employees e
-    where e.id = employee_id
-      and e.phone = public.current_user_phone()
-      and e.deleted_at is null
+    select 1
+    from public.employees actor
+    where actor.phone = public.current_user_phone()
+      and actor.deleted_at is null
+      and (
+        actor.id = employee_id
+        or exists (
+          select 1
+          from public.branch_memberships bm
+          where bm.branch_id = punch_records.branch_id
+            and bm.employee_id = actor.id
+            and bm.role in ('owner', 'manager')
+            and bm.ended_at is null
+            and bm.deleted_at is null
+        )
+        or exists (
+          select 1
+          from public.branches b
+          where b.id = punch_records.branch_id
+            and b.created_by_employee_id = actor.id
+            and b.deleted_at is null
+        )
+      )
   )
 );
 

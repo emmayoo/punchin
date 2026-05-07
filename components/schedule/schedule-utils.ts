@@ -7,6 +7,9 @@ export const MINUTES_PER_DAY = 24 * 60;
 export const HOUR_ROW_HEIGHT = 24;
 export const DAY_COLUMN_HEIGHT = 24 * HOUR_ROW_HEIGHT;
 
+/** 그리드 블록에서 이름+시간 두 줄을 넣을 최소 높이(px). 미만이면 이름만 표시 */
+export const SEGMENT_SHOW_TIME_MIN_HEIGHT_PX = 36;
+
 export function startOfWeek(date: Date): Date {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);

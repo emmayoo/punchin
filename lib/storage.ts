@@ -275,6 +275,52 @@ export function checkOut(recordId: string): PunchRecord | null {
   return updatedRecord;
 }
 
+export function updatePunchRecordTimes(
+  recordId: string,
+  checkedInAt: string,
+  checkedOutAt: string | null,
+): PunchRecord | null {
+  const all = getPunches();
+  let updatedRecord: PunchRecord | null = null;
+  const next = all.map((record) => {
+    if (record.id !== recordId) {
+      return record;
+    }
+    updatedRecord = { ...record, checkedInAt, checkedOutAt };
+    return updatedRecord;
+  });
+  if (!updatedRecord) {
+    return null;
+  }
+  write(PUNCH_KEY, next);
+  return updatedRecord;
+}
+
+export function addPunchRecord(input: Omit<PunchRecord, "id">): PunchRecord {
+  const all = getPunches();
+  const created: PunchRecord = {
+    id: id("punch"),
+    employeeId: input.employeeId,
+    employeePhone: input.employeePhone,
+    employeeName: input.employeeName,
+    branchId: input.branchId ?? null,
+    checkedInAt: input.checkedInAt,
+    checkedOutAt: input.checkedOutAt,
+  };
+  write(PUNCH_KEY, [created, ...all]);
+  return created;
+}
+
+export function deletePunchRecord(recordId: string): boolean {
+  const all = getPunches();
+  const next = all.filter((record) => record.id !== recordId);
+  if (next.length === all.length) {
+    return false;
+  }
+  write(PUNCH_KEY, next);
+  return true;
+}
+
 export function getTodayPunches(): PunchRecord[] {
   return getPunches().filter((record) => isToday(record.checkedInAt));
 }

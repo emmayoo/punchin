@@ -2,6 +2,7 @@
 
 import { Search } from "lucide-react";
 
+import { BranchProfileAvatar } from "@/components/branch/branch-profile-avatar";
 import type { Branch } from "@/types/work";
 
 type BranchListProps = {
@@ -64,7 +65,14 @@ export function BranchList({
                     isOwned ? "cursor-not-allowed opacity-70" : ""
                   }`}
                 >
-                  <div className="min-w-0">
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
+                    <BranchProfileAvatar
+                      name={branch.name}
+                      profileImageUrl={branch.profileImageUrl}
+                      sizePx={44}
+                      className="mt-0.5"
+                    />
+                    <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="truncate text-sm font-semibold text-zinc-900 dark:text-white">
                         {branch.name}
@@ -88,6 +96,7 @@ export function BranchList({
                         주소: {branch.address}
                       </p>
                     ) : null}
+                    </div>
                   </div>
                   <span
                     className={`mt-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full border text-[11px] ${

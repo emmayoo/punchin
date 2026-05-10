@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { TabPageShell } from "@/components/layout/tab-page-shell";
+import { BranchProfileAvatar } from "@/components/branch/branch-profile-avatar";
 import {
   getEffectiveBranchRole,
   MypageBranchDetailModal,
@@ -281,6 +282,11 @@ export function MyPageClient() {
                   return (
                     <li key={membership.id} className="flex items-center justify-between gap-2 ">
                       <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <BranchProfileAvatar
+                          name={branch.name}
+                          profileImageUrl={branch.profileImageUrl}
+                          sizePx={36}
+                        />
                         <p className="truncate text-sm font-medium text-zinc-900 dark:text-white">
                           {branch.name}
                         </p>

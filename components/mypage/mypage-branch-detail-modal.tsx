@@ -1,7 +1,6 @@
 "use client";
 
-import Image from "next/image";
-
+import { BranchProfileAvatar } from "@/components/branch/branch-profile-avatar";
 import { FullscreenModal } from "@/components/overlay/fullscreen-modal";
 import type { Branch, BranchRole } from "@/types/work";
 
@@ -29,26 +28,12 @@ export function MypageBranchDetailModal({
       <div className="max-h-[min(70vh,520px)] space-y-4 overflow-y-auto pr-0.5">
         <h2 className="text-base font-semibold text-zinc-900 dark:text-white">지점 정보</h2>
         <div className="flex items-center gap-3">
-          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-dashed border-zinc-300/90 bg-zinc-100 dark:border-white/20 dark:bg-neutral-900">
-            {branch.profileImageUrl ? (
-              branch.profileImageUrl.startsWith("data:") ? (
-                // eslint-disable-next-line @next/next/no-img-element -- data URL from local pick
-                <img src={branch.profileImageUrl} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <Image
-                  src={branch.profileImageUrl}
-                  alt=""
-                  fill
-                  sizes="64px"
-                  className="object-cover"
-                />
-              )
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-zinc-500 dark:text-neutral-400">
-                {branch.name.slice(0, 1)}
-              </div>
-            )}
-          </div>
+          <BranchProfileAvatar
+            name={branch.name}
+            profileImageUrl={branch.profileImageUrl}
+            sizePx={64}
+            className="border-dashed"
+          />
           <div className="min-w-0">
             <p className="text-sm font-semibold text-zinc-900 dark:text-white">{branch.name}</p>
             <div className="mt-1 flex flex-wrap items-center gap-1.5">

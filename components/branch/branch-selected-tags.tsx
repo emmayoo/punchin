@@ -2,6 +2,7 @@
 
 import { X } from "lucide-react";
 
+import { BranchProfileAvatar } from "@/components/branch/branch-profile-avatar";
 import type { Branch } from "@/types/work";
 
 type BranchSelectedTagsProps = {
@@ -34,12 +35,18 @@ export function BranchSelectedTags({
             return (
               <span
                 key={branch.id}
-                className={`inline-flex max-w-full items-center gap-1 rounded-full border px-2.5 py-1 text-xs text-zinc-800 dark:text-neutral-200 ${
+                className={`inline-flex max-w-full items-center gap-1.5 rounded-full border px-2 py-1 text-xs text-zinc-800 dark:text-neutral-200 ${
                   isDefault
                     ? "border-zinc-400/90 bg-zinc-50 font-medium dark:border-white/30 dark:bg-white/5"
                     : "border-transparent bg-zinc-100 dark:bg-white/10"
                 }`}
               >
+                <BranchProfileAvatar
+                  name={branch.name}
+                  profileImageUrl={branch.profileImageUrl}
+                  sizePx={22}
+                  className="shrink-0 border-zinc-300/80 dark:border-white/10"
+                />
                 <button
                   type="button"
                   onClick={() => onSetDefault(branch.id)}

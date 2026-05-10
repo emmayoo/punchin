@@ -3,6 +3,7 @@
 import { ChevronDownIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { BranchProfileAvatar } from "@/components/branch/branch-profile-avatar";
 import type { Branch } from "@/types/work";
 
 type WorkplaceBranchSwitcherProps = {
@@ -22,12 +23,14 @@ export function WorkplaceBranchSwitcher({
 }: WorkplaceBranchSwitcherProps) {
   const [open, setOpen] = useState(false);
 
-  const selectedBranchName = useMemo(() => {
+  const selectedBranch = useMemo(() => {
     if (!selectedBranchId) {
-      return "-";
+      return null;
     }
-    return branches.find((branch) => branch.id === selectedBranchId)?.name ?? "-";
+    return branches.find((branch) => branch.id === selectedBranchId) ?? null;
   }, [branches, selectedBranchId]);
+
+  const selectedBranchName = selectedBranch?.name ?? "-";
 
   const handleSelect = (branchId: string) => {
     if (busy || branchId === selectedBranchId) {
@@ -43,10 +46,17 @@ export function WorkplaceBranchSwitcher({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="inline-flex w-fit items-center gap-1"
+        className="inline-flex w-fit max-w-full items-center gap-2"
         aria-expanded={open}
         aria-label="지점 선택"
       >
+        {selectedBranch ? (
+          <BranchProfileAvatar
+            name={selectedBranch.name}
+            profileImageUrl={selectedBranch.profileImageUrl}
+            sizePx={36}
+          />
+        ) : null}
         <span className="max-w-56 truncate text-2xl font-semibold tracking-tight text-zinc-900 dark:text-white">
           {selectedBranchName}
         </span>
@@ -68,13 +78,23 @@ export function WorkplaceBranchSwitcher({
                       type="button"
                       onClick={() => void handleSelect(branch.id)}
                       disabled={busy}
-                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm transition-colors ${
+                      className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors ${
                         selected
                           ? "bg-zinc-900 text-white dark:bg-white dark:text-neutral-950"
                           : "text-zinc-700 hover:bg-zinc-100 dark:text-neutral-300 dark:hover:bg-white/10"
                       }`}
                     >
-                      <span className="truncate">{branch.name}</span>
+                      <span className="flex min-w-0 flex-1 items-center gap-2">
+                        <BranchProfileAvatar
+                          name={branch.name}
+                          profileImageUrl={branch.profileImageUrl}
+                          sizePx={32}
+                          className={
+                            selected ? "border-white/20 dark:border-neutral-950/20" : ""
+                          }
+                        />
+                        <span className="truncate">{branch.name}</span>
+                      </span>
                       {selected ? (
                         <span className="text-xs">{busy ? "변경 중..." : "선택됨"}</span>
                       ) : null}

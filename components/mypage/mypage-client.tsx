@@ -1,8 +1,9 @@
 "use client";
 
 import { ChevronRight } from "lucide-react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { TabPageShell } from "@/components/layout/tab-page-shell";
 import {
@@ -11,6 +12,7 @@ import {
 } from "@/components/mypage/mypage-branch-detail-modal";
 import { ThemeSunMoonToggle } from "@/components/theme/theme-sun-moon-toggle";
 import { DashboardData, workApi } from "@/lib/api/work-api";
+import { assertValidImageFile } from "@/lib/media/validate-image";
 import { formatPhoneNumber } from "@/lib/phone";
 import { toast } from "@/lib/toast";
 import type { Branch, BranchMembership } from "@/types/work";
@@ -27,6 +29,10 @@ export function MyPageClient() {
     branch: Branch;
     membership: BranchMembership;
   } | null>(null);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+  const [pendingAvatarPreviewUrl, setPendingAvatarPreviewUrl] = useState<string | null>(null);
+  const [removeAvatar, setRemoveAvatar] = useState(false);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
 
   const refresh = useCallback(async () => {
     const dashboard = await workApi.getDashboard();
@@ -61,12 +67,28 @@ export function MyPageClient() {
         return;
       }
       setName(dashboard.session.name);
+      setPendingAvatarFile(null);
+      setRemoveAvatar(false);
+      setPendingAvatarPreviewUrl((prev) => {
+        if (prev?.startsWith("blob:")) {
+          URL.revokeObjectURL(prev);
+        }
+        return null;
+      });
       setLoading(false);
     })();
     return () => {
       mounted = false;
     };
   }, [refresh, router]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingAvatarPreviewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(pendingAvatarPreviewUrl);
+      }
+    };
+  }, [pendingAvatarPreviewUrl]);
 
   const handleLogout = async () => {
     setBusy(true);
@@ -79,10 +101,62 @@ export function MyPageClient() {
       return;
     }
     setBusy(true);
-    await workApi.updateMyProfileName(data.session.phone, name.trim());
-    await refresh();
-    setBusy(false);
-    toast.success("프로필을 저장했습니다.");
+    try {
+      const nameSaved = await workApi.updateMyProfileName(data.session.phone, name.trim());
+      if (!nameSaved) {
+        toast.error("이름을 저장하지 못했습니다.");
+        return;
+      }
+      if (removeAvatar) {
+        await workApi.updateMyProfileAvatar(data.session.phone, null);
+      } else if (pendingAvatarFile) {
+        await workApi.updateMyProfileAvatar(data.session.phone, pendingAvatarFile);
+      }
+      if (pendingAvatarPreviewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(pendingAvatarPreviewUrl);
+      }
+      setPendingAvatarFile(null);
+      setPendingAvatarPreviewUrl(null);
+      setRemoveAvatar(false);
+      await refresh();
+      toast.success("프로필을 저장했습니다.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "저장하지 못했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleAvatarPick = (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) {
+      return;
+    }
+    try {
+      assertValidImageFile(file);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "이미지를 선택할 수 없습니다.");
+      return;
+    }
+    setRemoveAvatar(false);
+    setPendingAvatarFile(file);
+    setPendingAvatarPreviewUrl((prev) => {
+      if (prev?.startsWith("blob:")) {
+        URL.revokeObjectURL(prev);
+      }
+      return URL.createObjectURL(file);
+    });
+  };
+
+  const handleAvatarClear = () => {
+    setPendingAvatarFile(null);
+    setRemoveAvatar(true);
+    setPendingAvatarPreviewUrl((prev) => {
+      if (prev?.startsWith("blob:")) {
+        URL.revokeObjectURL(prev);
+      }
+      return null;
+    });
   };
 
   if (!data?.session) {
@@ -107,6 +181,61 @@ export function MyPageClient() {
           <p className="mt-1 text-sm text-zinc-800 dark:text-neutral-100">
             {formatPhoneNumber(data.session.phone)}
           </p>
+        </div>
+
+        <div className="flex items-center gap-3 rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
+          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-zinc-200/90 bg-zinc-100 dark:border-white/15 dark:bg-neutral-900">
+            {!removeAvatar && (pendingAvatarPreviewUrl || data.session.avatarUrl) ? (
+              <Image
+                src={(pendingAvatarPreviewUrl ?? data.session.avatarUrl) as string}
+                alt=""
+                fill
+                sizes="64px"
+                className="object-cover"
+                unoptimized={
+                  Boolean(
+                    pendingAvatarPreviewUrl?.startsWith("blob:") ||
+                      data.session.avatarUrl?.startsWith("data:"),
+                  )
+                }
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-lg font-semibold text-zinc-500 dark:text-neutral-400">
+                {data.session.name.trim().slice(0, 1) || "나"}
+              </div>
+            )}
+          </div>
+          <div className="min-w-0 flex-1 space-y-1">
+            <p className="text-xs font-medium text-zinc-600 dark:text-neutral-400">프로필 사진</p>
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="hidden"
+              onChange={(e) => {
+                handleAvatarPick(e.target.files);
+                e.target.value = "";
+              }}
+            />
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                className="rounded-lg border border-zinc-300/90 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-900 dark:border-white/20 dark:bg-neutral-900 dark:text-white"
+              >
+                사진 선택
+              </button>
+              {(pendingAvatarPreviewUrl || data.session.avatarUrl) && !removeAvatar ? (
+                <button
+                  type="button"
+                  onClick={handleAvatarClear}
+                  className="rounded-lg border border-zinc-300/90 px-2.5 py-1.5 text-xs text-zinc-700 dark:border-white/20 dark:text-neutral-200"
+                >
+                  사진 제거
+                </button>
+              ) : null}
+            </div>
+          </div>
         </div>
 
         <div className="space-y-3 rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">

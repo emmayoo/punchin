@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-import { type NoticeInput, workApi } from "@/lib/api/work-api";
+import { type NoticeInput, isSupabaseBackend, workApi } from "@/lib/api/work-api";
 import { emitWorkplaceChanged } from "@/lib/constants/dom-event";
 import { toast } from "@/lib/toast";
 import type { BranchRole, Notice } from "@/types/work";
@@ -18,6 +18,10 @@ type WorkplaceNoticeEditorProps = {
   actorEmployeeId: string | null;
   actorRole: BranchRole | "creator" | null;
 };
+
+type AttachmentDraft =
+  | { kind: "remote"; url: string }
+  | { kind: "local"; file: File; previewUrl: string };
 
 function canEditNotice(
   notice: Notice,
@@ -50,6 +54,20 @@ function readAsDataUrl(file: File): Promise<string> {
   });
 }
 
+function mergeUploaded(drafts: AttachmentDraft[], uploadedLocals: string[]): string[] {
+  let li = 0;
+  return drafts.map((d) => {
+    if (d.kind === "remote") {
+      return d.url;
+    }
+    const next = uploadedLocals[li++];
+    if (!next) {
+      throw new Error("이미지 업로드 결과가 올바르지 않습니다.");
+    }
+    return next;
+  });
+}
+
 export function WorkplaceNoticeEditor({
   mode,
   noticeId,
@@ -65,9 +83,19 @@ export function WorkplaceNoticeEditor({
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [isPinned, setIsPinned] = useState(false);
-  const [attachments, setAttachments] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<AttachmentDraft[]>([]);
   const [targetNotice, setTargetNotice] = useState<Notice | null>(null);
   const [canEditTarget, setCanEditTarget] = useState(mode === "create");
+
+  useEffect(() => {
+    return () => {
+      for (const a of attachments) {
+        if (a.kind === "local") {
+          URL.revokeObjectURL(a.previewUrl);
+        }
+      }
+    };
+  }, [attachments]);
 
   useEffect(() => {
     let mounted = true;
@@ -102,7 +130,7 @@ export function WorkplaceNoticeEditor({
         setTitle(found.title);
         setContent(found.content);
         setIsPinned(found.isPinned);
-        setAttachments(found.attachments.map((item) => item.imageUrl));
+        setAttachments(found.attachments.map((item) => ({ kind: "remote", url: item.imageUrl })));
       }
       setLoading(false);
     })();
@@ -121,46 +149,119 @@ export function WorkplaceNoticeEditor({
     return true;
   }, [actorPhone, branchId, canEditTarget, mode]);
 
-  const handlePickFiles = async (files: FileList | null) => {
+  const handlePickFiles = (files: FileList | null) => {
     if (!files || files.length === 0) {
       return;
     }
     const validFiles = [...files].slice(0, 10);
-    try {
-      const urls = await Promise.all(validFiles.map(readAsDataUrl));
-      setAttachments((prev) => [...prev, ...urls].slice(0, 10));
-    } catch {
-      toast.error("이미지를 읽지 못했습니다.");
-    }
+    setAttachments((prev) => {
+      const room = 10 - prev.length;
+      const nextFiles = validFiles.slice(0, Math.max(0, room));
+      const added: AttachmentDraft[] = nextFiles.map((file) => ({
+        kind: "local",
+        file,
+        previewUrl: URL.createObjectURL(file),
+      }));
+      return [...prev, ...added].slice(0, 10);
+    });
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => {
+      const item = prev[index];
+      if (item?.kind === "local") {
+        URL.revokeObjectURL(item.previewUrl);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const handleSave = async () => {
     if (!canSubmit || !branchId || !actorPhone) {
       return;
     }
-    const payload: NoticeInput = {
+    const payloadBase = {
       title: title.trim(),
       content: content.trim(),
       isPinned,
-      attachments,
     };
-    if (!payload.title || !payload.content) {
+    if (!payloadBase.title || !payloadBase.content) {
       toast.error("제목과 콘텐츠를 입력해 주세요.");
       return;
     }
+
+    const remoteUrls = attachments.filter((a) => a.kind === "remote").map((a) => a.url);
+    const localFiles = attachments.filter((a) => a.kind === "local").map((a) => a.file);
+
     setSaving(true);
     try {
-      const saved =
-        mode === "create"
-          ? await workApi.createNotice(branchId, payload, actorPhone)
-          : await workApi.updateNotice(String(noticeId), payload, actorPhone);
-      if (!saved) {
-        toast.error("공지 저장에 실패했습니다. 권한을 확인해 주세요.");
-        return;
+      if (!isSupabaseBackend) {
+        const urls: string[] = [];
+        for (const d of attachments) {
+          urls.push(d.kind === "remote" ? d.url : await readAsDataUrl(d.file));
+        }
+        const noticePayload: NoticeInput = { ...payloadBase, attachments: urls };
+        const saved =
+          mode === "create"
+            ? await workApi.createNotice(branchId, noticePayload, actorPhone)
+            : await workApi.updateNotice(String(noticeId), noticePayload, actorPhone);
+        if (!saved) {
+          toast.error("공지 저장에 실패했습니다. 권한을 확인해 주세요.");
+          return;
+        }
+      } else if (mode === "create") {
+        const created = await workApi.createNotice(
+          branchId,
+          { ...payloadBase, attachments: remoteUrls },
+          actorPhone,
+        );
+        if (!created) {
+          toast.error("공지 저장에 실패했습니다. 권한을 확인해 주세요.");
+          return;
+        }
+        if (localFiles.length > 0) {
+          const uploaded = await workApi.uploadNoticeAttachmentFiles(
+            created.id,
+            actorPhone,
+            localFiles,
+          );
+          const finalUrls = mergeUploaded(attachments, uploaded);
+          const updated = await workApi.updateNotice(
+            created.id,
+            { ...payloadBase, attachments: finalUrls },
+            actorPhone,
+          );
+          if (!updated) {
+            toast.error("이미지 저장 단계에서 실패했습니다.");
+            return;
+          }
+        }
+      } else {
+        let finalUrls = remoteUrls;
+        if (localFiles.length > 0) {
+          const uploaded = await workApi.uploadNoticeAttachmentFiles(
+            String(noticeId),
+            actorPhone,
+            localFiles,
+          );
+          finalUrls = mergeUploaded(attachments, uploaded);
+        }
+        const saved = await workApi.updateNotice(
+          String(noticeId),
+          { ...payloadBase, attachments: finalUrls },
+          actorPhone,
+        );
+        if (!saved) {
+          toast.error("공지 저장에 실패했습니다. 권한을 확인해 주세요.");
+          return;
+        }
       }
+
       toast.success(mode === "create" ? "공지를 등록했습니다." : "공지를 수정했습니다.");
       emitWorkplaceChanged();
       router.push("/workplace/notices");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "저장 중 오류가 났습니다.");
     } finally {
       setSaving(false);
     }
@@ -229,6 +330,9 @@ export function WorkplaceNoticeEditor({
         <div className="flex items-center justify-between">
           <p className="text-xs text-zinc-500 dark:text-neutral-400">
             이미지 첨부 {attachments.length}/10
+            {isSupabaseBackend ? (
+              <span className="ml-1 text-[10px] opacity-80">· 저장 시 Supabase Storage 업로드</span>
+            ) : null}
           </p>
           <label className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-zinc-200/90 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/20 dark:bg-white/5 dark:text-neutral-200 dark:hover:bg-white/10">
             <ImagePlus className="h-3.5 w-3.5" />
@@ -238,7 +342,7 @@ export function WorkplaceNoticeEditor({
               accept="image/*"
               multiple
               onChange={(e) => {
-                void handlePickFiles(e.target.files);
+                handlePickFiles(e.target.files);
                 e.currentTarget.value = "";
               }}
               className="sr-only"
@@ -247,25 +351,32 @@ export function WorkplaceNoticeEditor({
         </div>
         {attachments.length > 0 ? (
           <div className="flex gap-2 overflow-x-auto">
-            {attachments.map((url, idx) => (
-              <div key={`${url}-${idx}`} className="relative shrink-0">
-                <Image
-                  src={url}
-                  alt=""
-                  width={64}
-                  height={64}
-                  unoptimized
-                  className="h-16 w-16 rounded-md object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => setAttachments((prev) => prev.filter((_, index) => index !== idx))}
-                  className="absolute -right-1 -top-1 rounded-full bg-black/70 px-1 text-[10px] text-white"
-                >
-                  x
-                </button>
-              </div>
-            ))}
+            {attachments.map((draft, idx) => {
+              const src = draft.kind === "remote" ? draft.url : draft.previewUrl;
+              const key =
+                draft.kind === "remote" ? `r-${draft.url}-${idx}` : `l-${draft.previewUrl}-${idx}`;
+              return (
+                <div key={key} className="relative shrink-0">
+                  <Image
+                    src={src}
+                    alt=""
+                    width={64}
+                    height={64}
+                    unoptimized={
+                      draft.kind === "local" || src.startsWith("data:") || src.includes("/storage/")
+                    }
+                    className="h-16 w-16 rounded-md object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeAttachment(idx)}
+                    className="absolute -right-1 -top-1 rounded-full bg-black/70 px-1 text-[10px] text-white"
+                  >
+                    x
+                  </button>
+                </div>
+              );
+            })}
           </div>
         ) : null}
         <div className="flex justify-between">

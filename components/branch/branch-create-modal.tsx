@@ -4,10 +4,12 @@ import Image from "next/image";
 import { useRef, type ChangeEvent } from "react";
 
 import { FullscreenModal } from "@/components/overlay/fullscreen-modal";
+import { assertValidImageFile } from "@/lib/media/validate-image";
 import { toast } from "@/lib/toast";
 
 export type BranchCreateForm = {
-  profileImageUrl: string;
+  profileImageFile: File | null;
+  profileImagePreviewUrl: string | null;
   name: string;
   businessNumber: string;
   address: string;
@@ -44,22 +46,25 @@ export function BranchCreateModal({
     if (!file) {
       return;
     }
-    if (!file.type.startsWith("image/")) {
-      toast.error("이미지 파일만 선택할 수 있습니다.");
+    try {
+      assertValidImageFile(file);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "이미지를 선택할 수 없습니다.");
       return;
     }
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(String(reader.result ?? ""));
-      reader.onerror = () => reject(new Error("이미지 파일을 읽지 못했습니다."));
-      reader.readAsDataURL(file);
-    }).catch(() => "");
-    if (!dataUrl) {
-      toast.error("이미지 파일을 불러오지 못했습니다.");
-      return;
+    const previewUrl = URL.createObjectURL(file);
+    if (form.profileImagePreviewUrl?.startsWith("blob:")) {
+      URL.revokeObjectURL(form.profileImagePreviewUrl);
     }
-    onChange({ profileImageUrl: dataUrl });
+    onChange({ profileImageFile: file, profileImagePreviewUrl: previewUrl });
     event.target.value = "";
+  };
+
+  const clearProfileImage = () => {
+    if (form.profileImagePreviewUrl?.startsWith("blob:")) {
+      URL.revokeObjectURL(form.profileImagePreviewUrl);
+    }
+    onChange({ profileImageFile: null, profileImagePreviewUrl: null });
   };
 
   return (
@@ -68,13 +73,14 @@ export function BranchCreateModal({
         <h2 className="text-base font-semibold text-zinc-900 dark:text-white">새 지점 만들기</h2>
         <div className="flex items-center gap-3 rounded-xl border border-zinc-200/90 bg-zinc-50 p-3 dark:border-white/10 dark:bg-[#18181b]">
           <div className="relative h-14 w-14 overflow-hidden rounded-full border border-dashed border-zinc-300/90 bg-zinc-100 dark:border-white/20 dark:bg-neutral-900">
-            {form.profileImageUrl ? (
+            {form.profileImagePreviewUrl ? (
               <Image
-                src={form.profileImageUrl}
+                src={form.profileImagePreviewUrl}
                 alt="지점 프로필"
                 fill
                 sizes="56px"
                 className="object-cover"
+                unoptimized={form.profileImagePreviewUrl.startsWith("blob:")}
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center text-sm font-semibold text-zinc-500 dark:text-neutral-400">
@@ -101,10 +107,10 @@ export function BranchCreateModal({
               >
                 이미지 선택
               </button>
-              {form.profileImageUrl ? (
+              {form.profileImagePreviewUrl ? (
                 <button
                   type="button"
-                  onClick={() => onChange({ profileImageUrl: "" })}
+                  onClick={clearProfileImage}
                   className="rounded-lg border border-zinc-300/90 px-2.5 py-1.5 text-xs text-zinc-700 dark:border-white/20 dark:text-neutral-200"
                 >
                   삭제

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { FirstProfileForm } from "@/components/onboarding/first-profile-form";
 import { FullscreenModal } from "@/components/overlay/fullscreen-modal";
 import { DashboardData, workApi } from "@/lib/api/work-api";
+import { toast } from "@/lib/toast";
 
 function normalizeTailDigits(input: string): string {
   return input.replace(/\D/g, "").slice(0, 8);
@@ -47,6 +48,7 @@ export function AuthClient() {
   const [busy, setBusy] = useState(false);
   const [phoneTail, setPhoneTail] = useState("");
   const [profileName, setProfileName] = useState("");
+  const [profileAvatarFile, setProfileAvatarFile] = useState<File | null>(null);
   const [pendingPhone, setPendingPhone] = useState<string | null>(null);
   const [needFirstProfile, setNeedFirstProfile] = useState(false);
   const [phoneFocused, setPhoneFocused] = useState(false);
@@ -132,8 +134,24 @@ export function AuthClient() {
       return;
     }
     setBusy(true);
-    const registered = await workApi.registerFirstProfile(pendingPhone, profileName);
-    await routeByDefaultBranch(registered.phone, registered.currentBranchId);
+    try {
+      const registered = await workApi.registerFirstProfile(pendingPhone, profileName.trim());
+      if (profileAvatarFile) {
+        try {
+          await workApi.updateMyProfileAvatar(registered.phone, profileAvatarFile);
+        } catch (avatarErr) {
+          toast.error(
+            avatarErr instanceof Error
+              ? avatarErr.message
+              : "프로필 사진 업로드에 실패했습니다. 설정에서 다시 시도할 수 있어요.",
+          );
+        }
+      }
+      setProfileAvatarFile(null);
+      await routeByDefaultBranch(registered.phone, registered.currentBranchId);
+    } finally {
+      setBusy(false);
+    }
   };
 
   if (loading || !data) {
@@ -216,7 +234,9 @@ export function AuthClient() {
           name={profileName}
           busy={busy}
           onNameChange={setProfileName}
-          onSubmit={handleCompleteFirstProfile}
+          onSubmit={() => void handleCompleteFirstProfile()}
+          avatarFile={profileAvatarFile}
+          onAvatarFileChange={setProfileAvatarFile}
         />
       </FullscreenModal>
     </main>

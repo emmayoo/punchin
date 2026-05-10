@@ -22,9 +22,6 @@ export function BranchSelectedTags({
   return (
     <div className="rounded-xl border border-zinc-200/90 bg-white p-3 dark:border-white/10 dark:bg-[#18181b]">
       <p className="mb-0.5 text-xs font-medium text-zinc-600 dark:text-neutral-300">선택된 지점</p>
-      <p className="mb-2 text-[11px] text-zinc-500 dark:text-neutral-500">
-        태그를 누르면 기본 지점으로 지정 · X 는 선택 해제
-      </p>
       {selectedBranches.length === 0 ? (
         <p className="text-xs text-zinc-500 dark:text-neutral-500">
           아직 선택된 지점이 없습니다. 최소 1개를 선택해주세요.

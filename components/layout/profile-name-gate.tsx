@@ -18,6 +18,8 @@ export function ProfileNameGate() {
   const { data, refresh } = useDashboardData({ pollMs: null });
   const [nameDraft, setNameDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [pendingRemoveAvatar, setPendingRemoveAvatar] = useState(false);
 
   const initializedRef = useRef(false);
   const lastSessionPhoneRef = useRef<string | null>(null);
@@ -50,6 +52,13 @@ export function ProfileNameGate() {
     }
   }, [needsGate, session?.phone, session?.name]);
 
+  useEffect(() => {
+    if (!needsGate) {
+      setAvatarFile(null);
+      setPendingRemoveAvatar(false);
+    }
+  }, [needsGate]);
+
   const handleSubmit = async () => {
     if (!session) {
       return;
@@ -60,15 +69,29 @@ export function ProfileNameGate() {
       return;
     }
     setBusy(true);
-    const updated = await workApi.updateMyProfileName(session.phone, trimmed);
-    setBusy(false);
-    if (!updated) {
-      toast.error("이름을 저장하지 못했습니다.");
-      return;
+    try {
+      const updated = await workApi.updateMyProfileName(session.phone, trimmed);
+      if (!updated) {
+        toast.error("이름을 저장하지 못했습니다.");
+        return;
+      }
+
+      if (avatarFile) {
+        await workApi.updateMyProfileAvatar(session.phone, avatarFile);
+      } else if (pendingRemoveAvatar) {
+        await workApi.updateMyProfileAvatar(session.phone, null);
+      }
+
+      setAvatarFile(null);
+      setPendingRemoveAvatar(false);
+      await refresh();
+      emitWorkplaceChanged();
+      toast.success("저장했습니다.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "저장하지 못했습니다.");
+    } finally {
+      setBusy(false);
     }
-    await refresh();
-    emitWorkplaceChanged();
-    toast.success("이름을 저장했습니다.");
   };
 
   return (
@@ -82,6 +105,16 @@ export function ProfileNameGate() {
         heading="이름을 확인해 주세요"
         description="매장에서 등록된 이름이 있어도, 출근·스케줄에 쓸 표시 이름을 한 번 확인해 주세요."
         submitLabel="저장하고 계속하기"
+        avatarFile={avatarFile}
+        onAvatarFileChange={(file) => {
+          setAvatarFile(file);
+          if (file) {
+            setPendingRemoveAvatar(false);
+          }
+        }}
+        remoteAvatarUrl={session?.avatarUrl ?? null}
+        pendingRemoveRemoteAvatar={pendingRemoveAvatar}
+        onPendingRemoveRemoteAvatar={() => setPendingRemoveAvatar(true)}
       />
     </FullscreenModal>
   );

@@ -123,6 +123,27 @@ export function setEmployeeCurrentBranch(phone: string, branchId: string | null)
   return updated;
 }
 
+export function updateEmployeeAvatar(phone: string, avatarUrl: string | null): Employee | null {
+  const employees = getEmployees();
+  const target = employees.find((employee) => employee.phone === phone);
+  if (!target) {
+    return null;
+  }
+  const updated: Employee = {
+    ...target,
+    avatarUrl: avatarUrl ?? null,
+  };
+  write(
+    EMPLOYEE_KEY,
+    employees.map((employee) => (employee.phone === phone ? updated : employee)),
+  );
+  const session = getSession();
+  if (session?.phone === phone) {
+    saveSession(updated);
+  }
+  return updated;
+}
+
 export function updateEmployeeName(phone: string, name: string): Employee | null {
   const employees = getEmployees();
   const target = employees.find((employee) => employee.phone === phone);
@@ -511,6 +532,7 @@ export type BranchBasicFieldsPatch = {
   businessNumber: string;
   address: string | null;
   storePhone: string | null;
+  profileImageUrl?: string | null;
 };
 
 export function updateBranchBasicFields(
@@ -539,6 +561,7 @@ export function updateBranchBasicFields(
     businessNumber: patch.businessNumber.trim(),
     address: addressTrimmed ? addressTrimmed : null,
     storePhone: storeTrimmed ? storeTrimmed : null,
+    ...(patch.profileImageUrl !== undefined ? { profileImageUrl: patch.profileImageUrl } : {}),
   };
   write(
     BRANCH_KEY,

@@ -41,9 +41,16 @@ import {
   updateNotice as updateNoticeLocal,
   updatePunchRecordTimes,
   updateShift,
+  updateEmployeeAvatar,
   upsertEmployee,
 } from "@/lib/storage";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import {
+  newAvatarStoragePath,
+  newBranchProfileStoragePath,
+  newNoticeAttachmentStoragePath,
+  uploadPublicImage,
+} from "@/lib/supabase/media-upload";
 import { durationHours, isToday, isWithinWeek, startOfWeek } from "@/lib/time";
 import type {
   Branch,
@@ -103,7 +110,9 @@ export type BranchSetupInput =
       mode: "create";
       branchName: string;
       businessNumber: string;
+      /** 로컬 모드용(data URL). Supabase에서는 `profileImageFile` 권장. */
       profileImageUrl?: string | null;
+      profileImageFile?: File | null;
       address?: string | null;
       storePhone?: string | null;
     };
@@ -172,13 +181,27 @@ function mapDisplayNameConfirmedAt(row: Record<string, unknown>): string | null 
 }
 
 function mapEmployeeRow(row: Record<string, unknown>): Employee {
+  const rawAvatar = row.avatar_url;
   return {
     id: String(row.id),
     phone: String(row.phone),
     name: String(row.name),
+    avatarUrl:
+      rawAvatar !== undefined && rawAvatar !== null && String(rawAvatar).trim() !== ""
+        ? String(rawAvatar)
+        : null,
     currentBranchId: row.current_branch_id ? String(row.current_branch_id) : null,
     displayNameConfirmedAt: mapDisplayNameConfirmedAt(row),
   };
+}
+
+async function fileToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
 
 function mapShiftRow(row: Record<string, unknown>): Shift {
@@ -515,8 +538,12 @@ class LocalWorkApi {
       targetBranchId = input.branchId;
       addBranchMembership(targetBranchId, normalized, "staff");
     } else {
+      let profileImageUrl = input.profileImageUrl ?? null;
+      if (input.profileImageFile) {
+        profileImageUrl = await fileToDataUrl(input.profileImageFile);
+      }
       const created = createBranch({
-        profileImageUrl: input.profileImageUrl ?? null,
+        profileImageUrl,
         name: input.branchName.trim(),
         businessNumber: input.businessNumber.trim(),
         address: input.address ?? null,
@@ -582,13 +609,20 @@ class LocalWorkApi {
       businessNumber: string;
       address?: string | null;
       storePhone?: string | null;
+      profileImageFile?: File | null;
     },
   ): Promise<Branch | null> {
+    let profileImageUrl: string | null | undefined = undefined;
+    if (patch.profileImageFile !== undefined) {
+      profileImageUrl =
+        patch.profileImageFile === null ? null : await fileToDataUrl(patch.profileImageFile);
+    }
     const updated = updateBranchBasicFields(branchId, normalizePhone(actorPhone), {
       name: patch.name,
       businessNumber: patch.businessNumber,
       address: patch.address ?? null,
       storePhone: patch.storePhone ?? null,
+      ...(profileImageUrl !== undefined ? { profileImageUrl } : {}),
     });
     await wait();
     return updated;
@@ -798,6 +832,23 @@ class LocalWorkApi {
     const updated = updateEmployeeName(normalizePhone(phone), name);
     await wait();
     return updated;
+  }
+
+  async updateMyProfileAvatar(phone: string, file: File | null): Promise<Employee | null> {
+    const normalized = normalizePhone(phone);
+    const url = file === null ? null : await fileToDataUrl(file);
+    const updated = updateEmployeeAvatar(normalized, url);
+    await wait();
+    return updated;
+  }
+
+  async uploadNoticeAttachmentFiles(
+    _noticeId: string,
+    _actorPhone: string,
+    _files: File[],
+  ): Promise<string[]> {
+    await wait();
+    return [];
   }
 
   async logout(): Promise<void> {
@@ -1285,9 +1336,17 @@ class SupabaseWorkApi {
 
   private async setAuthPhone(phone: string): Promise<void> {
     await this.ensureAuthUser();
-    await this.supabase.auth.updateUser({
+    const { error } = await this.supabase.auth.updateUser({
       data: { phone },
     });
+    if (error) {
+      throw new Error(error.message);
+    }
+    // Storage RLS는 요청 JWT를 본다. 메타데이터만 바뀐 경우 refresh 후에야 user_metadata.phone 이 반영된다.
+    const { error: refreshError } = await this.supabase.auth.refreshSession();
+    if (refreshError) {
+      throw new Error(refreshError.message);
+    }
   }
 
   private async getSessionEmployeeFromAuth(): Promise<Employee | null> {
@@ -1627,7 +1686,7 @@ class SupabaseWorkApi {
       const { data: createdBranch } = await this.supabase
         .from("branches")
         .insert({
-          profile_image_url: input.profileImageUrl ?? null,
+          profile_image_url: null,
           name: input.branchName.trim(),
           business_number: input.businessNumber.trim(),
           address: input.address ?? null,
@@ -1641,6 +1700,25 @@ class SupabaseWorkApi {
       if (!branchId) {
         await wait();
         return employee;
+      }
+      let profileUrl: string | null = null;
+      if (input.profileImageFile) {
+        await this.ensureAuthUser();
+        await this.setAuthPhone(normalized);
+        const path = newBranchProfileStoragePath(branchId, input.profileImageFile);
+        profileUrl = await uploadPublicImage(path, input.profileImageFile);
+      } else if (
+        input.profileImageUrl &&
+        !input.profileImageUrl.startsWith("data:") &&
+        input.profileImageUrl.trim() !== ""
+      ) {
+        profileUrl = input.profileImageUrl.trim();
+      }
+      if (profileUrl !== null) {
+        await this.supabase
+          .from("branches")
+          .update({ profile_image_url: profileUrl } as never)
+          .eq("id", branchId);
       }
       await this.supabase.from("branch_memberships").insert({
         branch_id: branchId,
@@ -1765,6 +1843,7 @@ class SupabaseWorkApi {
       businessNumber: string;
       address?: string | null;
       storePhone?: string | null;
+      profileImageFile?: File | null;
     },
   ): Promise<Branch | null> {
     const normalized = normalizePhone(actorPhone);
@@ -1790,6 +1869,17 @@ class SupabaseWorkApi {
     }
     const addressTrimmed = patch.address?.trim() ?? "";
     const storeTrimmed = patch.storePhone?.trim() ?? "";
+    let profileImageUrl: string | null | undefined = undefined;
+    if (patch.profileImageFile !== undefined) {
+      await this.ensureAuthUser();
+      await this.setAuthPhone(normalized);
+      if (patch.profileImageFile === null) {
+        profileImageUrl = null;
+      } else {
+        const path = newBranchProfileStoragePath(branchId, patch.profileImageFile);
+        profileImageUrl = await uploadPublicImage(path, patch.profileImageFile);
+      }
+    }
     const { data: updated } = await this.supabase
       .from("branches")
       .update({
@@ -1797,6 +1887,7 @@ class SupabaseWorkApi {
         business_number: patch.businessNumber.trim(),
         address: addressTrimmed ? addressTrimmed : null,
         store_phone: storeTrimmed ? storeTrimmed : null,
+        ...(profileImageUrl !== undefined ? { profile_image_url: profileImageUrl } : {}),
       } as never)
       .eq("id", branchId)
       .select("*")
@@ -2140,6 +2231,58 @@ class SupabaseWorkApi {
     }
     await wait();
     return null;
+  }
+
+  async updateMyProfileAvatar(phone: string, file: File | null): Promise<Employee | null> {
+    const normalized = normalizePhone(phone);
+    const employee = await this.getEmployeeByPhone(normalized);
+    if (!employee?.id) {
+      await wait();
+      return null;
+    }
+    await this.ensureAuthUser();
+    await this.setAuthPhone(normalized);
+    let avatarUrl: string | null;
+    if (file === null) {
+      avatarUrl = null;
+    } else {
+      const path = newAvatarStoragePath(employee.id, file);
+      avatarUrl = await uploadPublicImage(path, file);
+    }
+    const { data, error } = await this.supabase
+      .from("employees")
+      .update({ avatar_url: avatarUrl } as never)
+      .eq("phone", normalized)
+      .is("deleted_at", null)
+      .select("*")
+      .maybeSingle();
+    await wait();
+    if (error) {
+      throw new Error(error.message);
+    }
+    if (!data) {
+      throw new Error(
+        "프로필 사진을 DB에 반영하지 못했습니다. employees.avatar_url 컬럼이 있는지, 같은 번호로 로그인했는지 확인해 주세요.",
+      );
+    }
+    return mapEmployeeRow(data as Record<string, unknown>);
+  }
+
+  async uploadNoticeAttachmentFiles(
+    noticeId: string,
+    actorPhone: string,
+    files: File[],
+  ): Promise<string[]> {
+    const normalized = normalizePhone(actorPhone);
+    await this.ensureAuthUser();
+    await this.setAuthPhone(normalized);
+    const urls: string[] = [];
+    for (const file of files) {
+      const path = newNoticeAttachmentStoragePath(noticeId, file);
+      urls.push(await uploadPublicImage(path, file));
+    }
+    await wait();
+    return urls;
   }
 
   async logout(): Promise<void> {
@@ -2907,5 +3050,8 @@ class SupabaseWorkApi {
 const hasSupabaseEnv =
   Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
   Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+
+/** UI에서 업로드 플로우 분기용 (예: 공지 첨부 Storage 업로드). */
+export const isSupabaseBackend = hasSupabaseEnv;
 
 export const workApi = hasSupabaseEnv ? new SupabaseWorkApi() : new LocalWorkApi();

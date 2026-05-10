@@ -53,7 +53,8 @@ export function BranchSelectClient() {
   const [defaultBranchId, setDefaultBranchId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState<BranchCreateForm>({
-    profileImageUrl: "",
+    profileImageFile: null,
+    profileImagePreviewUrl: null,
     name: "",
     businessNumber: "",
     address: "",
@@ -61,12 +62,18 @@ export function BranchSelectClient() {
   });
 
   const resetCreateForm = useCallback(() => {
-    setCreateForm({
-      profileImageUrl: "",
-      name: "",
-      businessNumber: "",
-      address: "",
-      storePhone: "",
+    setCreateForm((prev) => {
+      if (prev.profileImagePreviewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(prev.profileImagePreviewUrl);
+      }
+      return {
+        profileImageFile: null,
+        profileImagePreviewUrl: null,
+        name: "",
+        businessNumber: "",
+        address: "",
+        storePhone: "",
+      };
     });
   }, []);
 
@@ -143,7 +150,7 @@ export function BranchSelectClient() {
       mode: "create",
       branchName: name,
       businessNumber,
-      profileImageUrl: createForm.profileImageUrl.trim() || null,
+      profileImageFile: createForm.profileImageFile,
       address: createForm.address.trim() || null,
       storePhone: createForm.storePhone.trim() || null,
     });

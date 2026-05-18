@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { DetailPageShell } from "@/components/layout/detail-page-shell";
 import { ConfirmDialog } from "@/components/overlay/confirm-dialog";
+import { ScheduleDownloadButton } from "@/components/schedule/schedule-download-button";
 import {
   CopyScheduleModal,
   ShiftEditModal,
@@ -12,8 +13,6 @@ import {
 } from "@/components/schedule/schedule-modals";
 import { ScheduleSlotForm } from "@/components/schedule/schedule-slot-form";
 import { SchedulePerson } from "@/components/schedule/schedule-types";
-import { ScheduleDownloadButton } from "@/components/schedule/schedule-download-button";
-import { useScheduleImageDownload } from "@/components/schedule/use-schedule-image-download";
 import {
   addDays,
   collectOverlappingShiftIdsForProposals,
@@ -28,12 +27,27 @@ import {
   weekLabel,
 } from "@/components/schedule/schedule-utils";
 import { ScheduleWeekGrid } from "@/components/schedule/schedule-week-grid";
+import { useScheduleImageDownload } from "@/components/schedule/use-schedule-image-download";
 import { workApi } from "@/lib/api/work-api";
 import { branchMemberName } from "@/lib/branch-display-name";
+import { normalizePhone } from "@/lib/phone";
 import { toast } from "@/lib/toast";
 import { Shift } from "@/types/work";
 
 const UNDO_TOAST_DURATION_MS = 12_000;
+
+function formatDurationKo(totalMs: number): string {
+  const totalMin = Math.max(0, Math.round(totalMs / 60000));
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h === 0) {
+    return `${m}분`;
+  }
+  if (m === 0) {
+    return `${h}시간`;
+  }
+  return `${h}시간 ${m}분`;
+}
 
 type SlotBatchUndo = {
   createdShiftIds: string[];
@@ -44,7 +58,7 @@ export function ScheduleClient() {
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [people, setPeople] = useState<SchedulePerson[]>([]);
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
-  const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([0]);
+  const [selectedWeekdays, setSelectedWeekdays] = useState<number[]>([]);
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("13:00");
   const [selectedPersonId, setSelectedPersonId] = useState("");
@@ -123,7 +137,10 @@ export function ScheduleClient() {
     [weekStart],
   );
 
-  const weekShifts = useMemo(() => filterShiftsStartingInWeek(shifts, weekStart), [shifts, weekStart]);
+  const weekShifts = useMemo(
+    () => filterShiftsStartingInWeek(shifts, weekStart),
+    [shifts, weekStart],
+  );
 
   const shiftMap = useMemo(() => {
     const map = new Map<string, Shift[]>();
@@ -150,6 +167,48 @@ export function ScheduleClient() {
     return map;
   }, [people]);
 
+  const weekHoursSummary = useMemo(() => {
+    const byPhone = new Map<string, { totalMs: number }>();
+    for (const shift of weekShifts) {
+      const key = normalizePhone(shift.employeePhone) || shift.employeePhone;
+      const start = new Date(shift.startAt).getTime();
+      const end = new Date(shift.endAt).getTime();
+      if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+        continue;
+      }
+      const prev = byPhone.get(key)?.totalMs ?? 0;
+      byPhone.set(key, { totalMs: prev + (end - start) });
+    }
+    if (byPhone.size === 0) {
+      return [];
+    }
+    const rows: { key: string; label: string; totalMs: number }[] = [];
+    for (const person of people) {
+      const key = normalizePhone(person.employeePhone) || person.employeePhone;
+      const entry = byPhone.get(key);
+      if (!entry || entry.totalMs <= 0) {
+        continue;
+      }
+      rows.push({
+        key,
+        label: branchMemberName(person.nickname, person.name),
+        totalMs: entry.totalMs,
+      });
+      byPhone.delete(key);
+    }
+    for (const [key, { totalMs }] of byPhone) {
+      if (totalMs <= 0) {
+        continue;
+      }
+      const sample = weekShifts.find(
+        (s) => (normalizePhone(s.employeePhone) || s.employeePhone) === key,
+      );
+      rows.push({ key, label: sample?.employeeName ?? "직원", totalMs });
+    }
+    rows.sort((a, b) => b.totalMs - a.totalMs || a.label.localeCompare(b.label, "ko"));
+    return rows;
+  }, [weekShifts, people]);
+
   const toHHMM = (value: string): string => {
     const date = new Date(value);
     return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
@@ -167,10 +226,7 @@ export function ScheduleClient() {
     });
   };
 
-  const buildSlotPayloads = (
-    person: SchedulePerson,
-    dayIndexes: number[],
-  ): Omit<Shift, "id">[] => {
+  const buildSlotPayloads = (person: SchedulePerson, dayIndexes: number[]): Omit<Shift, "id">[] => {
     const startClock = parseTimeHHMM(startTime);
     const endClock = parseTimeHHMM(endTime);
     return dayIndexes.map((weekday) => {
@@ -422,7 +478,8 @@ export function ScheduleClient() {
     const startAt = new Date(baseDate);
     startAt.setHours(startClock.hour, startClock.minute, 0, 0);
     const endAt = new Date(baseDate);
-    const resolvedEndHour = editEndTime === "00:00" && editStartTime !== "00:00" ? 24 : endClock.hour;
+    const resolvedEndHour =
+      editEndTime === "00:00" && editStartTime !== "00:00" ? 24 : endClock.hour;
     endAt.setHours(resolvedEndHour, endClock.minute, 0, 0);
 
     setEditingShiftBusy(true);
@@ -525,6 +582,7 @@ export function ScheduleClient() {
           </button>
         </div>
       </section>
+
       <ScheduleSlotForm
         selectedWeekdays={selectedWeekdays}
         startTime={startTime}
@@ -538,6 +596,27 @@ export function ScheduleClient() {
         onSelectedPersonChange={setSelectedPersonId}
         onCreateSlot={() => void createSlot()}
       />
+
+      {weekHoursSummary.length > 0 ? (
+        <div
+          className="flex flex-wrap justify-center gap-2 px-1 text-[11px] leading-snug"
+          aria-label="이번 주 직원별 근무 시간 요약"
+        >
+          {weekHoursSummary.map((row) => (
+            <span
+              key={row.key}
+              className="inline-flex max-w-full items-baseline gap-1 rounded-md bg-zinc-100/80 px-2 py-1 text-zinc-600 dark:bg-white/6 dark:text-neutral-400"
+            >
+              <span className="min-w-0 truncate font-medium text-zinc-900 dark:text-neutral-100">
+                {row.label}
+              </span>
+              <span className="shrink-0 tabular-nums text-zinc-500 dark:text-neutral-500">
+                {formatDurationKo(row.totalMs)}
+              </span>
+            </span>
+          ))}
+        </div>
+      ) : null}
 
       <ConfirmDialog
         open={overlapConfirmOpen}

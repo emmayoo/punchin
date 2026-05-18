@@ -3,7 +3,6 @@
 import { UserRoundX } from "lucide-react";
 
 import { ColorPresetPicker } from "@/components/color-preset-picker";
-import { DEFAULT_MEMBER_COLOR } from "@/components/workplace/use-branch-member-colors";
 import {
   BRANCH_ROLE_LABEL,
   branchMemberDisplayName,
@@ -11,6 +10,7 @@ import {
   canEditBranchMemberRow,
   memberCanBeTerminatedFromBranch,
 } from "@/lib/branch-role";
+import { DEFAULT_MEMBER_COLOR } from "@/lib/constants/color";
 import { isoToDateInputValue } from "@/lib/date-input-ko";
 import { formatPhoneNumber, normalizePhone } from "@/lib/phone";
 import { formatDateOnlyKo } from "@/lib/time";

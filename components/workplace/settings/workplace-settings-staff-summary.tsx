@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useMemo } from "react";
 
-import { DEFAULT_MEMBER_COLOR } from "@/components/workplace/use-branch-member-colors";
 import { BRANCH_ROLE_LABEL, branchMemberDisplayName, sortBranchMembers } from "@/lib/branch-role";
+import { DEFAULT_MEMBER_COLOR } from "@/lib/constants/color";
 import { normalizePhone } from "@/lib/phone";
 import { formatDateOnlyKo } from "@/lib/time";
 import type { BranchMemberListItem } from "@/types/work";

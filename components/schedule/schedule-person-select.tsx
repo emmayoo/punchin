@@ -4,8 +4,8 @@ import { ChevronDown } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import type { SchedulePerson } from "@/components/schedule/schedule-types";
-import { DEFAULT_MEMBER_COLOR } from "@/components/workplace/use-branch-member-colors";
 import { schedulePersonSelectLabel } from "@/lib/branch-display-name";
+import { DEFAULT_MEMBER_COLOR } from "@/lib/constants/color";
 
 const triggerClass =
   "h-9 w-full rounded-xl border border-zinc-200/90 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-white/35";

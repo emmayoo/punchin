@@ -1,6 +1,7 @@
 "use client";
 
 import { branchMemberName, readStoredBranchName } from "@/lib/branch-display-name";
+import { DEFAULT_MEMBER_COLOR } from "@/lib/constants/color";
 import { DEFAULT_EVENT_COLOR } from "@/lib/constants/event";
 import { isToday } from "@/lib/time";
 import type {
@@ -185,9 +186,7 @@ export function getShifts(): Shift[] {
 export function addShift(shift: Omit<Shift, "id">): Shift {
   const all = getShifts();
   const resolvedEmployeeId =
-    shift.employeeId ||
-    getEmployees().find((e) => e.phone === shift.employeePhone)?.id ||
-    "";
+    shift.employeeId || getEmployees().find((e) => e.phone === shift.employeePhone)?.id || "";
   const created: Shift = { ...shift, employeeId: resolvedEmployeeId, id: id("shift") };
   write(SHIFT_KEY, [...all, created]);
   return created;
@@ -197,9 +196,7 @@ export function addShifts(shifts: Omit<Shift, "id">[]): string[] {
   const all = getShifts();
   const newRows: Shift[] = shifts.map((shift) => {
     const resolvedEmployeeId =
-      shift.employeeId ||
-      getEmployees().find((e) => e.phone === shift.employeePhone)?.id ||
-      "";
+      shift.employeeId || getEmployees().find((e) => e.phone === shift.employeePhone)?.id || "";
     return { ...shift, employeeId: resolvedEmployeeId, id: id("shift") };
   });
   write(
@@ -214,10 +211,7 @@ export function addShifts(shifts: Omit<Shift, "id">[]): string[] {
 export function updateShift(
   shiftId: string,
   payload: Partial<
-    Pick<
-      Shift,
-      "employeeId" | "employeeName" | "employeePhone" | "branchId" | "startAt" | "endAt"
-    >
+    Pick<Shift, "employeeId" | "employeeName" | "employeePhone" | "branchId" | "startAt" | "endAt">
   >,
 ): Shift | null {
   const all = getShifts();
@@ -360,7 +354,9 @@ export function getNotices(): Notice[] {
 }
 
 export function getNoticeAttachments(): NoticeAttachment[] {
-  return read<NoticeAttachment[]>(NOTICE_ATTACHMENT_KEY, []).sort((a, b) => a.sortOrder - b.sortOrder);
+  return read<NoticeAttachment[]>(NOTICE_ATTACHMENT_KEY, []).sort(
+    (a, b) => a.sortOrder - b.sortOrder,
+  );
 }
 
 export function createNotice(input: {
@@ -523,7 +519,7 @@ export function updateBranchMembershipColor(
     return null;
   }
   const next = [...all];
-  next[idx] = { ...next[idx], color: color.trim() || "#22c55e" };
+  next[idx] = { ...next[idx], color: color.trim() || DEFAULT_MEMBER_COLOR };
   write(BRANCH_MEMBERSHIP_KEY, next);
   return next[idx];
 }
@@ -581,8 +577,7 @@ export function updateBranchBasicFields(
   const mine = getBranchMemberships().find(
     (item) => item.branchId === branchId && item.employeePhone === actorPhone,
   );
-  const canEdit =
-    mine?.role === "owner" || target.createdByPhone === actorPhone;
+  const canEdit = mine?.role === "owner" || target.createdByPhone === actorPhone;
   if (!canEdit) {
     return null;
   }
@@ -612,8 +607,7 @@ export function deleteBranchByOwner(branchId: string, actorPhone: string): boole
   const mine = getBranchMemberships().find(
     (item) => item.branchId === branchId && item.employeePhone === actorPhone,
   );
-  const isOwner =
-    mine?.role === "owner" || target.createdByPhone === actorPhone;
+  const isOwner = mine?.role === "owner" || target.createdByPhone === actorPhone;
   if (!isOwner) {
     return false;
   }
@@ -642,20 +636,23 @@ export function deleteBranchByOwner(branchId: string, actorPhone: string): boole
 }
 
 export function getBranchMemberships(): BranchMembership[] {
-  const rows = read<
-    (BranchMembership & { nickname?: string | null; name?: string })[]
-  >(BRANCH_MEMBERSHIP_KEY, []);
+  const rows = read<(BranchMembership & { nickname?: string | null; name?: string })[]>(
+    BRANCH_MEMBERSHIP_KEY,
+    [],
+  );
   const employees = getEmployees();
   return rows.map((row) => {
     if (row.name?.trim()) {
       return row as BranchMembership;
     }
     const emp =
-      employees.find((e) => e.id === row.employeeId || e.phone === row.employeePhone) ??
-      null;
+      employees.find((e) => e.id === row.employeeId || e.phone === row.employeePhone) ?? null;
     return {
       ...row,
-      name: branchMemberName(readStoredBranchName(row as Record<string, unknown>), emp?.name ?? "직원"),
+      name: branchMemberName(
+        readStoredBranchName(row as Record<string, unknown>),
+        emp?.name ?? "직원",
+      ),
     };
   });
 }
@@ -690,7 +687,7 @@ export function addBranchMembership(
     employeePhone,
     name: branchMemberName(displayName, employee.name),
     startedAt: new Date().toISOString(),
-    color: "#22c55e",
+    color: DEFAULT_MEMBER_COLOR,
     role,
   };
   write(BRANCH_MEMBERSHIP_KEY, [created, ...getBranchMemberships()]);

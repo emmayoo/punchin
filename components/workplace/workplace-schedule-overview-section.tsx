@@ -4,7 +4,6 @@ import { useMemo, useRef } from "react";
 
 import { ScheduleDownloadButton } from "@/components/schedule/schedule-download-button";
 import type { SchedulePerson, WeekDayItem } from "@/components/schedule/schedule-types";
-import { useScheduleImageDownload } from "@/components/schedule/use-schedule-image-download";
 import {
   addDays,
   dateKey,
@@ -12,8 +11,10 @@ import {
   WEEKDAY_LABELS,
 } from "@/components/schedule/schedule-utils";
 import { ScheduleWeekGrid } from "@/components/schedule/schedule-week-grid";
+import { useScheduleImageDownload } from "@/components/schedule/use-schedule-image-download";
 import { WorkplaceSectionCard } from "@/components/workplace/workplace-section-card";
 import { WorkplaceSectionLink } from "@/components/workplace/workplace-section-link";
+import { DEFAULT_MEMBER_COLOR } from "@/lib/constants/color";
 import { normalizePhone } from "@/lib/phone";
 import type { Shift } from "@/types/work";
 
@@ -67,29 +68,26 @@ export function WorkplaceScheduleOverviewSection({
   }, [weekShifts]);
 
   const peopleByPhone = useMemo(() => {
-    const palette = ["#22c55e", "#38bdf8", "#f59e0b", "#a78bfa", "#fb7185"];
     const map = new Map<string, SchedulePerson>();
-    let paletteIndex = 0;
     weekShifts.forEach((shift) => {
       const rawPhone = shift.employeePhone;
       if (map.has(rawPhone)) {
         return;
       }
-      let color: string;
+      let color = DEFAULT_MEMBER_COLOR;
       if (memberColorByPhone !== undefined) {
         const key = normalizePhone(rawPhone);
         if (memberColorByPhone.has(key)) {
           const hex = memberColorByPhone.get(key)?.trim();
-          color = hex && hex.length > 0 ? hex : "#22c55e";
+          color = hex && hex.length > 0 ? hex : DEFAULT_MEMBER_COLOR;
         } else {
           color = "#a3a3a3";
         }
-      } else {
-        color = palette[paletteIndex++ % palette.length];
       }
       map.set(rawPhone, {
         id: shift.employeeId || rawPhone,
         name: shift.employeeName,
+        nickname: null,
         employeePhone: rawPhone,
         color,
       });

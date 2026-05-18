@@ -28,3 +28,16 @@ export function branchMemberName(
   const account = accountName.trim();
   return account || BRANCH_MEMBER_FALLBACK;
 }
+
+/** 스케줄 담당자 셀렉트: `실명 (닉네임)` — 닉네임 없거나 실명과 같으면 실명만 */
+export function schedulePersonSelectLabel(
+  legalName: string,
+  nickname: string | null | undefined,
+): string {
+  const base = legalName.trim() || BRANCH_MEMBER_FALLBACK;
+  const nick = nickname?.trim();
+  if (nick && nick !== base) {
+    return `${base} (${nick})`;
+  }
+  return base;
+}

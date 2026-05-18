@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { workApi } from "@/lib/api/work-api";
+import { DEFAULT_MEMBER_COLOR } from "@/lib/constants/color";
 import { onWorkplaceChanged } from "@/lib/constants/dom-event";
 import { normalizePhone } from "@/lib/phone";
 
@@ -10,8 +11,6 @@ type UseBranchMemberColorsInput = {
   branchId: string | null;
   actorPhone: string | null;
 };
-
-export const DEFAULT_MEMBER_COLOR = "#22c55e";
 
 type UseBranchMemberColorsResult = {
   colorByPhone: ReadonlyMap<string, string> | undefined;
@@ -24,7 +23,9 @@ export function useBranchMemberColors({
   branchId,
   actorPhone,
 }: UseBranchMemberColorsInput): UseBranchMemberColorsResult {
-  const [colorByPhone, setColorByPhone] = useState<ReadonlyMap<string, string> | undefined>(undefined);
+  const [colorByPhone, setColorByPhone] = useState<ReadonlyMap<string, string> | undefined>(
+    undefined,
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
@@ -66,7 +67,9 @@ export function useBranchMemberColors({
     if (!branchId || !actorPhone) {
       return undefined;
     }
-    void refresh();
+    queueMicrotask(() => {
+      void refresh();
+    });
     const off = onWorkplaceChanged(() => {
       void refresh();
     });

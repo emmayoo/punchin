@@ -4,7 +4,7 @@ import { ChevronDown } from "lucide-react";
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { PRESET_COLORS } from "@/lib/constants/color";
+import { DEFAULT_MEMBER_COLOR, PRESET_COLORS } from "@/lib/constants/color";
 
 export type ColorPresetPickerProps = {
   value: string;
@@ -36,7 +36,7 @@ export function ColorPresetPicker({
   onChange,
   disabled,
   presets = PRESET_COLORS,
-  fallback = "#22c55e",
+  fallback = DEFAULT_MEMBER_COLOR,
   ariaLabel = "색상 선택 열기",
 }: ColorPresetPickerProps) {
   const safeHex = useMemo(() => normalizeHex6(value, fallback), [value, fallback]);

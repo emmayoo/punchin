@@ -1,20 +1,26 @@
 "use client";
 
 import {
+  BRANCH_MEMBER_FALLBACK,
+  branchMemberName,
+  readStoredBranchName,
+} from "@/lib/branch-display-name";
+import { DEFAULT_MEMBER_COLOR } from "@/lib/constants/color";
+import {
   addBranchMembership,
   addCalendarEvent,
+  addPunchRecord,
   addShift,
   addShifts,
-  addPunchRecord,
-  createNotice as createNoticeLocal,
   checkIn,
   checkOut,
   clearSession,
   createBranch,
+  createNotice as createNoticeLocal,
   deleteBranchByOwner,
   deleteCalendarEvent,
-  deletePunchRecord,
   deleteNotice as deleteNoticeLocal,
+  deletePunchRecord,
   deleteShift,
   getActivePunch,
   getBranches,
@@ -30,20 +36,20 @@ import {
   getShifts,
   getTodayPunches,
   initStorage,
+  updateBranchMemberJoinedAt as persistBranchMemberJoinedAt,
+  updateBranchMemberName as persistBranchMemberName,
   removeBranchMembership,
   saveSession,
   setEmployeeCurrentBranch,
   updateBranchBasicFields,
   updateBranchMembershipColor,
-  updateBranchMemberJoinedAt as persistBranchMemberJoinedAt,
-  updateBranchMemberName as persistBranchMemberName,
   updateBranchMembershipRole,
   updateCalendarEvent,
+  updateEmployeeAvatar,
   updateEmployeeName,
   updateNotice as updateNoticeLocal,
   updatePunchRecordTimes,
   updateShift,
-  updateEmployeeAvatar,
   upsertEmployee,
 } from "@/lib/storage";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -53,11 +59,6 @@ import {
   newNoticeAttachmentStoragePath,
   uploadPublicImage,
 } from "@/lib/supabase/media-upload";
-import {
-  branchMemberName,
-  BRANCH_MEMBER_FALLBACK,
-  readStoredBranchName,
-} from "@/lib/branch-display-name";
 import { durationHours, isToday, isWithinWeek, startOfWeek } from "@/lib/time";
 import type {
   Branch,
@@ -100,6 +101,7 @@ export type RangeWorkStatRow = {
 export type SchedulePersonRecord = {
   id: string;
   name: string;
+  nickname: string | null;
   employeePhone: string;
   color: string;
 };
@@ -314,7 +316,7 @@ function mapBranchMembershipRow(
     color:
       row.color !== undefined && row.color !== null && String(row.color).trim() !== ""
         ? String(row.color)
-        : "#22c55e",
+        : DEFAULT_MEMBER_COLOR,
     role: mapBranchRole(String(row.role)),
   };
 }
@@ -390,7 +392,7 @@ function canEditNoticeByRole(
     return true;
   }
   const actorRole: BranchRole | "creator" | null =
-    actorAccess === "creator" ? "creator" : actorAccess?.role ?? null;
+    actorAccess === "creator" ? "creator" : (actorAccess?.role ?? null);
   if (actorRole === "creator" || actorRole === "owner") {
     return authorRole === "manager" || authorRole === "staff" || authorRole === null;
   }
@@ -695,8 +697,8 @@ class LocalWorkApi {
         membershipId: membership.id,
         employeeId: membership.employeeId,
         phone: emp?.phone ?? membership.employeePhone,
-        name: membership.name,
-        color: membership.color ?? "#22c55e",
+        name: emp?.name ?? "직원",
+        color: membership.color ?? DEFAULT_MEMBER_COLOR,
         role: membership.role,
         joinedAt: membership.startedAt ?? null,
       };
@@ -1123,7 +1125,9 @@ class LocalWorkApi {
     return notices
       .map((notice) => ({
         ...notice,
-        attachments: (attachByNotice.get(notice.id) ?? []).sort((a, b) => a.sortOrder - b.sortOrder),
+        attachments: (attachByNotice.get(notice.id) ?? []).sort(
+          (a, b) => a.sortOrder - b.sortOrder,
+        ),
       }))
       .sort(
         (a, b) =>
@@ -1132,8 +1136,13 @@ class LocalWorkApi {
       );
   }
 
-  async createNotice(branchId: string, input: NoticeInput, actorPhone: string): Promise<Notice | null> {
-    const actor = getEmployees().find((employee) => employee.phone === normalizePhone(actorPhone)) ?? null;
+  async createNotice(
+    branchId: string,
+    input: NoticeInput,
+    actorPhone: string,
+  ): Promise<Notice | null> {
+    const actor =
+      getEmployees().find((employee) => employee.phone === normalizePhone(actorPhone)) ?? null;
     if (!actor) {
       await wait();
       return null;
@@ -1156,7 +1165,8 @@ class LocalWorkApi {
     input: NoticeInput,
     actorPhone: string,
   ): Promise<Notice | null> {
-    const actor = getEmployees().find((employee) => employee.phone === normalizePhone(actorPhone)) ?? null;
+    const actor =
+      getEmployees().find((employee) => employee.phone === normalizePhone(actorPhone)) ?? null;
     const target = getNotices().find((notice) => notice.id === noticeId) ?? null;
     if (!actor || !target) {
       await wait();
@@ -1183,7 +1193,8 @@ class LocalWorkApi {
   }
 
   async deleteNotice(noticeId: string, actorPhone: string): Promise<boolean> {
-    const actor = getEmployees().find((employee) => employee.phone === normalizePhone(actorPhone)) ?? null;
+    const actor =
+      getEmployees().find((employee) => employee.phone === normalizePhone(actorPhone)) ?? null;
     const target = getNotices().find((notice) => notice.id === noticeId) ?? null;
     if (!actor || !target) {
       await wait();
@@ -1213,12 +1224,16 @@ class LocalWorkApi {
     await wait();
     const branchId = getSession()?.currentBranchId ?? null;
     if (!branchId) {
-      return getEmployees().map((employee) => ({
-        id: employee.id,
-        name: employee.name,
-        employeePhone: employee.phone,
-        color: "#22c55e",
-      }));
+      return getEmployees().map((employee) => {
+        const legalName = employee.name.trim() || BRANCH_MEMBER_FALLBACK;
+        return {
+          id: employee.id,
+          name: legalName,
+          nickname: null,
+          employeePhone: employee.phone,
+          color: DEFAULT_MEMBER_COLOR,
+        };
+      });
     }
 
     const memberByEmpId = new Map(
@@ -1230,15 +1245,24 @@ class LocalWorkApi {
       if (!membership) {
         continue;
       }
+      const legalName = employee.name.trim() || BRANCH_MEMBER_FALLBACK;
+      const displayName = membership.name.trim();
+      const nickname = displayName !== legalName ? displayName : null;
       const hex = membership.color?.trim();
       rows.push({
         id: employee.id,
-        name: membership.name,
+        name: legalName,
+        nickname,
         employeePhone: employee.phone,
-        color: hex ? hex : "#22c55e",
+        color: hex ? hex : DEFAULT_MEMBER_COLOR,
       });
     }
-    rows.sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    rows.sort((a, b) =>
+      branchMemberName(a.nickname, a.name).localeCompare(
+        branchMemberName(b.nickname, b.name),
+        "ko",
+      ),
+    );
     return rows;
   }
 
@@ -1250,9 +1274,11 @@ class LocalWorkApi {
     const phone = normalizePhone(input.employeePhone);
     const employee = upsertEmployee(phone, input.name.trim());
     await wait();
+    const legalName = employee.name.trim() || BRANCH_MEMBER_FALLBACK;
     return {
       id: employee.id,
-      name: employee.name,
+      name: legalName,
+      nickname: null,
       employeePhone: employee.phone,
       color: input.color,
     };
@@ -1276,9 +1302,11 @@ class LocalWorkApi {
     if (!updated) {
       return null;
     }
+    const legalName = updated.name.trim() || BRANCH_MEMBER_FALLBACK;
     return {
       id: updated.id,
-      name: updated.name,
+      name: legalName,
+      nickname: null,
       employeePhone: normalized,
       color: input.color,
     };
@@ -2464,9 +2492,7 @@ class SupabaseWorkApi {
     if (!active) {
       const memberships = await this.getBranchMembershipsByPhoneRemote(session.phone);
       const membership =
-        branchId === null
-          ? null
-          : (memberships.find((item) => item.branchId === branchId) ?? null);
+        branchId === null ? null : (memberships.find((item) => item.branchId === branchId) ?? null);
       const { error } = await this.supabase.from("punch_records").insert({
         employee_id: session.id,
         employee_name: membership?.name ?? session.name,
@@ -2781,7 +2807,11 @@ class SupabaseWorkApi {
     }));
   }
 
-  async createNotice(branchId: string, input: NoticeInput, actorPhone: string): Promise<Notice | null> {
+  async createNotice(
+    branchId: string,
+    input: NoticeInput,
+    actorPhone: string,
+  ): Promise<Notice | null> {
     const actor = await this.getEmployeeByPhone(normalizePhone(actorPhone));
     if (!actor?.id) {
       await wait();
@@ -2813,7 +2843,9 @@ class SupabaseWorkApi {
         })) as never,
       );
     }
-    const [created] = await this.listNotices(branchId).then((rows) => rows.filter((n) => n.id === notice.id));
+    const [created] = await this.listNotices(branchId).then((rows) =>
+      rows.filter((n) => n.id === notice.id),
+    );
     await wait();
     return created ?? { ...notice, attachments: [] };
   }
@@ -2888,7 +2920,9 @@ class SupabaseWorkApi {
         })) as never,
       );
     }
-    const [updatedNotice] = await this.listNotices(branchId).then((rows) => rows.filter((n) => n.id === noticeId));
+    const [updatedNotice] = await this.listNotices(branchId).then((rows) =>
+      rows.filter((n) => n.id === noticeId),
+    );
     await wait();
     return updatedNotice ?? { ...mapNoticeRow(data as Record<string, unknown>), attachments: [] };
   }
@@ -2961,12 +2995,17 @@ class SupabaseWorkApi {
         .is("deleted_at", null)
         .order("created_at", { ascending: false });
       await wait();
-      return (data ?? []).map((row) => ({
-        id: String((row as Record<string, unknown>).id),
-        name: String((row as Record<string, unknown>).name),
-        employeePhone: String((row as Record<string, unknown>).phone),
-        color: "#22c55e",
-      }));
+      return (data ?? []).map((row) => {
+        const legalName =
+          String((row as Record<string, unknown>).name).trim() || BRANCH_MEMBER_FALLBACK;
+        return {
+          id: String((row as Record<string, unknown>).id),
+          name: legalName,
+          nickname: null,
+          employeePhone: String((row as Record<string, unknown>).phone),
+          color: DEFAULT_MEMBER_COLOR,
+        };
+      });
     }
 
     const { data } = await this.supabase
@@ -2985,15 +3024,25 @@ class SupabaseWorkApi {
         continue;
       }
       const emp = embeddedEmployeeFromRow(row);
+      const nickRaw = readStoredBranchName(row);
+      const legalName = (emp?.name ?? "").trim() || BRANCH_MEMBER_FALLBACK;
+      const nickTrimmed = nickRaw?.trim() ?? "";
+      const nickname = nickTrimmed !== "" && nickTrimmed !== legalName ? nickTrimmed : null;
       const hexRaw = row.color !== undefined && row.color !== null ? String(row.color).trim() : "";
       rows.push({
         id: String(empRaw.id),
-        name: branchMemberName(readStoredBranchName(row), emp?.name ?? ""),
+        name: legalName,
+        nickname,
         employeePhone: normalizePhone(String(emp?.phone ?? "")),
-        color: hexRaw ? hexRaw : "#22c55e",
+        color: hexRaw ? hexRaw : DEFAULT_MEMBER_COLOR,
       });
     }
-    rows.sort((a, b) => a.name.localeCompare(b.name, "ko"));
+    rows.sort((a, b) =>
+      branchMemberName(a.nickname, a.name).localeCompare(
+        branchMemberName(b.nickname, b.name),
+        "ko",
+      ),
+    );
     return rows;
   }
 
@@ -3008,9 +3057,11 @@ class SupabaseWorkApi {
       name: input.name.trim(),
     });
     await wait();
+    const legalName = employee.name.trim() || BRANCH_MEMBER_FALLBACK;
     return {
       id: employee.id,
-      name: employee.name,
+      name: legalName,
+      nickname: null,
       employeePhone: employee.phone,
       color: input.color,
     };
@@ -3031,14 +3082,18 @@ class SupabaseWorkApi {
       .select("id,name,phone")
       .maybeSingle();
     await wait();
-    return data
-      ? {
-          id: String((data as Record<string, unknown>).id),
-          name: String((data as Record<string, unknown>).name),
-          employeePhone: String((data as Record<string, unknown>).phone),
-          color: input.color,
-        }
-      : null;
+    if (!data) {
+      return null;
+    }
+    const row = data as Record<string, unknown>;
+    const legalName = String(row.name).trim() || BRANCH_MEMBER_FALLBACK;
+    return {
+      id: String(row.id),
+      name: legalName,
+      nickname: null,
+      employeePhone: String(row.phone),
+      color: input.color,
+    };
   }
 
   async deleteSchedulePerson(personId: string): Promise<void> {

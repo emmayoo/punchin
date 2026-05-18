@@ -498,6 +498,7 @@ export function ActualWeeklyWorkGridSection({
       map.set(phoneKey, {
         id: shift.employeeId,
         name: shift.employeeName,
+        nickname: null,
         employeePhone: raw,
         color: hex,
       });

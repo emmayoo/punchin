@@ -1,9 +1,7 @@
-import { SchedulePerson } from "@/components/schedule/schedule-types";
+import { SchedulePersonSelect } from "@/components/schedule/schedule-person-select";
 import { ScheduleTimePicker24 } from "@/components/schedule/schedule-time-picker-24";
+import { SchedulePerson } from "@/components/schedule/schedule-types";
 import { WEEKDAY_LABELS } from "@/components/schedule/schedule-utils";
-
-const fieldClass =
-  "h-9 w-full rounded-xl border border-zinc-200/90 bg-white px-3 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-white/35";
 
 const timeInputClass =
   "h-9 w-full rounded-xl border border-zinc-200/90 bg-white px-3 font-mono text-sm tabular-nums text-zinc-900 outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-white/35";
@@ -70,20 +68,15 @@ export function ScheduleSlotForm({
           </div>
         </div>
 
-        <label className="block min-w-0 shrink-0 space-y-1 sm:w-44">
+        <div className="block min-w-0 shrink-0 space-y-1 sm:w-44">
           <span className="text-xs text-zinc-600 dark:text-neutral-400">담당자</span>
-          <select
+          <SchedulePersonSelect
             value={selectedPersonId}
-            onChange={(event) => onSelectedPersonChange(event.target.value)}
-            className={fieldClass}
-          >
-            {people.map((person) => (
-              <option key={person.id} value={person.id}>
-                {person.name}
-              </option>
-            ))}
-          </select>
-        </label>
+            people={people}
+            disabled={busy}
+            onChange={onSelectedPersonChange}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2 space-y-1">

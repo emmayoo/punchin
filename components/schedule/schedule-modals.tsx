@@ -1,4 +1,5 @@
 import { FullscreenModal } from "@/components/overlay/fullscreen-modal";
+import { SchedulePersonSelect } from "@/components/schedule/schedule-person-select";
 import { SchedulePerson } from "@/components/schedule/schedule-types";
 import { ScheduleTimePicker24 } from "@/components/schedule/schedule-time-picker-24";
 
@@ -152,20 +153,15 @@ export function ShiftEditModal({
               className={fieldClass}
             />
           </label>
-          <label className="space-y-1">
+          <div className="space-y-1">
             <span className={fieldLabelClass}>담당자</span>
-            <select
+            <SchedulePersonSelect
               value={personId}
-              onChange={(event) => onPersonIdChange(event.target.value)}
-              className={fieldClass}
-            >
-              {people.map((person) => (
-                <option key={person.id} value={person.id}>
-                  {person.name}
-                </option>
-              ))}
-            </select>
-          </label>
+              people={people}
+              disabled={saving}
+              onChange={onPersonIdChange}
+            />
+          </div>
           <label className="space-y-1">
             <span className={fieldLabelClass}>시작</span>
             <ScheduleTimePicker24

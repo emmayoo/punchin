@@ -29,6 +29,7 @@ import {
 } from "@/components/schedule/schedule-utils";
 import { ScheduleWeekGrid } from "@/components/schedule/schedule-week-grid";
 import { workApi } from "@/lib/api/work-api";
+import { branchMemberName } from "@/lib/branch-display-name";
 import { toast } from "@/lib/toast";
 import { Shift } from "@/types/work";
 
@@ -98,6 +99,7 @@ export function ScheduleClient() {
       const mapped: SchedulePerson[] = peopleList.map((item) => ({
         id: item.id,
         name: item.name,
+        nickname: item.nickname,
         employeePhone: item.employeePhone,
         color: item.color,
       }));
@@ -182,7 +184,7 @@ export function ScheduleClient() {
       end.setHours(resolvedEndHour, endClock.minute, 0, 0);
       return {
         employeeId: person.id,
-        employeeName: person.name,
+        employeeName: branchMemberName(person.nickname, person.name),
         employeePhone: person.employeePhone,
         startAt: start.toISOString(),
         endAt: end.toISOString(),
@@ -281,7 +283,7 @@ export function ScheduleClient() {
         payloads,
         conflictingIds,
         dayIndexes,
-        personName: person.name,
+        personName: branchMemberName(person.nickname, person.name),
       });
       setOverlapConfirmOpen(true);
       return;
@@ -289,7 +291,12 @@ export function ScheduleClient() {
 
     setBusy(true);
     try {
-      await finalizeSlotBatch(payloads, dayIndexes, person.name, []);
+      await finalizeSlotBatch(
+        payloads,
+        dayIndexes,
+        branchMemberName(person.nickname, person.name),
+        [],
+      );
     } finally {
       setBusy(false);
     }
@@ -421,7 +428,7 @@ export function ScheduleClient() {
     setEditingShiftBusy(true);
     await workApi.updateShift(editingShiftId, {
       employeeId: person.id,
-      employeeName: person.name,
+      employeeName: branchMemberName(person.nickname, person.name),
       employeePhone: person.employeePhone,
       branchId: targetShift?.branchId ?? null,
       startAt: startAt.toISOString(),

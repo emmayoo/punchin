@@ -1,3 +1,5 @@
+export const DEFAULT_MEMBER_COLOR = "#22c55e";
+
 /** 스케줄·이벤트·직원 표시색 등 공통 프리셋 (약 10색) */
 export const PRESET_COLORS = [
   "#22c55e", // green

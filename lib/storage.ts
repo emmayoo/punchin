@@ -1,5 +1,6 @@
 "use client";
 
+import { branchMemberName, readStoredBranchName } from "@/lib/branch-display-name";
 import { DEFAULT_EVENT_COLOR } from "@/lib/constants/event";
 import { isToday } from "@/lib/time";
 import type {
@@ -527,6 +528,38 @@ export function updateBranchMembershipColor(
   return next[idx];
 }
 
+export function updateBranchMemberJoinedAt(
+  membershipId: string,
+  startedAtIso: string,
+): BranchMembership | null {
+  const all = getBranchMemberships();
+  const idx = all.findIndex((item) => item.id === membershipId);
+  if (idx === -1) {
+    return null;
+  }
+  const next = [...all];
+  next[idx] = { ...next[idx], startedAt: startedAtIso };
+  write(BRANCH_MEMBERSHIP_KEY, next);
+  return next[idx];
+}
+
+export function updateBranchMemberName(
+  membershipId: string,
+  input: string | null,
+  accountName: string,
+): BranchMembership | null {
+  const all = getBranchMemberships();
+  const idx = all.findIndex((item) => item.id === membershipId);
+  if (idx === -1) {
+    return null;
+  }
+  const next = [...all];
+  const name = branchMemberName(input, accountName);
+  next[idx] = { ...next[idx], name };
+  write(BRANCH_MEMBERSHIP_KEY, next);
+  return next[idx];
+}
+
 export type BranchBasicFieldsPatch = {
   name: string;
   businessNumber: string;
@@ -609,7 +642,22 @@ export function deleteBranchByOwner(branchId: string, actorPhone: string): boole
 }
 
 export function getBranchMemberships(): BranchMembership[] {
-  return read<BranchMembership[]>(BRANCH_MEMBERSHIP_KEY, []);
+  const rows = read<
+    (BranchMembership & { nickname?: string | null; name?: string })[]
+  >(BRANCH_MEMBERSHIP_KEY, []);
+  const employees = getEmployees();
+  return rows.map((row) => {
+    if (row.name?.trim()) {
+      return row as BranchMembership;
+    }
+    const emp =
+      employees.find((e) => e.id === row.employeeId || e.phone === row.employeePhone) ??
+      null;
+    return {
+      ...row,
+      name: branchMemberName(readStoredBranchName(row as Record<string, unknown>), emp?.name ?? "직원"),
+    };
+  });
 }
 
 export function getBranchMembershipsByPhone(phone: string): BranchMembership[] {
@@ -620,6 +668,7 @@ export function addBranchMembership(
   branchId: string,
   employeePhone: string,
   role: BranchRole,
+  displayName?: string | null,
 ): BranchMembership {
   const employee = getEmployees().find((e) => e.phone === employeePhone);
   if (!employee?.id) {
@@ -639,6 +688,8 @@ export function addBranchMembership(
     branchId,
     employeeId: employee.id,
     employeePhone,
+    name: branchMemberName(displayName, employee.name),
+    startedAt: new Date().toISOString(),
     color: "#22c55e",
     role,
   };

@@ -69,6 +69,7 @@ create table public.branch_memberships (
   id uuid primary key default gen_random_uuid(),
   branch_id uuid not null references public.branches (id) on delete restrict,
   employee_id uuid not null references public.employees (id) on delete restrict,
+  nickname text null,
   color text not null default '#22c55e',
   role text not null check (role in ('owner', 'manager', 'staff')),
   started_at timestamptz not null default now(),

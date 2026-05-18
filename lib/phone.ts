@@ -2,6 +2,11 @@ export function normalizePhone(value: string): string {
   return value.replace(/\D/g, "").slice(0, 11);
 }
 
+/** 휴대폰 010xxxxxxxx (11자리) */
+export function isMobile010(digits: string): boolean {
+  return /^010\d{8}$/.test(digits);
+}
+
 export function formatPhoneNumber(value: string): string {
   const digits = normalizePhone(value);
 

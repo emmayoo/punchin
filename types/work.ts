@@ -31,6 +31,10 @@ export type BranchMembership = {
   branchId: string;
   employeeId: string;
   employeePhone: string;
+  /** 이 지점에서 보이는 이름 (DB: branch_memberships.nickname) */
+  name: string;
+  /** 입사일 (DB: branch_memberships.started_at) */
+  startedAt?: string | null;
   color?: string | null;
   role: BranchRole;
 };
@@ -40,10 +44,10 @@ export type BranchMemberListItem = {
   membershipId: string;
   employeeId: string;
   phone: string;
+  /** 이 지점에서 보이는 이름 */
   name: string;
   color?: string | null;
   role: BranchRole;
-  /** 멤버십 생성 시각(ISO). 로컬 저장소 등에서는 비어 있을 수 있음 → 입사일 표시 시 — */
   joinedAt?: string | null;
 };
 

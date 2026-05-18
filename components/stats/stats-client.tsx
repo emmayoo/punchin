@@ -6,11 +6,9 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { useDashboardData } from "@/components/dashboard/use-dashboard-data";
 import { DetailPageShell } from "@/components/layout/detail-page-shell";
 import { ActualWeeklyWorkGridSection } from "@/components/stats/actual-weekly-work-grid";
-import {
-  DEFAULT_MEMBER_COLOR,
-  useBranchMemberColors,
-} from "@/components/workplace/use-branch-member-colors";
-import { type RangeWorkDetail, RangeWorkStatRow, workApi } from "@/lib/api/work-api";
+import { useBranchMemberColors } from "@/components/workplace/use-branch-member-colors";
+import { RangeWorkStatRow, workApi, type RangeWorkDetail } from "@/lib/api/work-api";
+import { DEFAULT_MEMBER_COLOR } from "@/lib/constants/color";
 import { onWorkplaceChanged } from "@/lib/constants/dom-event";
 import { formatKoDateTimeClip, formatKoDateTimeFull } from "@/lib/date-format";
 import { normalizePhone } from "@/lib/phone";
@@ -38,9 +36,7 @@ function formatStatsDetailRangeLabel(detail: RangeWorkDetail): ReactNode {
         {start}
         {" ~ "}
         <span className="font-medium text-amber-700 dark:text-amber-400">진행 중</span>
-        <span className="text-zinc-500 dark:text-neutral-500">
-          {" "}(집계 시점 {clip})
-        </span>
+        <span className="text-zinc-500 dark:text-neutral-500"> (집계 시점 {clip})</span>
       </>
     );
   }

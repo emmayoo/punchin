@@ -20,11 +20,9 @@ import {
   canManageBranchStaff,
   resolveWorkplaceBranchAccess,
 } from "@/components/workplace/settings/workplace-settings-access";
-import {
-  DEFAULT_MEMBER_COLOR,
-  useBranchMemberColors,
-} from "@/components/workplace/use-branch-member-colors";
+import { useBranchMemberColors } from "@/components/workplace/use-branch-member-colors";
 import { workApi } from "@/lib/api/work-api";
+import { DEFAULT_MEMBER_COLOR } from "@/lib/constants/color";
 import { emitWorkplaceChanged } from "@/lib/constants/dom-event";
 import { formatKoMonthDayNumeric } from "@/lib/date-format";
 import { normalizePhone } from "@/lib/phone";

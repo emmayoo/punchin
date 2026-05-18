@@ -22,9 +22,9 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-function dayMinute(iso: string): number {
-  const date = new Date(iso);
-  return date.getHours() * 60 + date.getMinutes();
+/** 타임라인 당일 0시 기준 경과 분. 자정 종료(다음날 00:00)는 1440 — 시·분만 쓰면 0으로 잘못 계산됨. */
+function minutesFromTimelineDayStart(iso: string, dayStart: Date): number {
+  return (new Date(iso).getTime() - dayStart.getTime()) / 60_000;
 }
 
 function hhmm(iso: string): string {
@@ -32,6 +32,14 @@ function hhmm(iso: string): string {
   const hh = String(date.getHours()).padStart(2, "0");
   const mm = String(date.getMinutes()).padStart(2, "0");
   return `${hh}:${mm}`;
+}
+
+function displayEndHhmm(endAt: string, dayStart: Date): string {
+  const endMin = minutesFromTimelineDayStart(endAt, dayStart);
+  if (endMin >= MINUTES_IN_DAY - 1e-3) {
+    return "24:00";
+  }
+  return hhmm(endAt);
 }
 
 function dayWindow(iso: string): { start: Date; end: Date } {
@@ -93,11 +101,18 @@ function TimelineHeader({
 type TimelineChartProps = {
   viewportRef: RefObject<HTMLDivElement | null>;
   nowLeft: number;
+  timelineDayStart: Date;
   todayShifts: Shift[];
   actualShifts: ActualTimelineItem[];
 };
 
-function TimelineChart({ viewportRef, nowLeft, todayShifts, actualShifts }: TimelineChartProps) {
+function TimelineChart({
+  viewportRef,
+  nowLeft,
+  timelineDayStart,
+  todayShifts,
+  actualShifts,
+}: TimelineChartProps) {
   return (
     <div
       ref={viewportRef}
@@ -123,8 +138,16 @@ function TimelineChart({ viewportRef, nowLeft, todayShifts, actualShifts }: Time
 
         <div className="relative h-44">
           {todayShifts.map((shift, index) => {
-            const start = clamp(dayMinute(shift.startAt), 0, MINUTES_IN_DAY);
-            const end = clamp(dayMinute(shift.endAt), 0, MINUTES_IN_DAY);
+            const start = clamp(
+              minutesFromTimelineDayStart(shift.startAt, timelineDayStart),
+              0,
+              MINUTES_IN_DAY,
+            );
+            const end = clamp(
+              minutesFromTimelineDayStart(shift.endAt, timelineDayStart),
+              0,
+              MINUTES_IN_DAY,
+            );
             const left = (start / MINUTES_IN_DAY) * TIMELINE_WIDTH;
             const width = Math.max(
               ((Math.max(start + 1, end) - start) / MINUTES_IN_DAY) * TIMELINE_WIDTH,
@@ -141,7 +164,7 @@ function TimelineChart({ viewportRef, nowLeft, todayShifts, actualShifts }: Time
                     top: `${top}px`,
                     height: "34px",
                   }}
-                  title={`${shift.employeeName} ${hhmm(shift.startAt)}-${hhmm(shift.endAt)}`}
+                  title={`${shift.employeeName} ${hhmm(shift.startAt)}-${displayEndHhmm(shift.endAt, timelineDayStart)}`}
                 />
                 <div
                   className="pointer-events-none absolute whitespace-nowrap text-[11px] text-sky-500/90"
@@ -152,7 +175,7 @@ function TimelineChart({ viewportRef, nowLeft, todayShifts, actualShifts }: Time
                 >
                   <p>{shift.employeeName}</p>
                   <p className="text-[10px]">
-                    {hhmm(shift.startAt)}-{hhmm(shift.endAt)}
+                    {hhmm(shift.startAt)}-{displayEndHhmm(shift.endAt, timelineDayStart)}
                   </p>
                 </div>
               </div>
@@ -160,8 +183,16 @@ function TimelineChart({ viewportRef, nowLeft, todayShifts, actualShifts }: Time
           })}
 
           {actualShifts.map((shift, index) => {
-            const start = clamp(dayMinute(shift.startAt), 0, MINUTES_IN_DAY);
-            const end = clamp(dayMinute(shift.endAt), 0, MINUTES_IN_DAY);
+            const start = clamp(
+              minutesFromTimelineDayStart(shift.startAt, timelineDayStart),
+              0,
+              MINUTES_IN_DAY,
+            );
+            const end = clamp(
+              minutesFromTimelineDayStart(shift.endAt, timelineDayStart),
+              0,
+              MINUTES_IN_DAY,
+            );
             const left = (start / MINUTES_IN_DAY) * TIMELINE_WIDTH;
             const width = Math.max(
               ((Math.max(start + 1, end) - start) / MINUTES_IN_DAY) * TIMELINE_WIDTH,
@@ -178,7 +209,7 @@ function TimelineChart({ viewportRef, nowLeft, todayShifts, actualShifts }: Time
                     top: `${top}px`,
                     height: "34px",
                   }}
-                  title={`${shift.employeeName} ${hhmm(shift.startAt)}-${hhmm(shift.endAt)}${
+                  title={`${shift.employeeName} ${hhmm(shift.startAt)}-${displayEndHhmm(shift.endAt, timelineDayStart)}${
                     shift.ongoing ? " (근무 중)" : ""
                   }`}
                 />
@@ -194,7 +225,7 @@ function TimelineChart({ viewportRef, nowLeft, todayShifts, actualShifts }: Time
                     {shift.ongoing ? " · 근무 중" : ""}
                   </p>
                   <p className="text-[10px]">
-                    {hhmm(shift.startAt)}-{hhmm(shift.endAt)}
+                    {hhmm(shift.startAt)}-{displayEndHhmm(shift.endAt, timelineDayStart)}
                   </p>
                 </div>
               </div>
@@ -221,7 +252,8 @@ export function DailyShiftTimeline({
   const viewportRef = useRef<HTMLDivElement>(null);
   const [todayShifts, setTodayShifts] = useState<Shift[]>([]);
 
-  const nowMinute = dayMinute(nowIso);
+  const timelineDayStart = useMemo(() => dayWindow(nowIso).start, [nowIso]);
+  const nowMinute = clamp(minutesFromTimelineDayStart(nowIso, timelineDayStart), 0, MINUTES_IN_DAY);
   const nowLeft = (nowMinute / MINUTES_IN_DAY) * TIMELINE_WIDTH;
 
   const scrollToNow = useCallback(() => {
@@ -293,11 +325,11 @@ export function DailyShiftTimeline({
     const nowMs = new Date(nowIso).getTime();
     return punches
       .filter((record) => {
-      const checkedInMs = new Date(record.checkedInAt).getTime();
-      const checkedOutMs = record.checkedOutAt
-        ? new Date(record.checkedOutAt).getTime()
-        : Number.POSITIVE_INFINITY;
-      return checkedInMs <= nowMs && nowMs < checkedOutMs;
+        const checkedInMs = new Date(record.checkedInAt).getTime();
+        const checkedOutMs = record.checkedOutAt
+          ? new Date(record.checkedOutAt).getTime()
+          : Number.POSITIVE_INFINITY;
+        return checkedInMs <= nowMs && nowMs < checkedOutMs;
       })
       .sort((a, b) => new Date(a.checkedInAt).getTime() - new Date(b.checkedInAt).getTime());
   }, [punches, nowIso]);
@@ -320,6 +352,7 @@ export function DailyShiftTimeline({
       <TimelineChart
         viewportRef={viewportRef}
         nowLeft={nowLeft}
+        timelineDayStart={timelineDayStart}
         todayShifts={todayShifts}
         actualShifts={actualShifts}
       />

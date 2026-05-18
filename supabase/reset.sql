@@ -1,4 +1,6 @@
--- 전체 초기화: 실행 후 schema.sql 을 다시 적용하세요.
+-- 전체 초기화
+-- 1. DB 리셋 전/후에 pnpm storage:empty 실행
+-- 2. SQL Editor: reset.sql → schema.sql → storage.sql 순으로 실행
 
 do $$
 declare

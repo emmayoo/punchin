@@ -15,7 +15,7 @@ import {
 import { workApi } from "@/lib/api/work-api";
 import { DEFAULT_EVENT_COLOR } from "@/lib/constants/event";
 import { emitWorkplaceChanged } from "@/lib/constants/dom-event";
-import { durationHours, formatDateTime, formatHours } from "@/lib/time";
+import { durationHours, formatHours, formatWorkRecordDateTime } from "@/lib/time";
 import { toast } from "@/lib/toast";
 import type { SchedulePerson } from "@/components/schedule/schedule-types";
 import type { CalendarEvent, PunchRecord } from "@/types/work";
@@ -346,10 +346,13 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
                 ) : null}
               </div>
               <p className="mt-2 text-sm text-zinc-600 dark:text-neutral-300">
-                출근: {formatDateTime(record.checkedInAt)}
+                출근: {formatWorkRecordDateTime(record.checkedInAt, date)}
               </p>
               <p className="text-sm text-zinc-600 dark:text-neutral-300">
-                퇴근: {record.checkedOutAt ? formatDateTime(record.checkedOutAt) : "근무 중"}
+                퇴근:{" "}
+                {record.checkedOutAt
+                  ? formatWorkRecordDateTime(record.checkedOutAt, date)
+                  : "근무 중"}
               </p>
               {record.checkedOutAt ? (
                 <p className="mt-2 text-xs text-zinc-600 dark:text-neutral-400">

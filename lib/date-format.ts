@@ -51,12 +51,19 @@ const koDateTimeMonthDayHourMinuteFormatter = new Intl.DateTimeFormat("ko-KR", {
   day: "2-digit",
   hour: "2-digit",
   minute: "2-digit",
+  hour12: false,
+});
+
+const koMonthDay2DigitFormatter = new Intl.DateTimeFormat("ko-KR", {
+  month: "2-digit",
+  day: "2-digit",
 });
 
 const koTimeHourMinuteSecondFormatter = new Intl.DateTimeFormat("ko-KR", {
   hour: "2-digit",
   minute: "2-digit",
   second: "2-digit",
+  hour12: false,
 });
 
 const koTimeHourMinute24Formatter = new Intl.DateTimeFormat("ko-KR", {
@@ -103,6 +110,29 @@ export function formatKoYearMonthDayWeekdayLong(value: string | Date): string {
 export function formatKoDateTimeMonthDayHourMinute(value: string | Date): string {
   const date = typeof value === "string" ? new Date(value) : value;
   return koDateTimeMonthDayHourMinuteFormatter.format(date);
+}
+
+/** 근무일 익일 00:00 퇴근 → `05. 18. 24:00` 형태 */
+export function formatKoWorkDayMidnightEnd(workDayKey: string): string {
+  const [year, month, day] = workDayKey.split("-").map(Number);
+  if (!year || !month || !day) {
+    return "24:00";
+  }
+  const workDay = new Date(year, month - 1, day);
+  return `${koMonthDay2DigitFormatter.format(workDay)} 24:00`;
+}
+
+export function isWorkDayNextMidnight(iso: string, workDayKey: string): boolean {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) {
+    return false;
+  }
+  const [year, month, day] = workDayKey.split("-").map(Number);
+  if (!year || !month || !day) {
+    return false;
+  }
+  const nextMidnight = new Date(year, month - 1, day + 1, 0, 0, 0, 0);
+  return d.getTime() === nextMidnight.getTime();
 }
 
 export function formatKoTimeHourMinuteSecond(value: string | Date): string {

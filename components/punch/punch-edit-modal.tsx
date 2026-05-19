@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { FullscreenModal } from "@/components/overlay/fullscreen-modal";
 import { ScheduleTimePicker24 } from "@/components/schedule/schedule-time-picker-24";
-import { dateKey, fromDateInput, parseTimeHHMM } from "@/components/schedule/schedule-utils";
+import { StaffPersonSelect } from "@/components/staff/staff-person-select";
+import { buildWorkDayTimeIso, dateKey } from "@/components/schedule/schedule-utils";
+import { branchMemberToStaffOption } from "@/lib/staff-person-options";
+import { formatDateTime, formatWorkRecordDateTime } from "@/lib/time";
 import { toast } from "@/lib/toast";
 import type { BranchMemberListItem, PunchRecord } from "@/types/work";
 
@@ -13,6 +16,8 @@ const fieldClass =
 
 const timeInputClass =
   "min-h-10 w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2 font-mono text-sm tabular-nums text-zinc-900 outline-none focus:border-zinc-400 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400 dark:border-white/15 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-white/35 dark:disabled:bg-neutral-800 dark:disabled:text-neutral-500";
+
+const MS_PER_24H = 24 * 60 * 60 * 1000;
 
 export type PunchEditModalProps = {
   mode: "create" | "edit";
@@ -37,15 +42,41 @@ function toDateKey(iso: string): string {
   return dateKey(new Date(iso));
 }
 
-function buildIso(dateInput: string, timeHHMM: string): string | null {
-  const base = fromDateInput(dateInput);
-  if (!base) {
-    return null;
+function resolvePunchTimes(
+  startDate: string,
+  startTime: string,
+  endDate: string,
+  endTime: string,
+  ongoing: boolean,
+): { ok: true; checkedInAt: string; checkedOutAt: string | null } | { ok: false; message: string } {
+  const checkedInAt = buildWorkDayTimeIso(startDate, startTime);
+  let checkedOutAt: string | null = null;
+  if (!ongoing) {
+    checkedOutAt =
+      endDate === startDate
+        ? buildWorkDayTimeIso(endDate, endTime, {
+            endOfWorkDayMidnight: true,
+            startTimeHHMM: startTime,
+          })
+        : buildWorkDayTimeIso(endDate, endTime);
   }
-  const clock = parseTimeHHMM(timeHHMM);
-  const dt = new Date(base);
-  dt.setHours(clock.hour, clock.minute, 0, 0);
-  return dt.toISOString();
+
+  if (!checkedInAt || (!ongoing && !checkedOutAt)) {
+    return { ok: false, message: "날짜/시간 형식을 확인해 주세요." };
+  }
+
+  if (!ongoing && checkedOutAt) {
+    const startMs = new Date(checkedInAt).getTime();
+    const endMs = new Date(checkedOutAt).getTime();
+    if (endMs <= startMs) {
+      return { ok: false, message: "종료 시간이 시작 시간보다 늦어야 합니다." };
+    }
+    if (endMs - startMs > MS_PER_24H) {
+      return { ok: false, message: "실제 근무는 24시간을 넘을 수 없습니다." };
+    }
+  }
+
+  return { ok: true, checkedInAt, checkedOutAt };
 }
 
 export function PunchEditModal({
@@ -76,6 +107,8 @@ export function PunchEditModal({
     record?.employeeId ? record.employeeId : (members[0]?.employeeId ?? ""),
   );
 
+  const staffOptions = useMemo(() => members.map(branchMemberToStaffOption), [members]);
+
   if (!open) {
     return null;
   }
@@ -85,6 +118,14 @@ export function PunchEditModal({
       ? (members.find((member) => member.employeeId === selectedEmployeeId) ?? null)
       : null;
 
+  const editWorkDay = record ? toDateKey(record.checkedInAt) : "";
+  const editSummary =
+    record && record.checkedOutAt
+      ? `${formatDateTime(record.checkedInAt)} ~ ${formatWorkRecordDateTime(record.checkedOutAt, editWorkDay)}`
+      : record
+        ? `${formatDateTime(record.checkedInAt)} ~ 근무 중`
+        : null;
+
   return (
     <FullscreenModal open={open}>
       <div className="space-y-4">
@@ -93,7 +134,8 @@ export function PunchEditModal({
         </h2>
         {record ? (
           <p className="text-sm text-zinc-600 dark:text-neutral-400">
-            {record.employeeName} · {toDateKey(record.checkedInAt)}
+            {record.employeeName}
+            {editSummary ? ` · ${editSummary}` : null}
           </p>
         ) : mode === "create" ? (
           <p className="text-sm text-zinc-600 dark:text-neutral-400">
@@ -104,18 +146,12 @@ export function PunchEditModal({
         {mode === "create" ? (
           <label className="space-y-1">
             <span className="text-xs text-zinc-600 dark:text-neutral-400">직원</span>
-            <select
+            <StaffPersonSelect
               value={selectedEmployeeId}
-              onChange={(e) => setSelectedEmployeeId(e.target.value)}
+              options={staffOptions}
+              onChange={setSelectedEmployeeId}
               disabled={saving || deleting || !canEdit}
-              className={fieldClass}
-            >
-              {members.map((member) => (
-                <option key={member.employeeId} value={member.employeeId}>
-                  {member.name} ({member.phone})
-                </option>
-              ))}
-            </select>
+            />
           </label>
         ) : null}
 
@@ -196,17 +232,15 @@ export function PunchEditModal({
               type="button"
               disabled={saving || deleting || !canEdit}
               onClick={() => {
-                const checkedInAt = buildIso(startDate, startTime);
-                const checkedOutAt = ongoing ? null : buildIso(endDate, endTime);
-                if (!checkedInAt || (!ongoing && !checkedOutAt)) {
-                  toast.error("날짜/시간 형식을 확인해 주세요.");
-                  return;
-                }
-                if (
-                  !ongoing &&
-                  new Date(checkedOutAt as string).getTime() <= new Date(checkedInAt).getTime()
-                ) {
-                  toast.error("종료 시간이 시작 시간보다 늦어야 합니다.");
+                const resolved = resolvePunchTimes(
+                  startDate,
+                  startTime,
+                  endDate,
+                  endTime,
+                  ongoing,
+                );
+                if (!resolved.ok) {
+                  toast.error(resolved.message);
                   return;
                 }
                 if (mode === "create") {
@@ -218,12 +252,15 @@ export function PunchEditModal({
                     employeeId: selectedMember.employeeId,
                     employeeName: selectedMember.name,
                     employeePhone: selectedMember.phone,
-                    checkedInAt,
-                    checkedOutAt,
+                    checkedInAt: resolved.checkedInAt,
+                    checkedOutAt: resolved.checkedOutAt,
                   });
                   return;
                 }
-                onSave({ checkedInAt, checkedOutAt });
+                onSave({
+                  checkedInAt: resolved.checkedInAt,
+                  checkedOutAt: resolved.checkedOutAt,
+                });
               }}
               className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60 dark:bg-white dark:text-neutral-950"
             >

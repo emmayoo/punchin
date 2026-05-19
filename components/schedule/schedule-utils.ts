@@ -95,6 +95,37 @@ export function parseTimeHHMM(value: string): { hour: number; minute: number } {
   };
 }
 
+/**
+ * 근무일(YYYY-MM-DD) + 시각 → ISO.
+ * 종료가 `00:00`이고 시작이 `00:00`이 아니면 다음날 00:00(당일 24:00)으로 저장한다.
+ */
+export function buildWorkDayTimeIso(
+  dateInput: string,
+  timeHHMM: string,
+  options?: { endOfWorkDayMidnight?: boolean; startTimeHHMM?: string },
+): string | null {
+  const base = fromDateInput(dateInput);
+  if (!base) {
+    return null;
+  }
+  const clock = parseTimeHHMM(timeHHMM);
+  const dt = new Date(base);
+  const isNextDayMidnight =
+    options?.endOfWorkDayMidnight === true &&
+    timeHHMM === "00:00" &&
+    options.startTimeHHMM !== undefined &&
+    options.startTimeHHMM !== "00:00";
+
+  if (isNextDayMidnight) {
+    dt.setDate(dt.getDate() + 1);
+    dt.setHours(0, 0, 0, 0);
+    return dt.toISOString();
+  }
+
+  dt.setHours(clock.hour, clock.minute, 0, 0);
+  return dt.toISOString();
+}
+
 export function toMinutes(value: string): number {
   const { hour, minute } = parseTimeHHMM(value);
   return hour * 60 + minute;

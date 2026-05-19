@@ -23,14 +23,10 @@ import { workApi } from "@/lib/api/work-api";
 import { DEFAULT_MEMBER_COLOR } from "@/lib/constants/color";
 import { emitWorkplaceChanged } from "@/lib/constants/dom-event";
 import { formatKoMonthDayNumeric } from "@/lib/date-format";
+import { formatSegmentTimeRangeHHMM } from "@/lib/time";
 import { normalizePhone } from "@/lib/phone";
 import { toast } from "@/lib/toast";
 import type { BranchMemberListItem, PunchRecord, Shift } from "@/types/work";
-
-function hhmm(iso: string): string {
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
 
 function splitPunchRecordToShifts(
   record: PunchRecord,
@@ -468,7 +464,10 @@ export function ActualWeeklyWorkGridSection({
                           normalizePhone(row.shift.employeePhone) || row.shift.employeePhone;
                         const person = peopleByPhone.get(phoneKey);
                         const chipColor = person?.color ?? DEFAULT_MEMBER_COLOR;
-                        const timeLabel = `${hhmm(row.shift.startAt)}-${hhmm(row.shift.endAt)}`;
+                        const timeLabel = formatSegmentTimeRangeHHMM(
+                          row.shift.startAt,
+                          row.shift.endAt,
+                        );
                         return (
                           <div
                             key={`${row.shift.id}:${row.startMin}`}

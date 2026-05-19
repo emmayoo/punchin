@@ -2,6 +2,8 @@ import {
   formatKoDateOnly,
   formatKoDateTimeMonthDayHourMinute,
   formatKoTimeHourMinuteSecond,
+  formatKoWorkDayMidnightEnd,
+  isWorkDayNextMidnight,
 } from "@/lib/date-format";
 
 /** 입사일 등 날짜만. 값 없거나 파싱 실패 시 — */
@@ -18,6 +20,34 @@ export function formatDateOnlyKo(value: string | null | undefined): string {
 
 export function formatDateTime(value: string): string {
   return formatKoDateTimeMonthDayHourMinute(value);
+}
+
+/** 일별 근무 상세 — 익일 00:00 퇴근은 근무일 `24:00`으로 표시 */
+export function formatWorkRecordDateTime(iso: string, workDayKey: string): string {
+  if (isWorkDayNextMidnight(iso, workDayKey)) {
+    return formatKoWorkDayMidnightEnd(workDayKey);
+  }
+  return formatKoDateTimeMonthDayHourMinute(iso);
+}
+
+function hhmmFromIso(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+/** 구간 막대·그리드용 — 당일 자정 종료는 `24:00` */
+export function formatSegmentTimeRangeHHMM(startAt: string, endAt: string): string {
+  const start = new Date(startAt);
+  const end = new Date(endAt);
+  const dayStart = new Date(start);
+  dayStart.setHours(0, 0, 0, 0);
+  const nextMidnight = new Date(dayStart);
+  nextMidnight.setDate(nextMidnight.getDate() + 1);
+
+  const startLabel = hhmmFromIso(startAt);
+  const endLabel =
+    end.getTime() === nextMidnight.getTime() ? "24:00" : hhmmFromIso(endAt);
+  return `${startLabel}-${endLabel}`;
 }
 
 export function formatTime(value: string): string {

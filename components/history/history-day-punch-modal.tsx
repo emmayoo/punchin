@@ -6,7 +6,7 @@ import { FullscreenModal } from "@/components/overlay/fullscreen-modal";
 import { SchedulePersonSelect } from "@/components/schedule/schedule-person-select";
 import type { SchedulePerson } from "@/components/schedule/schedule-types";
 import { ScheduleTimePicker24 } from "@/components/schedule/schedule-time-picker-24";
-import { fromDateInput, parseTimeHHMM } from "@/components/schedule/schedule-utils";
+import { buildWorkDayTimeIso, fromDateInput } from "@/components/schedule/schedule-utils";
 import { branchMemberName } from "@/lib/branch-display-name";
 import { formatKoMonthDayNumeric } from "@/lib/date-format";
 import { toast } from "@/lib/toast";
@@ -43,18 +43,39 @@ function hhmm(iso: string): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-function buildIso(dateInput: string, timeHHMM: string): string | null {
-  const base = fromDateInput(dateInput);
-  if (!base) {
-    return null;
-  }
-  const clock = parseTimeHHMM(timeHHMM);
-  const dt = new Date(base);
-  dt.setHours(clock.hour, clock.minute, 0, 0);
-  return dt.toISOString();
-}
-
 const MS_PER_24H = 24 * 60 * 60 * 1000;
+
+function resolvePunchTimes(
+  workDay: string,
+  startTime: string,
+  endTime: string,
+  ongoing: boolean,
+): { ok: true; checkedInAt: string; checkedOutAt: string | null } | { ok: false; message: string } {
+  const checkedInAt = buildWorkDayTimeIso(workDay, startTime);
+  const checkedOutAt = ongoing
+    ? null
+    : buildWorkDayTimeIso(workDay, endTime, {
+        endOfWorkDayMidnight: true,
+        startTimeHHMM: startTime,
+      });
+
+  if (!checkedInAt || (!ongoing && !checkedOutAt)) {
+    return { ok: false, message: "날짜/시간 형식을 확인해 주세요." };
+  }
+
+  if (!ongoing && checkedOutAt) {
+    const startMs = new Date(checkedInAt).getTime();
+    const endMs = new Date(checkedOutAt).getTime();
+    if (endMs <= startMs) {
+      return { ok: false, message: "종료 시간이 시작 시간보다 늦어야 합니다." };
+    }
+    if (endMs - startMs > MS_PER_24H) {
+      return { ok: false, message: "실제 근무는 24시간을 넘을 수 없습니다." };
+    }
+  }
+
+  return { ok: true, checkedInAt, checkedOutAt };
+}
 
 export function HistoryDayPunchCreateModal({
   open,
@@ -142,25 +163,10 @@ export function HistoryDayPunchCreateModal({
             type="button"
             disabled={saving || !canEdit}
             onClick={() => {
-              const checkedInAt = buildIso(workDay, startTime);
-              const checkedOutAt = ongoing ? null : buildIso(workDay, endTime);
-              if (!checkedInAt || (!ongoing && !checkedOutAt)) {
-                toast.error("날짜/시간 형식을 확인해 주세요.");
+              const resolved = resolvePunchTimes(workDay, startTime, endTime, ongoing);
+              if (!resolved.ok) {
+                toast.error(resolved.message);
                 return;
-              }
-              if (
-                !ongoing &&
-                new Date(checkedOutAt as string).getTime() <= new Date(checkedInAt).getTime()
-              ) {
-                toast.error("종료 시간이 시작 시간보다 늦어야 합니다.");
-                return;
-              }
-              if (!ongoing && checkedOutAt) {
-                const spanMs = new Date(checkedOutAt).getTime() - new Date(checkedInAt).getTime();
-                if (spanMs > MS_PER_24H) {
-                  toast.error("실제 근무는 24시간을 넘을 수 없습니다.");
-                  return;
-                }
               }
               if (!selectedPerson) {
                 toast.error("직원을 선택해 주세요.");
@@ -170,8 +176,8 @@ export function HistoryDayPunchCreateModal({
                 employeeId: selectedPerson.id,
                 employeeName: branchMemberName(selectedPerson.nickname, selectedPerson.name),
                 employeePhone: selectedPerson.employeePhone,
-                checkedInAt,
-                checkedOutAt,
+                checkedInAt: resolved.checkedInAt,
+                checkedOutAt: resolved.checkedOutAt,
               });
             }}
             className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60 dark:bg-white dark:text-neutral-950"
@@ -284,27 +290,15 @@ export function HistoryDayPunchEditModal({
               type="button"
               disabled={saving || deleting || !canEdit}
               onClick={() => {
-                const checkedInAt = buildIso(workDay, startTime);
-                const checkedOutAt = ongoing ? null : buildIso(workDay, endTime);
-                if (!checkedInAt || (!ongoing && !checkedOutAt)) {
-                  toast.error("날짜/시간 형식을 확인해 주세요.");
+                const resolved = resolvePunchTimes(workDay, startTime, endTime, ongoing);
+                if (!resolved.ok) {
+                  toast.error(resolved.message);
                   return;
                 }
-                if (
-                  !ongoing &&
-                  new Date(checkedOutAt as string).getTime() <= new Date(checkedInAt).getTime()
-                ) {
-                  toast.error("종료 시간이 시작 시간보다 늦어야 합니다.");
-                  return;
-                }
-                if (!ongoing && checkedOutAt) {
-                  const spanMs = new Date(checkedOutAt).getTime() - new Date(checkedInAt).getTime();
-                  if (spanMs > MS_PER_24H) {
-                    toast.error("실제 근무는 24시간을 넘을 수 없습니다.");
-                    return;
-                  }
-                }
-                onSave({ checkedInAt, checkedOutAt });
+                onSave({
+                  checkedInAt: resolved.checkedInAt,
+                  checkedOutAt: resolved.checkedOutAt,
+                });
               }}
               className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60 dark:bg-white dark:text-neutral-950"
             >

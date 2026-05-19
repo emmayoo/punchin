@@ -51,14 +51,11 @@ export function WorkplaceMonthlyStatsSection({ punches }: WorkplaceMonthlyStatsS
           {employeeStats.length > 0 ? (
             <div className="space-y-2">
               {employeeStats.map((stat) => (
-                <div
-                  key={stat.employeeName}
-                  className="flex items-center justify-between gap-3 text-sm"
-                >
+                <div key={stat.employeeName} className="flex items-center justify-between text-sm">
                   <span className="truncate text-zinc-800 dark:text-neutral-100">
                     {stat.employeeName}
                   </span>
-                  <span className="shrink-0 font-medium text-zinc-600 dark:text-neutral-300">
+                  <span className="shrink-0 min-w-23 text-right font-mono text-sm font-medium tabular-nums text-zinc-600 dark:text-neutral-300">
                     {formatDuration24hWithSeconds(stat.hours)}
                   </span>
                 </div>

@@ -60,6 +60,7 @@ import {
   newNoticeAttachmentStoragePath,
   uploadPublicImage,
 } from "@/lib/supabase/media-upload";
+import { mergeCalendarEventsWithBirthdays } from "@/lib/calendar/birthday-events";
 import { durationHours, isToday, isWithinWeek, startOfWeek } from "@/lib/time";
 import type {
   Branch,
@@ -105,6 +106,7 @@ export type SchedulePersonRecord = {
   nickname: string | null;
   employeePhone: string;
   color: string;
+  birthDate?: string | null;
 };
 
 export type NoticeInput = {
@@ -1051,9 +1053,16 @@ class LocalWorkApi {
       const shifts = getShifts();
       const punchRecords = getPunches();
       const todayPunches = getTodayPunches();
-      const todayEvents = getCalendarEvents()
-        .filter((event) => event.date === toDateKey(new Date()))
-        .sort((a, b) => a.title.localeCompare(b.title));
+      const todayKey = toDateKey(new Date());
+      const schedulePeople = await this.getSchedulePeople();
+      const todayEvents = mergeCalendarEventsWithBirthdays(
+        getCalendarEvents().filter((event) => event.date === todayKey),
+        schedulePeople,
+        new Date().getFullYear(),
+        session?.currentBranchId ?? null,
+      )
+        .filter((event) => event.date === todayKey)
+        .sort((a, b) => a.title.localeCompare(b.title, "ko"));
       const nowMs = Date.now();
 
       const activePunch = session ? getActivePunch(session.phone) : null;
@@ -1262,6 +1271,7 @@ class LocalWorkApi {
           nickname: null,
           employeePhone: employee.phone,
           color: DEFAULT_MEMBER_COLOR,
+          birthDate: employee.birthDate ?? null,
         };
       });
     }
@@ -1285,6 +1295,7 @@ class LocalWorkApi {
         nickname,
         employeePhone: employee.phone,
         color: hex ? hex : DEFAULT_MEMBER_COLOR,
+        birthDate: employee.birthDate ?? null,
       });
     }
     rows.sort((a, b) =>
@@ -2706,9 +2717,16 @@ class SupabaseWorkApi {
           )
         : [];
       const todayPunches = punchRecords.filter((record) => isToday(record.checkedInAt));
-      const todayEvents = events
-        .filter((event) => event.date === toDateKey(new Date()))
-        .sort((a, b) => a.title.localeCompare(b.title));
+      const todayKey = toDateKey(new Date());
+      const schedulePeople = await this.getSchedulePeople();
+      const todayEvents = mergeCalendarEventsWithBirthdays(
+        events.filter((event) => event.date === todayKey),
+        schedulePeople,
+        new Date().getFullYear(),
+        session?.currentBranchId ?? null,
+      )
+        .filter((event) => event.date === todayKey)
+        .sort((a, b) => a.title.localeCompare(b.title, "ko"));
       const nowMs = Date.now();
 
       const activePunch = session
@@ -3048,26 +3066,30 @@ class SupabaseWorkApi {
     if (!branchId) {
       const { data } = await this.supabase
         .from("employees")
-        .select("id,name,phone")
+        .select("id,name,phone,birth_date")
         .is("deleted_at", null)
         .order("created_at", { ascending: false });
       await wait();
       return (data ?? []).map((row) => {
-        const legalName =
-          String((row as Record<string, unknown>).name).trim() || BRANCH_MEMBER_FALLBACK;
+        const record = row as Record<string, unknown>;
+        const legalName = String(record.name).trim() || BRANCH_MEMBER_FALLBACK;
+        const employee = mapEmployeeRow(record);
         return {
-          id: String((row as Record<string, unknown>).id),
+          id: employee.id,
           name: legalName,
           nickname: null,
-          employeePhone: String((row as Record<string, unknown>).phone),
+          employeePhone: employee.phone,
           color: DEFAULT_MEMBER_COLOR,
+          birthDate: employee.birthDate,
         };
       });
     }
 
     const { data } = await this.supabase
       .from("branch_memberships")
-      .select("color, nickname, employee:employees!employee_id(id,name,phone,deleted_at)")
+      .select(
+        "color, nickname, employee:employees!employee_id(id,name,phone,birth_date,deleted_at)",
+      )
       .eq("branch_id", branchId)
       .is("ended_at", null)
       .is("deleted_at", null);
@@ -3086,12 +3108,17 @@ class SupabaseWorkApi {
       const nickTrimmed = nickRaw?.trim() ?? "";
       const nickname = nickTrimmed !== "" && nickTrimmed !== legalName ? nickTrimmed : null;
       const hexRaw = row.color !== undefined && row.color !== null ? String(row.color).trim() : "";
+      const birthDate =
+        empRaw.birth_date !== undefined && empRaw.birth_date !== null
+          ? mapBirthDate(empRaw)
+          : null;
       rows.push({
         id: String(empRaw.id),
         name: legalName,
         nickname,
         employeePhone: normalizePhone(String(emp?.phone ?? "")),
         color: hexRaw ? hexRaw : DEFAULT_MEMBER_COLOR,
+        birthDate,
       });
     }
     rows.sort((a, b) =>

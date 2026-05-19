@@ -12,7 +12,11 @@ import {
   canManageBranchStaff,
   resolveWorkplaceBranchAccess,
 } from "@/components/workplace/settings/workplace-settings-access";
-import { workApi } from "@/lib/api/work-api";
+import { workApi, type SchedulePersonRecord } from "@/lib/api/work-api";
+import {
+  isBirthdayCalendarEvent,
+  mergeCalendarEventsWithBirthdays,
+} from "@/lib/calendar/birthday-events";
 import { DEFAULT_EVENT_COLOR } from "@/lib/constants/event";
 import { emitWorkplaceChanged } from "@/lib/constants/dom-event";
 import { durationHours, formatHours, formatWorkRecordDateTime } from "@/lib/time";
@@ -37,24 +41,25 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
 
   const [punches, setPunches] = useState<PunchRecord[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [branchPeople, setBranchPeople] = useState<SchedulePersonRecord[]>([]);
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const saveTimersRef = useRef<Record<string, number>>({});
   const [newColor, setNewColor] = useState(DEFAULT_EVENT_COLOR);
-
-  const [schedulePeople, setSchedulePeople] = useState<SchedulePerson[]>([]);
   const [createPunchOpen, setCreatePunchOpen] = useState(false);
   const [editingPunch, setEditingPunch] = useState<PunchRecord | null>(null);
   const [punchSaving, setPunchSaving] = useState(false);
   const [punchDeleting, setPunchDeleting] = useState(false);
 
   const load = useCallback(async () => {
-    const [history, calendarEvents] = await Promise.all([
+    const [history, calendarEvents, people] = await Promise.all([
       workApi.getHistory(),
       workApi.getCalendarEvents(),
+      workApi.getSchedulePeople(),
     ]);
     setPunches(history);
     setEvents(calendarEvents);
+    setBranchPeople(people);
   }, []);
 
   useEffect(() => {
@@ -90,38 +95,41 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
   const canEditPunch = access ? canManageBranchStaff(access) : false;
   const actorPhone = dashData?.session?.phone ?? null;
 
-  useEffect(() => {
-    if (!canEditPunch || !currentBranchId) {
-      queueMicrotask(() => {
-        setSchedulePeople([]);
-      });
-      return () => {};
-    }
-    let mounted = true;
-    void (async () => {
-      const list = await workApi.getSchedulePeople();
-      if (mounted) {
-        setSchedulePeople(
-          list.map((item) => ({
-            id: item.id,
-            name: item.name,
-            nickname: item.nickname,
-            employeePhone: item.employeePhone,
-            color: item.color,
-          })),
-        );
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [canEditPunch, currentBranchId]);
+  const schedulePeople = useMemo<SchedulePerson[]>(
+    () =>
+      branchPeople.map((item) => ({
+        id: item.id,
+        name: item.name,
+        nickname: item.nickname,
+        employeePhone: item.employeePhone,
+        color: item.color,
+      })),
+    [branchPeople],
+  );
 
   const dayPunches = useMemo(
     () => punches.filter((record) => isSameDate(date, record.checkedInAt)),
     [punches, date],
   );
-  const dayEvents = useMemo(() => events.filter((event) => event.date === date), [events, date]);
+  const dayEvents = useMemo(() => {
+    const year = Number(date.slice(0, 4));
+    const merged = mergeCalendarEventsWithBirthdays(
+      events,
+      branchPeople,
+      Number.isFinite(year) ? year : new Date().getFullYear(),
+      currentBranchId,
+    );
+    return merged.filter((event) => event.date === date);
+  }, [events, branchPeople, date, currentBranchId]);
+
+  const manualDayEvents = useMemo(
+    () => dayEvents.filter((event) => !isBirthdayCalendarEvent(event)),
+    [dayEvents],
+  );
+  const birthdayDayEvents = useMemo(
+    () => dayEvents.filter((event) => isBirthdayCalendarEvent(event)),
+    [dayEvents],
+  );
 
   const handleCreate = async () => {
     setBusy(true);
@@ -137,6 +145,10 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
   };
 
   const handleDelete = async (eventId: string) => {
+    const target = manualDayEvents.find((event) => event.id === eventId);
+    if (!target || isBirthdayCalendarEvent(target)) {
+      return;
+    }
     setBusy(true);
     await workApi.deleteCalendarEvent(eventId);
     const timerId = saveTimersRef.current[eventId];
@@ -265,13 +277,31 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
             </button>
           </div>
         </div>
-        {dayEvents.length === 0 ? (
+        {birthdayDayEvents.length > 0 ? (
+          <ul className="mt-2 space-y-1.5">
+            {birthdayDayEvents.map((event) => (
+              <li
+                key={event.id}
+                className="flex items-center gap-2 rounded-lg border border-zinc-200/80 bg-white/80 px-2.5 py-2 text-sm dark:border-white/10 dark:bg-neutral-900/60"
+              >
+                <span
+                  className="h-2.5 w-2.5 shrink-0 rounded-full border border-black/5 dark:border-white/10"
+                  style={{ backgroundColor: event.color }}
+                  aria-hidden
+                />
+                <span className="font-medium text-zinc-800 dark:text-neutral-100">{event.title}</span>
+                <span className="ml-auto text-[11px] text-zinc-500 dark:text-neutral-500">생일</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {manualDayEvents.length === 0 && birthdayDayEvents.length === 0 ? (
           <p className="mt-2 text-sm text-zinc-600 dark:text-neutral-400">
             등록된 이벤트가 없습니다.
           </p>
-        ) : (
-          <ul className="mt-2 space-y-2">
-            {dayEvents.map((event) => (
+        ) : manualDayEvents.length > 0 ? (
+          <ul className={birthdayDayEvents.length > 0 ? "mt-3 space-y-2" : "mt-2 space-y-2"}>
+            {manualDayEvents.map((event) => (
               <li key={event.id}>
                 <div className="flex items-center gap-2">
                   <input
@@ -299,7 +329,7 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
               </li>
             ))}
           </ul>
-        )}
+        ) : null}
       </section>
 
       <section className="space-y-2">

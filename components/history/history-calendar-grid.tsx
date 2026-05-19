@@ -50,9 +50,16 @@ export function HistoryCalendarGrid({
             >
               <p className="text-xs font-medium text-zinc-900 dark:text-white">{date.getDate()}</p>
               {dayEvents.length > 0 ? (
-                <p className="mt-1 truncate text-[11px]" style={{ color: dayEvents[0].color }}>
-                  {dayEvents[0].title}
-                </p>
+                <>
+                  <p className="mt-1 truncate text-[11px]" style={{ color: dayEvents[0].color }}>
+                    {dayEvents[0].title}
+                  </p>
+                  {dayEvents.length > 1 ? (
+                    <p className="truncate text-[10px] text-zinc-500 dark:text-neutral-500">
+                      +{dayEvents.length - 1}건
+                    </p>
+                  ) : null}
+                </>
               ) : null}
               {names.length > 0 ? (
                 <p className="mt-1 truncate text-[11px] text-zinc-600 dark:text-neutral-300">{`${names.length} 명`}</p>

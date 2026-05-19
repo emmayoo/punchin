@@ -84,6 +84,8 @@ export type CalendarEvent = {
   title: string;
   color: string; // hex color
   branchId?: string | null;
+  /** 수동 등록 이벤트 vs 직원 생일(조회 시 합성) */
+  kind?: "manual" | "birthday";
 };
 
 export type NoticeAttachment = {

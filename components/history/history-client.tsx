@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { HistoryCalendarGrid } from "@/components/history/history-calendar-grid";
 import { HistoryCalendarHeader } from "@/components/history/history-calendar-header";
 import { HistoryMonthPickerModal } from "@/components/history/history-month-picker-modal";
 import { DetailPageShell } from "@/components/layout/detail-page-shell";
-import { workApi } from "@/lib/api/work-api";
+import { workApi, type SchedulePersonRecord } from "@/lib/api/work-api";
+import { mergeCalendarEventsWithBirthdays } from "@/lib/calendar/birthday-events";
 import { formatKoYearMonthLong } from "@/lib/date-format";
 import type { CalendarEvent, PunchRecord } from "@/types/work";
 
@@ -25,6 +26,8 @@ function monthLabel(date: Date): string {
 export function HistoryClient() {
   const [punches, setPunches] = useState<PunchRecord[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [schedulePeople, setSchedulePeople] = useState<SchedulePersonRecord[]>([]);
+  const [currentBranchId, setCurrentBranchId] = useState<string | null>(null);
   const [monthDate, setMonthDate] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -38,15 +41,19 @@ export function HistoryClient() {
     let mounted = true;
     (async () => {
       await workApi.init();
-      const [history, calendarEvents] = await Promise.all([
+      const [history, calendarEvents, people, dashboard] = await Promise.all([
         workApi.getHistory(),
         workApi.getCalendarEvents(),
+        workApi.getSchedulePeople(),
+        workApi.getDashboard(),
       ]);
       if (!mounted) {
         return;
       }
       setPunches(history);
       setEvents(calendarEvents);
+      setSchedulePeople(people);
+      setCurrentBranchId(dashboard.session?.currentBranchId ?? null);
       setLoading(false);
     })();
     return () => {
@@ -74,7 +81,18 @@ export function HistoryClient() {
     return acc;
   }, {});
 
-  const eventMap = events.reduce<Record<string, CalendarEvent[]>>((acc, event) => {
+  const mergedEvents = useMemo(
+    () =>
+      mergeCalendarEventsWithBirthdays(
+        events,
+        schedulePeople,
+        monthDate.getFullYear(),
+        currentBranchId,
+      ),
+    [events, schedulePeople, monthDate, currentBranchId],
+  );
+
+  const eventMap = mergedEvents.reduce<Record<string, CalendarEvent[]>>((acc, event) => {
     const current = acc[event.date] ?? [];
     current.push(event);
     acc[event.date] = current;

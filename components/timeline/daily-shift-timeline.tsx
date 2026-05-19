@@ -17,6 +17,9 @@ const PIXELS_PER_HOUR = 60;
 const MINUTES_IN_DAY = 24 * 60;
 const TIMELINE_WIDTH = 24 * PIXELS_PER_HOUR;
 const TIMELINE_LABEL_INSET = 8;
+const ROW_HEIGHT = 34;
+const CHART_PADDING_Y = 8;
+const MAX_CHART_BODY_HEIGHT = 176; // 타임라인 차트 최대 높이 (h-44)
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -106,6 +109,10 @@ type TimelineChartProps = {
   actualShifts: ActualTimelineItem[];
 };
 
+function rowTop(laneIndex: number): number {
+  return CHART_PADDING_Y + laneIndex * ROW_HEIGHT;
+}
+
 function TimelineChart({
   viewportRef,
   nowLeft,
@@ -113,6 +120,13 @@ function TimelineChart({
   todayShifts,
   actualShifts,
 }: TimelineChartProps) {
+  const totalRows = todayShifts.length + actualShifts.length;
+  const contentHeight = Math.max(
+    MAX_CHART_BODY_HEIGHT,
+    CHART_PADDING_Y * 2 + Math.max(totalRows, 1) * ROW_HEIGHT,
+  );
+  const bodyScrolls = contentHeight > MAX_CHART_BODY_HEIGHT;
+
   return (
     <div
       ref={viewportRef}
@@ -136,106 +150,111 @@ function TimelineChart({
           })}
         </div>
 
-        <div className="relative h-44">
-          {todayShifts.map((shift, index) => {
-            const start = clamp(
-              minutesFromTimelineDayStart(shift.startAt, timelineDayStart),
-              0,
-              MINUTES_IN_DAY,
-            );
-            const end = clamp(
-              minutesFromTimelineDayStart(shift.endAt, timelineDayStart),
-              0,
-              MINUTES_IN_DAY,
-            );
-            const left = (start / MINUTES_IN_DAY) * TIMELINE_WIDTH;
-            const width = Math.max(
-              ((Math.max(start + 1, end) - start) / MINUTES_IN_DAY) * TIMELINE_WIDTH,
-              14,
-            );
-            const top = 8 + (index % 3) * 34;
-            return (
-              <div key={shift.id}>
-                <div
-                  className="absolute rounded-md border border-sky-200/25 bg-sky-300/10"
-                  style={{
-                    left: `${left}px`,
-                    width: `${width}px`,
-                    top: `${top}px`,
-                    height: "34px",
-                  }}
-                  title={`${shift.employeeName} ${hhmm(shift.startAt)}-${displayEndHhmm(shift.endAt, timelineDayStart)}`}
-                />
-                <div
-                  className="pointer-events-none absolute whitespace-nowrap text-[11px] text-sky-500/90"
-                  style={{
-                    left: `${left + TIMELINE_LABEL_INSET}px`,
-                    top: `${top + 1}px`,
-                  }}
-                >
-                  <p>{shift.employeeName}</p>
-                  <p className="text-[10px]">
-                    {hhmm(shift.startAt)}-{displayEndHhmm(shift.endAt, timelineDayStart)}
-                  </p>
+        <div
+          className={`relative ${bodyScrolls ? "max-h-44 overflow-y-auto" : ""}`}
+          style={bodyScrolls ? { maxHeight: `${MAX_CHART_BODY_HEIGHT}px` } : undefined}
+        >
+          <div className="relative" style={{ height: `${contentHeight}px` }}>
+            {todayShifts.map((shift, index) => {
+              const start = clamp(
+                minutesFromTimelineDayStart(shift.startAt, timelineDayStart),
+                0,
+                MINUTES_IN_DAY,
+              );
+              const end = clamp(
+                minutesFromTimelineDayStart(shift.endAt, timelineDayStart),
+                0,
+                MINUTES_IN_DAY,
+              );
+              const left = (start / MINUTES_IN_DAY) * TIMELINE_WIDTH;
+              const width = Math.max(
+                ((Math.max(start + 1, end) - start) / MINUTES_IN_DAY) * TIMELINE_WIDTH,
+                14,
+              );
+              const top = rowTop(index);
+              return (
+                <div key={shift.id}>
+                  <div
+                    className="absolute rounded-md border border-sky-200/25 bg-sky-300/10"
+                    style={{
+                      left: `${left}px`,
+                      width: `${width}px`,
+                      top: `${top}px`,
+                      height: `${ROW_HEIGHT}px`,
+                    }}
+                    title={`${shift.employeeName} ${hhmm(shift.startAt)}-${displayEndHhmm(shift.endAt, timelineDayStart)}`}
+                  />
+                  <div
+                    className="pointer-events-none absolute whitespace-nowrap text-[11px] text-sky-500/90"
+                    style={{
+                      left: `${left + TIMELINE_LABEL_INSET}px`,
+                      top: `${top + 1}px`,
+                    }}
+                  >
+                    <p>{shift.employeeName}</p>
+                    <p className="text-[10px]">
+                      {hhmm(shift.startAt)}-{displayEndHhmm(shift.endAt, timelineDayStart)}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
 
-          {actualShifts.map((shift, index) => {
-            const start = clamp(
-              minutesFromTimelineDayStart(shift.startAt, timelineDayStart),
-              0,
-              MINUTES_IN_DAY,
-            );
-            const end = clamp(
-              minutesFromTimelineDayStart(shift.endAt, timelineDayStart),
-              0,
-              MINUTES_IN_DAY,
-            );
-            const left = (start / MINUTES_IN_DAY) * TIMELINE_WIDTH;
-            const width = Math.max(
-              ((Math.max(start + 1, end) - start) / MINUTES_IN_DAY) * TIMELINE_WIDTH,
-              14,
-            );
-            const top = 80 + (index % 2) * 34;
-            return (
-              <div key={`actual-${shift.id}`}>
-                <div
-                  className="absolute rounded-md border border-emerald-300/45 bg-emerald-300/20"
-                  style={{
-                    left: `${left}px`,
-                    width: `${width}px`,
-                    top: `${top}px`,
-                    height: "34px",
-                  }}
-                  title={`${shift.employeeName} ${hhmm(shift.startAt)}-${displayEndHhmm(shift.endAt, timelineDayStart)}${
-                    shift.ongoing ? " (근무 중)" : ""
-                  }`}
-                />
-                <div
-                  className="pointer-events-none absolute whitespace-nowrap text-[11px] text-emerald-900 dark:text-emerald-100"
-                  style={{
-                    left: `${left + TIMELINE_LABEL_INSET}px`,
-                    top: `${top + 1}px`,
-                  }}
-                >
-                  <p>
-                    {shift.employeeName}
-                    {shift.ongoing ? " · 근무 중" : ""}
-                  </p>
-                  <p className="text-[10px]">
-                    {hhmm(shift.startAt)}-{displayEndHhmm(shift.endAt, timelineDayStart)}
-                  </p>
+            {actualShifts.map((shift, index) => {
+              const start = clamp(
+                minutesFromTimelineDayStart(shift.startAt, timelineDayStart),
+                0,
+                MINUTES_IN_DAY,
+              );
+              const end = clamp(
+                minutesFromTimelineDayStart(shift.endAt, timelineDayStart),
+                0,
+                MINUTES_IN_DAY,
+              );
+              const left = (start / MINUTES_IN_DAY) * TIMELINE_WIDTH;
+              const width = Math.max(
+                ((Math.max(start + 1, end) - start) / MINUTES_IN_DAY) * TIMELINE_WIDTH,
+                14,
+              );
+              const top = rowTop(todayShifts.length + index);
+              return (
+                <div key={`actual-${shift.id}`}>
+                  <div
+                    className="absolute rounded-md border border-emerald-300/45 bg-emerald-300/20"
+                    style={{
+                      left: `${left}px`,
+                      width: `${width}px`,
+                      top: `${top}px`,
+                      height: `${ROW_HEIGHT}px`,
+                    }}
+                    title={`${shift.employeeName} ${hhmm(shift.startAt)}-${displayEndHhmm(shift.endAt, timelineDayStart)}${
+                      shift.ongoing ? " (근무 중)" : ""
+                    }`}
+                  />
+                  <div
+                    className="pointer-events-none absolute whitespace-nowrap text-[11px] text-emerald-900 dark:text-emerald-100"
+                    style={{
+                      left: `${left + TIMELINE_LABEL_INSET}px`,
+                      top: `${top + 1}px`,
+                    }}
+                  >
+                    <p>
+                      {shift.employeeName}
+                      {shift.ongoing ? " · 근무 중" : ""}
+                    </p>
+                    <p className="text-[10px]">
+                      {hhmm(shift.startAt)}-{displayEndHhmm(shift.endAt, timelineDayStart)}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
 
-          <div
-            className="absolute top-0 h-full border-l-2 border-rose-300"
-            style={{ left: `${nowLeft}px` }}
-          />
+            <div
+              className="pointer-events-none absolute top-0 border-l-2 border-rose-300"
+              style={{ left: `${nowLeft}px`, height: `${contentHeight}px` }}
+            />
+          </div>
         </div>
       </div>
     </div>

@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
-import { type NoticeInput, isSupabaseBackend, workApi } from "@/lib/api/work-api";
+import { isSupabaseBackend, workApi, type NoticeInput } from "@/lib/api/work-api";
 import { emitWorkplaceChanged } from "@/lib/constants/dom-event";
 import { toast } from "@/lib/toast";
 import type { BranchRole, Notice } from "@/types/work";
@@ -122,7 +122,9 @@ export function WorkplaceNoticeEditor({
         setLoading(false);
         return;
       }
-      const roleByEmployeeId = new Map(members.map((member) => [member.employeeId, member.role] as const));
+      const roleByEmployeeId = new Map(
+        members.map((member) => [member.employeeId, member.role] as const),
+      );
       const allowed = canEditNotice(found, actorEmployeeId, actorRole, roleByEmployeeId);
       setTargetNotice(found);
       setCanEditTarget(allowed);
@@ -330,9 +332,6 @@ export function WorkplaceNoticeEditor({
         <div className="flex items-center justify-between">
           <p className="text-xs text-zinc-500 dark:text-neutral-400">
             이미지 첨부 {attachments.length}/10
-            {isSupabaseBackend ? (
-              <span className="ml-1 text-[10px] opacity-80">· 저장 시 Supabase Storage 업로드</span>
-            ) : null}
           </p>
           <label className="inline-flex cursor-pointer items-center gap-1 rounded-md border border-zinc-200/90 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-white/20 dark:bg-white/5 dark:text-neutral-200 dark:hover:bg-white/10">
             <ImagePlus className="h-3.5 w-3.5" />

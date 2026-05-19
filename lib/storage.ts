@@ -3,6 +3,7 @@
 import { branchMemberName, readStoredBranchName } from "@/lib/branch-display-name";
 import { DEFAULT_MEMBER_COLOR } from "@/lib/constants/color";
 import { DEFAULT_EVENT_COLOR } from "@/lib/constants/event";
+import { normalizeBirthDateInput } from "@/lib/profile/birth-date";
 import { isToday } from "@/lib/time";
 import type {
   Branch,
@@ -144,24 +145,6 @@ export function updateEmployeeAvatar(phone: string, avatarUrl: string | null): E
     saveSession(updated);
   }
   return updated;
-}
-
-function normalizeBirthDateInput(value: string | null | undefined): string | null {
-  if (value === null || value === undefined) {
-    return null;
-  }
-  const trimmed = value.trim();
-  if (trimmed === "") {
-    return null;
-  }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    return null;
-  }
-  const parsed = new Date(`${trimmed}T12:00:00`);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-  return trimmed;
 }
 
 export function updateEmployeeProfile(

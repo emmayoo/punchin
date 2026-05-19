@@ -14,6 +14,10 @@ import { MyPageProfileSection } from "@/components/mypage/mypage-profile-section
 import { ThemeSunMoonToggle } from "@/components/theme/theme-sun-moon-toggle";
 import { DashboardData, workApi } from "@/lib/api/work-api";
 import { assertValidImageFile } from "@/lib/media/validate-image";
+import {
+  birthDateValidationMessage,
+  validateBirthDateInput,
+} from "@/lib/profile/birth-date";
 import { toast } from "@/lib/toast";
 import type { Branch, BranchMembership } from "@/types/work";
 
@@ -102,22 +106,10 @@ export function MyPageClient() {
       return;
     }
     const birthTrimmed = birthDate.trim();
-    if (birthTrimmed !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(birthTrimmed)) {
-      toast.error("생년월일 형식이 올바르지 않습니다.");
+    const birthError = validateBirthDateInput(birthTrimmed);
+    if (birthError) {
+      toast.error(birthDateValidationMessage(birthError));
       return;
-    }
-    if (birthTrimmed !== "") {
-      const parsed = new Date(`${birthTrimmed}T12:00:00`);
-      if (Number.isNaN(parsed.getTime())) {
-        toast.error("생년월일을 확인해 주세요.");
-        return;
-      }
-      const todayEnd = new Date();
-      todayEnd.setHours(23, 59, 59, 999);
-      if (parsed > todayEnd) {
-        toast.error("미래 날짜는 선택할 수 없습니다.");
-        return;
-      }
     }
     setBusy(true);
     try {

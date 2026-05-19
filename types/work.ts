@@ -14,6 +14,16 @@ export type Employee = {
   displayNameConfirmedAt?: string | null;
 };
 
+/** 지점 스케줄·캘린더 생일 등에 쓰는 직원 요약 */
+export type SchedulePersonRecord = {
+  id: string;
+  name: string;
+  nickname: string | null;
+  employeePhone: string;
+  color: string;
+  birthDate?: string | null;
+};
+
 export type Branch = {
   id: string;
   profileImageUrl?: string | null;

@@ -4,22 +4,21 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useDashboardData } from "@/components/dashboard/use-dashboard-data";
 import { DetailPageShell } from "@/components/layout/detail-page-shell";
+import { HistoryDayEventsPanel } from "@/components/history/history-day-events-panel";
 import {
   HistoryDayPunchCreateModal,
   HistoryDayPunchEditModal,
 } from "@/components/history/history-day-punch-modal";
+import { useDayCalendarEvents } from "@/components/history/use-day-calendar-events";
 import {
   canManageBranchStaff,
   resolveWorkplaceBranchAccess,
 } from "@/components/workplace/settings/workplace-settings-access";
 import { workApi, type SchedulePersonRecord } from "@/lib/api/work-api";
-import {
-  isBirthdayCalendarEvent,
-  mergeCalendarEventsWithBirthdays,
-} from "@/lib/calendar/birthday-events";
+import { isBirthdayCalendarEvent } from "@/lib/calendar/events";
 import { DEFAULT_EVENT_COLOR } from "@/lib/constants/event";
 import { emitWorkplaceChanged } from "@/lib/constants/dom-event";
-import { durationHours, formatHours, formatWorkRecordDateTime } from "@/lib/time";
+import { durationHours, formatHours, formatWorkRecordDateTime, isSameCalendarDate } from "@/lib/time";
 import { toast } from "@/lib/toast";
 import type { SchedulePerson } from "@/components/schedule/schedule-types";
 import type { CalendarEvent, PunchRecord } from "@/types/work";
@@ -27,12 +26,6 @@ import type { CalendarEvent, PunchRecord } from "@/types/work";
 type HistoryDayDetailClientProps = {
   date: string;
 };
-
-function isSameDate(dateKey: string, iso: string): boolean {
-  const d = new Date(iso);
-  const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  return key === dateKey;
-}
 
 export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
   const { data: dashData, loading: dashLoading, refresh: refreshDashboard } = useDashboardData({
@@ -108,27 +101,15 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
   );
 
   const dayPunches = useMemo(
-    () => punches.filter((record) => isSameDate(date, record.checkedInAt)),
+    () => punches.filter((record) => isSameCalendarDate(date, record.checkedInAt)),
     [punches, date],
   );
-  const dayEvents = useMemo(() => {
-    const year = Number(date.slice(0, 4));
-    const merged = mergeCalendarEventsWithBirthdays(
-      events,
-      branchPeople,
-      Number.isFinite(year) ? year : new Date().getFullYear(),
-      currentBranchId,
-    );
-    return merged.filter((event) => event.date === date);
-  }, [events, branchPeople, date, currentBranchId]);
 
-  const manualDayEvents = useMemo(
-    () => dayEvents.filter((event) => !isBirthdayCalendarEvent(event)),
-    [dayEvents],
-  );
-  const birthdayDayEvents = useMemo(
-    () => dayEvents.filter((event) => isBirthdayCalendarEvent(event)),
-    [dayEvents],
+  const { manual: manualDayEvents, birthdays: birthdayDayEvents } = useDayCalendarEvents(
+    events,
+    branchPeople,
+    date,
+    currentBranchId,
   );
 
   const handleCreate = async () => {
@@ -263,74 +244,15 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
       aria-label={`${date} 일자 상세`}
       loading={pageLoading}
     >
-      <section className="rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-medium text-zinc-900 dark:text-white">이벤트</h2>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCreate}
-              disabled={busy}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-300/90 text-lg text-zinc-800 disabled:opacity-60 dark:border-white/20 dark:text-neutral-100"
-              aria-label="이벤트 추가"
-            >
-              +
-            </button>
-          </div>
-        </div>
-        {birthdayDayEvents.length > 0 ? (
-          <ul className="mt-2 space-y-1.5">
-            {birthdayDayEvents.map((event) => (
-              <li
-                key={event.id}
-                className="flex items-center gap-2 rounded-lg border border-zinc-200/80 bg-white/80 px-2.5 py-2 text-sm dark:border-white/10 dark:bg-neutral-900/60"
-              >
-                <span
-                  className="h-2.5 w-2.5 shrink-0 rounded-full border border-black/5 dark:border-white/10"
-                  style={{ backgroundColor: event.color }}
-                  aria-hidden
-                />
-                <span className="font-medium text-zinc-800 dark:text-neutral-100">{event.title}</span>
-                <span className="ml-auto text-[11px] text-zinc-500 dark:text-neutral-500">생일</span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {manualDayEvents.length === 0 && birthdayDayEvents.length === 0 ? (
-          <p className="mt-2 text-sm text-zinc-600 dark:text-neutral-400">
-            등록된 이벤트가 없습니다.
-          </p>
-        ) : manualDayEvents.length > 0 ? (
-          <ul className={birthdayDayEvents.length > 0 ? "mt-3 space-y-2" : "mt-2 space-y-2"}>
-            {manualDayEvents.map((event) => (
-              <li key={event.id}>
-                <div className="flex items-center gap-2">
-                  <input
-                    defaultValue={event.title}
-                    onChange={(item) => handleTitleChange(event.id, item.target.value)}
-                    className="flex-1 rounded-lg border border-zinc-200/90 bg-white px-2 py-1 text-sm outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-neutral-900 dark:focus:border-white/35"
-                    style={{ color: event.color }}
-                  />
-                  <input
-                    type="color"
-                    defaultValue={event.color || DEFAULT_EVENT_COLOR}
-                    onChange={(item) => handleColorChange(event.id, item.target.value)}
-                    className="h-8 w-10 rounded border border-zinc-200/90 bg-white p-1 dark:border-white/10 dark:bg-neutral-900"
-                    aria-label="이벤트 색상"
-                  />
-                  <button
-                    onClick={() => void handleDelete(event.id)}
-                    disabled={busy}
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-rose-300/30 text-sm text-rose-200 disabled:opacity-60"
-                    aria-label="이벤트 삭제"
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </section>
+      <HistoryDayEventsPanel
+        birthdays={birthdayDayEvents}
+        manualEvents={manualDayEvents}
+        busy={busy}
+        onCreate={() => void handleCreate()}
+        onDelete={(eventId) => void handleDelete(eventId)}
+        onTitleChange={handleTitleChange}
+        onColorChange={handleColorChange}
+      />
 
       <section className="space-y-2">
         <div className="flex items-center justify-between gap-2">

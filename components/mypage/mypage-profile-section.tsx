@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRef, useState, type ReactNode } from "react";
 
 import { ActionSheetItem, BottomActionSheet } from "@/components/overlay/bottom-action-sheet";
+import { birthDateInputMax } from "@/lib/profile/birth-date";
 import { formatPhoneNumber } from "@/lib/phone";
 import type { Employee } from "@/types/work";
 
@@ -24,14 +25,6 @@ type MyPageProfileSectionProps = {
 
 const fieldClassName =
   "w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-400 dark:border-white/10 dark:bg-neutral-950 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-white/35";
-
-function birthDateInputMax(): string {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = String(now.getMonth() + 1).padStart(2, "0");
-  const d = String(now.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
 
 function ProfileField({
   icon: Icon,

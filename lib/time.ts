@@ -54,6 +54,19 @@ export function formatTime(value: string): string {
   return formatKoTimeHourMinuteSecond(value);
 }
 
+export function toDateKey(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+export function yearFromDateKey(dateKey: string): number {
+  const year = Number(dateKey.slice(0, 4));
+  return Number.isFinite(year) ? year : new Date().getFullYear();
+}
+
+export function isSameCalendarDate(dateKey: string, iso: string): boolean {
+  return toDateKey(new Date(iso)) === dateKey;
+}
+
 export function isToday(value: string): boolean {
   const now = new Date();
   const target = new Date(value);

@@ -14,6 +14,7 @@ create table public.employees (
   name text not null,
   -- Supabase Storage 공개 URL (`media` 버킷 `avatars/{직원id}/…`).
   avatar_url text null,
+  birth_date date null,
   current_branch_id uuid null,
   deleted_at timestamptz null,
   -- 본인이 표시 이름을 확정한 시각. NULL이면 매장/앱이 넣은 임시 이름만 있는 상태(확인 UI 대상). 형식은 고정하지 않음.
@@ -30,8 +31,6 @@ create index employees_deleted_at_idx
   on public.employees (deleted_at)
   where deleted_at is null;
 
--- avatar_url 은 위 create table 에 포함됨. 예전에 만든 DB만 컬럼이 없을 수 있어 idempotent 보강.
-alter table public.employees add column if not exists avatar_url text null;
 
 -- ---------------------------------------------------------------------------
 -- 지점 (soft delete)

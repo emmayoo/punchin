@@ -146,6 +146,58 @@ export function updateEmployeeAvatar(phone: string, avatarUrl: string | null): E
   return updated;
 }
 
+function normalizeBirthDateInput(value: string | null | undefined): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (trimmed === "") {
+    return null;
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return null;
+  }
+  const parsed = new Date(`${trimmed}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+  return trimmed;
+}
+
+export function updateEmployeeProfile(
+  phone: string,
+  payload: { name: string; birthDate: string | null },
+): Employee | null {
+  const employees = getEmployees();
+  const target = employees.find((employee) => employee.phone === phone);
+  if (!target) {
+    return null;
+  }
+  const updated: Employee = {
+    ...target,
+    name: payload.name.trim(),
+    birthDate: normalizeBirthDateInput(payload.birthDate),
+    displayNameConfirmedAt: new Date().toISOString(),
+  };
+  write(
+    EMPLOYEE_KEY,
+    employees.map((employee) => (employee.phone === phone ? updated : employee)),
+  );
+  const session = getSession();
+  if (session?.phone === phone) {
+    saveSession(updated);
+  }
+  const punches = getPunches();
+  const syncedPunches = punches.map((record) => {
+    if (record.employeePhone !== phone || record.checkedOutAt !== null) {
+      return record;
+    }
+    return { ...record, employeeName: updated.name };
+  });
+  write(PUNCH_KEY, syncedPunches);
+  return updated;
+}
+
 export function updateEmployeeName(phone: string, name: string): Employee | null {
   const employees = getEmployees();
   const target = employees.find((employee) => employee.phone === phone);

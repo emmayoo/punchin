@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
+import { canEditNotice } from "@/components/workplace/workplace-notice-access";
 import { isSupabaseBackend, workApi, type NoticeInput } from "@/lib/api/work-api";
 import { emitWorkplaceChanged } from "@/lib/constants/dom-event";
 import { toast } from "@/lib/toast";
@@ -22,28 +23,6 @@ type WorkplaceNoticeEditorProps = {
 type AttachmentDraft =
   | { kind: "remote"; url: string }
   | { kind: "local"; file: File; previewUrl: string };
-
-function canEditNotice(
-  notice: Notice,
-  actorEmployeeId: string | null,
-  actorRole: BranchRole | "creator" | null,
-  roleByEmployeeId: ReadonlyMap<string, BranchRole>,
-): boolean {
-  if (!actorEmployeeId) {
-    return false;
-  }
-  if (notice.authorEmployeeId === actorEmployeeId) {
-    return true;
-  }
-  const authorRole = roleByEmployeeId.get(notice.authorEmployeeId) ?? null;
-  if (actorRole === "creator" || actorRole === "owner") {
-    return authorRole === "manager" || authorRole === "staff" || authorRole === null;
-  }
-  if (actorRole === "manager") {
-    return authorRole === "staff" || authorRole === null;
-  }
-  return false;
-}
 
 function readAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {

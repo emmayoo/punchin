@@ -80,7 +80,6 @@ export function WorkplaceNoticesSection({ branchId }: WorkplaceNoticesSectionPro
                           {notice.isPinned ? (
                             <span className="mr-1 inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
                               <Pin className="h-3.5 w-3.5" />
-                              중요
                             </span>
                           ) : null}
                           {notice.title}

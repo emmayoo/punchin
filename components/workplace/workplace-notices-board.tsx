@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { canEditNotice } from "@/components/workplace/workplace-notice-access";
 import { workApi } from "@/lib/api/work-api";
 import { formatKoDateTimeFull } from "@/lib/date-format";
 import type { BranchRole, Notice } from "@/types/work";
@@ -15,28 +16,6 @@ type WorkplaceNoticesBoardProps = {
   actorEmployeeId: string | null;
   actorRole: BranchRole | "creator" | null;
 };
-
-function canEditNotice(
-  notice: Notice,
-  actorEmployeeId: string | null,
-  actorRole: BranchRole | "creator" | null,
-  roleByEmployeeId: ReadonlyMap<string, BranchRole>,
-): boolean {
-  if (!actorEmployeeId) {
-    return false;
-  }
-  if (notice.authorEmployeeId === actorEmployeeId) {
-    return true;
-  }
-  const authorRole = roleByEmployeeId.get(notice.authorEmployeeId) ?? null;
-  if (actorRole === "creator" || actorRole === "owner") {
-    return authorRole === "manager" || authorRole === "staff" || authorRole === null;
-  }
-  if (actorRole === "manager") {
-    return authorRole === "staff" || authorRole === null;
-  }
-  return false;
-}
 
 export function WorkplaceNoticesBoard({
   branchId,
@@ -153,7 +132,6 @@ export function WorkplaceNoticesBoard({
                       {notice.isPinned ? (
                         <span className="mr-1 inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
                           <Pin className="h-3.5 w-3.5" />
-                          중요
                         </span>
                       ) : null}
                       {notice.title}

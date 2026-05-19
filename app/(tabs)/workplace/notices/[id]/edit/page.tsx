@@ -23,7 +23,11 @@ export default function WorkplaceNoticeEditPage() {
   const actorRole = access?.isLegacyCreator ? "creator" : (access?.membershipRole ?? null);
 
   return (
-    <DetailPageShell backHref="/workplace/notices" title="공지 수정" loading={loading || !data}>
+    <DetailPageShell
+      backHref={`/workplace/notices/${params.id}`}
+      title="공지 수정"
+      loading={loading || !data}
+    >
       {() =>
         data ? (
           <WorkplaceNoticeEditor

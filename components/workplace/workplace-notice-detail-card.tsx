@@ -249,7 +249,7 @@ export function WorkplaceNoticeDetailCard({
                 width={1200}
                 height={720}
                 unoptimized
-                className="aspect-[4/3] w-full object-cover sm:aspect-video"
+                className="aspect-4/3 w-full object-cover sm:aspect-video"
               />
               {imageCount > 1 ? (
                 <>

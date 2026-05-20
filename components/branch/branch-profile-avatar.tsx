@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 
+import { shouldUnoptimizeNextImage } from "@/lib/media/next-image";
+
 type BranchProfileAvatarProps = {
   name: string;
   profileImageUrl?: string | null;
@@ -22,10 +24,6 @@ export function BranchProfileAvatar({
   const letterClass =
     sizePx <= 24 ? "text-[10px]" : sizePx <= 36 ? "text-xs" : "text-sm";
 
-  const unoptimized = Boolean(
-    url?.startsWith("data:") || url?.startsWith("blob:") || url?.includes("/storage/"),
-  );
-
   return (
     <div
       className={`relative shrink-0 overflow-hidden rounded-full border border-zinc-200/90 bg-zinc-100 dark:border-white/15 dark:bg-neutral-900 ${className}`}
@@ -38,7 +36,7 @@ export function BranchProfileAvatar({
           fill
           sizes={`${sizePx}px`}
           className="object-cover"
-          unoptimized={unoptimized}
+          unoptimized={shouldUnoptimizeNextImage(url)}
         />
       ) : (
         <div

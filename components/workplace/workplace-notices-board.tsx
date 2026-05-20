@@ -8,6 +8,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { canEditNotice } from "@/components/workplace/workplace-notice-access";
 import { workApi } from "@/lib/api/work-api";
 import { formatKoDateTimeFull } from "@/lib/date-format";
+import { shouldUnoptimizeNextImage } from "@/lib/media/next-image";
 import type { BranchRole, Notice } from "@/types/work";
 
 type WorkplaceNoticesBoardProps = {
@@ -178,7 +179,8 @@ export function WorkplaceNoticesBoard({
                         alt={`첨부 이미지 ${slideIndex + 1}`}
                         width={1200}
                         height={720}
-                        unoptimized
+                        sizes="(max-width: 768px) 100vw, 48rem"
+                        unoptimized={shouldUnoptimizeNextImage(currentImage.imageUrl)}
                         className="h-44 w-full object-cover"
                       />
                       {imageCount > 1 ? (

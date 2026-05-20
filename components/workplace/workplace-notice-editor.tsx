@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import { canEditNotice } from "@/components/workplace/workplace-notice-access";
 import { isSupabaseBackend, workApi, type NoticeInput } from "@/lib/api/work-api";
 import { emitWorkplaceChanged } from "@/lib/constants/dom-event";
+import { shouldUnoptimizeNextImage } from "@/lib/media/next-image";
 import { toast } from "@/lib/toast";
 import type { BranchRole, Notice } from "@/types/work";
 
@@ -340,9 +341,8 @@ export function WorkplaceNoticeEditor({
                     alt=""
                     width={64}
                     height={64}
-                    unoptimized={
-                      draft.kind === "local" || src.startsWith("data:") || src.includes("/storage/")
-                    }
+                    sizes="64px"
+                    unoptimized={shouldUnoptimizeNextImage(src)}
                     className="h-16 w-16 rounded-md object-cover"
                   />
                   <button

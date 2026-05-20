@@ -10,6 +10,7 @@ import { canEditNotice, isNoticeAuthor } from "@/components/workplace/workplace-
 import { workApi, type NoticeInput } from "@/lib/api/work-api";
 import { emitWorkplaceChanged } from "@/lib/constants/dom-event";
 import { formatKoDateTimeClip } from "@/lib/date-format";
+import { shouldUnoptimizeNextImage } from "@/lib/media/next-image";
 import { toast } from "@/lib/toast";
 import type { BranchRole, Notice } from "@/types/work";
 
@@ -248,7 +249,8 @@ export function WorkplaceNoticeDetailCard({
                 alt={`첨부 이미지 ${slideIndex + 1}`}
                 width={1200}
                 height={720}
-                unoptimized
+                sizes="(max-width: 768px) 100vw, 48rem"
+                unoptimized={shouldUnoptimizeNextImage(currentImage.imageUrl)}
                 className="aspect-4/3 w-full object-cover sm:aspect-video"
               />
               {imageCount > 1 ? (

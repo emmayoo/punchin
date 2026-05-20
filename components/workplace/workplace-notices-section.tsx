@@ -9,6 +9,7 @@ import { WorkplaceSectionCard } from "@/components/workplace/workplace-section-c
 import { WorkplaceSectionLink } from "@/components/workplace/workplace-section-link";
 import { workApi } from "@/lib/api/work-api";
 import { formatKoDateTimeFull } from "@/lib/date-format";
+import { shouldUnoptimizeNextImage } from "@/lib/media/next-image";
 import { startOfWeek } from "@/lib/time";
 import type { Notice } from "@/types/work";
 
@@ -98,7 +99,8 @@ export function WorkplaceNoticesSection({ branchId }: WorkplaceNoticesSectionPro
                             alt="공지 썸네일"
                             width={56}
                             height={56}
-                            unoptimized
+                            sizes="56px"
+                            unoptimized={shouldUnoptimizeNextImage(notice.attachments[0].imageUrl)}
                             className="h-full w-full object-cover"
                           />
                           {notice.attachments.length > 1 ? (

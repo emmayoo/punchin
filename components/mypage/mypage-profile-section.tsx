@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRef, useState, type ReactNode } from "react";
 
 import { ActionSheetItem, BottomActionSheet } from "@/components/overlay/bottom-action-sheet";
+import { shouldUnoptimizeNextImage } from "@/lib/media/next-image";
 import { birthDateInputMax } from "@/lib/profile/birth-date";
 import { formatPhoneNumber } from "@/lib/phone";
 import type { Employee } from "@/types/work";
@@ -106,10 +107,7 @@ export function MyPageProfileSection({
                     fill
                     sizes="96px"
                     className="object-cover"
-                    unoptimized={Boolean(
-                      pendingAvatarPreviewUrl?.startsWith("blob:") ||
-                      session.avatarUrl?.startsWith("data:"),
-                    )}
+                    unoptimized={shouldUnoptimizeNextImage(avatarSrc)}
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-2xl font-semibold text-zinc-500 dark:text-neutral-400">

@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef } from "react";
 
 import { formatPhoneNumber } from "@/lib/phone";
+import { shouldUnoptimizeNextImage } from "@/lib/media/next-image";
 import { assertValidImageFile } from "@/lib/media/validate-image";
 import { toast } from "@/lib/toast";
 
@@ -135,11 +136,7 @@ export function FirstProfileForm({
                 fill
                 sizes="96px"
                 className="object-cover"
-                unoptimized={
-                  displaySrc.startsWith("blob:") ||
-                  displaySrc.startsWith("data:") ||
-                  displaySrc.includes("/storage/")
-                }
+                unoptimized={shouldUnoptimizeNextImage(displaySrc)}
               />
             ) : (
               <span className="text-xs font-medium text-zinc-500 dark:text-neutral-400">

@@ -1,11 +1,49 @@
 "use client";
 
+import { Home, Settings, Store } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { workApi } from "@/lib/api/work-api";
 import { onWorkplaceChanged } from "@/lib/constants/dom-event";
+
+type TabItem = {
+  href: string;
+  label: string;
+  icon: typeof Home;
+  match: (pathname: string) => boolean;
+};
+
+const TABS: TabItem[] = [
+  {
+    href: "/",
+    label: "홈",
+    icon: Home,
+    match: (pathname) => pathname === "/",
+  },
+  {
+    href: "/workplace",
+    label: "지점",
+    icon: Store,
+    match: (pathname) => pathname === "/workplace" || pathname.startsWith("/workplace/"),
+  },
+  {
+    href: "/mypage",
+    label: "설정",
+    icon: Settings,
+    match: (pathname) => pathname === "/mypage" || pathname.startsWith("/mypage/"),
+  },
+];
+
+function tabLinkClass(active: boolean): string {
+  return [
+    "flex min-h-[52px] w-full flex-col items-center justify-center gap-1 rounded-xl px-2 py-1.5 transition-colors touch-manipulation",
+    active
+      ? "text-zinc-900 dark:text-white"
+      : "text-zinc-500 hover:text-zinc-800 dark:text-neutral-500 dark:hover:text-neutral-200",
+  ].join(" ");
+}
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -21,74 +59,71 @@ export function BottomNav() {
         : undefined;
       setWorkplaceLabel(currentBranch?.name ?? "지점");
     } catch {
-      // 네트워크/세션 만료 등으로 실패해도 하단 네비는 기본 상태로 둔다.
       setWorkplaceLabel("지점");
     }
   }, []);
 
-  const requestLoadCurrentBranch = useCallback(() => {
-    if (debounceTimerRef.current !== null) {
-      window.clearTimeout(debounceTimerRef.current);
-    }
-    debounceTimerRef.current = window.setTimeout(() => {
-      void loadCurrentBranch();
-    }, 120);
-  }, [loadCurrentBranch]);
+  const requestLoadCurrentBranch = useCallback(
+    (options?: { immediate?: boolean }) => {
+      if (debounceTimerRef.current !== null) {
+        window.clearTimeout(debounceTimerRef.current);
+      }
+      const delay = options?.immediate ? 0 : 120;
+      debounceTimerRef.current = window.setTimeout(() => {
+        void loadCurrentBranch();
+      }, delay);
+    },
+    [loadCurrentBranch],
+  );
 
   useEffect(() => {
-    (async () => {
-      await loadCurrentBranch();
-    })();
-    const off = onWorkplaceChanged(requestLoadCurrentBranch);
+    requestLoadCurrentBranch({ immediate: true });
+    const off = onWorkplaceChanged(() => requestLoadCurrentBranch());
     return () => {
       off();
       if (debounceTimerRef.current !== null) {
         window.clearTimeout(debounceTimerRef.current);
       }
     };
-  }, [loadCurrentBranch, requestLoadCurrentBranch]);
+  }, [requestLoadCurrentBranch]);
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 border-t border-(--app-border) bg-(--app-backdrop) backdrop-blur-sm supports-backdrop-filter:bg-(--app-nav)">
-      <ul className="mx-auto grid w-full max-w-3xl grid-cols-3 px-3 py-3">
-        <li key="/">
-          <Link
-            href="/"
-            className={`flex items-center justify-center rounded-xl px-3 py-2 text-sm transition-colors ${
-              pathname === "/"
-                ? "bg-zinc-900 text-white dark:bg-white dark:text-neutral-950"
-                : "text-zinc-600 hover:text-zinc-900 dark:text-neutral-400 dark:hover:text-white"
-            }`}
-          >
-            홈
-          </Link>
-        </li>
-        <li key="/workplace">
-          <Link
-            href="/workplace"
-            className={`flex w-full items-center justify-center gap-1 rounded-xl px-3 py-2 text-sm transition-colors ${
-              pathname === "/workplace" || pathname.startsWith("/workplace/")
-                ? "bg-zinc-900 text-white dark:bg-white dark:text-neutral-950"
-                : "text-zinc-600 hover:text-zinc-900 dark:text-neutral-400 dark:hover:text-white"
-            }`}
-            aria-label="현재 선택 지점"
-          >
-            <span className="truncate">{workplaceLabel}</span>
-          </Link>
-        </li>
-        <li key="/mypage">
-          <Link
-            href="/mypage"
-            className={`flex items-center justify-center rounded-xl px-3 py-2 text-sm transition-colors ${
-              pathname === "/mypage" || pathname.startsWith("/mypage/")
-                ? "bg-zinc-900 text-white dark:bg-white dark:text-neutral-950"
-                : "text-zinc-600 hover:text-zinc-900 dark:text-neutral-400 dark:hover:text-white"
-            }`}
-          >
-            설정
-          </Link>
-        </li>
+    <nav
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-(--app-border) bg-(--app-backdrop) backdrop-blur-sm supports-backdrop-filter:bg-(--app-nav)"
+      style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+      aria-label="주요 메뉴"
+    >
+      <ul className="mx-auto grid w-full max-w-3xl grid-cols-3 px-2 pt-1.5 pb-1">
+        {TABS.map((tab) => {
+          const active = tab.match(pathname);
+          const Icon = tab.icon;
+          const isWorkplace = tab.href === "/workplace";
+          const label = isWorkplace ? workplaceLabel : tab.label;
+
+          return (
+            <li key={tab.href}>
+              <Link
+                href={tab.href}
+                className={tabLinkClass(active)}
+                aria-label={isWorkplace ? `지점: ${workplaceLabel}` : tab.label}
+                aria-current={active ? "page" : undefined}
+              >
+                <Icon className="h-5 w-5 shrink-0" strokeWidth={active ? 2.25 : 1.75} aria-hidden />
+                <span
+                  className={`max-w-26 truncate text-center leading-tight ${
+                    isWorkplace ? "text-[10px] font-medium" : "text-[11px] font-medium"
+                  } ${active ? "font-semibold" : ""}`}
+                >
+                  {label}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </nav>
   );
 }
+
+/** TabsShell 본문 하단 여백 — nav 높이 + iPhone safe area */
+export const BOTTOM_NAV_CLEARANCE = "calc(3.75rem + env(safe-area-inset-bottom, 0px))";

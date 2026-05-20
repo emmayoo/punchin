@@ -1,6 +1,6 @@
 "use client";
 
-import { ImagePlus, Pin } from "lucide-react";
+import { ImagePlus, Pin, X } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -329,7 +329,7 @@ export function WorkplaceNoticeEditor({
           </label>
         </div>
         {attachments.length > 0 ? (
-          <div className="flex gap-2 overflow-x-auto">
+          <div className="flex gap-2 overflow-x-auto px-1 pt-1.5 pb-0.5">
             {attachments.map((draft, idx) => {
               const src = draft.kind === "remote" ? draft.url : draft.previewUrl;
               const key =
@@ -348,9 +348,10 @@ export function WorkplaceNoticeEditor({
                   <button
                     type="button"
                     onClick={() => removeAttachment(idx)}
-                    className="absolute -right-1 -top-1 rounded-full bg-black/70 px-1 text-[10px] text-white"
+                    aria-label="첨부 이미지 제거"
+                    className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/70 text-white"
                   >
-                    x
+                    <X className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
                   </button>
                 </div>
               );

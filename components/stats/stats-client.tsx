@@ -11,6 +11,8 @@ import { RangeWorkStatRow, workApi, type RangeWorkDetail } from "@/lib/api/work-
 import { DEFAULT_MEMBER_COLOR } from "@/lib/constants/color";
 import { onWorkplaceChanged } from "@/lib/constants/dom-event";
 import { formatKoDateTimeClip, formatKoDateTimeFull } from "@/lib/date-format";
+import { DateFieldInput } from "@/components/forms/date-field-input";
+import { formStackClass } from "@/lib/forms/input-classes";
 import { normalizePhone } from "@/lib/phone";
 
 function dateKey(date: Date): string {
@@ -47,9 +49,6 @@ function formatStatsDetailRangeLabel(detail: RangeWorkDetail): ReactNode {
     </>
   );
 }
-
-const inputClass =
-  "w-full rounded-xl border border-zinc-200/90 bg-white px-2 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 dark:border-white/15 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-white/35";
 
 export function StatsClient() {
   const { data: dashData } = useDashboardData({ pollMs: null });
@@ -113,25 +112,23 @@ export function StatsClient() {
     <DetailPageShell backHref="/workplace" title="통계" loading={loading}>
       {() => (
         <>
-          <section className="grid grid-cols-[1fr_1fr] gap-3 rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
-            <label className="space-y-1">
-              <span className="text-xs text-zinc-600 dark:text-neutral-400">시작일</span>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(event) => setStartDate(event.target.value)}
-                className={inputClass}
-              />
-            </label>
-            <label className="space-y-1">
-              <span className="text-xs text-zinc-600 dark:text-neutral-400">종료일</span>
-              <input
-                type="date"
-                value={endDate}
-                onChange={(event) => setEndDate(event.target.value)}
-                className={inputClass}
-              />
-            </label>
+          <section className="overflow-hidden rounded-2xl border border-zinc-200/90 bg-zinc-50/90 p-4 dark:border-white/10 dark:bg-white/5">
+            <div className={formStackClass}>
+              <label className="flex min-w-0 flex-col gap-1">
+                <span className="text-xs text-zinc-600 dark:text-neutral-400">시작일</span>
+                <DateFieldInput
+                  value={startDate}
+                  onChange={(event) => setStartDate(event.target.value)}
+                />
+              </label>
+              <label className="flex min-w-0 flex-col gap-1">
+                <span className="text-xs text-zinc-600 dark:text-neutral-400">종료일</span>
+                <DateFieldInput
+                  value={endDate}
+                  onChange={(event) => setEndDate(event.target.value)}
+                />
+              </label>
+            </div>
           </section>
 
           <section className="space-y-2">

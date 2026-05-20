@@ -6,13 +6,12 @@ import { FullscreenModal } from "@/components/overlay/fullscreen-modal";
 import { ScheduleTimePicker24 } from "@/components/schedule/schedule-time-picker-24";
 import { StaffPersonSelect } from "@/components/staff/staff-person-select";
 import { buildWorkDayTimeIso, dateKey } from "@/components/schedule/schedule-utils";
+import { DateFieldInput } from "@/components/forms/date-field-input";
+import { formStackClass } from "@/lib/forms/input-classes";
 import { branchMemberToStaffOption } from "@/lib/staff-person-options";
 import { formatDateTime, formatWorkRecordDateTime } from "@/lib/time";
 import { toast } from "@/lib/toast";
 import type { BranchMemberListItem, PunchRecord } from "@/types/work";
-
-const fieldClass =
-  "w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2 text-sm text-zinc-900 outline-none focus:border-zinc-400 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400 dark:border-white/15 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-white/35 dark:disabled:bg-neutral-800 dark:disabled:text-neutral-500";
 
 const timeInputClass =
   "min-h-10 w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2 font-mono text-sm tabular-nums text-zinc-900 outline-none focus:border-zinc-400 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400 dark:border-white/15 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-white/35 dark:disabled:bg-neutral-800 dark:disabled:text-neutral-500";
@@ -155,45 +154,45 @@ export function PunchEditModal({
           </label>
         ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="space-y-1">
+        <div className={formStackClass}>
+          <label className="flex min-w-0 flex-col gap-1">
             <span className="text-xs text-zinc-600 dark:text-neutral-400">시작 날짜</span>
-            <input
-              type="date"
+            <DateFieldInput
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               disabled={saving || !canEdit}
-              className={fieldClass}
             />
           </label>
-          <label className="space-y-1">
+          <label className="flex min-w-0 flex-col gap-1">
             <span className="text-xs text-zinc-600 dark:text-neutral-400">시작 시간</span>
-            <ScheduleTimePicker24
-              value={startTime}
-              onChange={setStartTime}
-              disabled={saving || !canEdit}
-              inputClassName={timeInputClass}
-            />
+            <div className="min-w-0 overflow-hidden">
+              <ScheduleTimePicker24
+                value={startTime}
+                onChange={setStartTime}
+                disabled={saving || !canEdit}
+                inputClassName={timeInputClass}
+              />
+            </div>
           </label>
 
-          <label className="space-y-1">
+          <label className="flex min-w-0 flex-col gap-1">
             <span className="text-xs text-zinc-600 dark:text-neutral-400">종료 날짜</span>
-            <input
-              type="date"
+            <DateFieldInput
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               disabled={saving || deleting || !canEdit || ongoing}
-              className={fieldClass}
             />
           </label>
-          <label className="space-y-1">
+          <label className="flex min-w-0 flex-col gap-1">
             <span className="text-xs text-zinc-600 dark:text-neutral-400">종료 시간</span>
-            <ScheduleTimePicker24
-              value={endTime}
-              onChange={setEndTime}
-              disabled={saving || deleting || !canEdit || ongoing}
-              inputClassName={timeInputClass}
-            />
+            <div className="min-w-0 overflow-hidden">
+              <ScheduleTimePicker24
+                value={endTime}
+                onChange={setEndTime}
+                disabled={saving || deleting || !canEdit || ongoing}
+                inputClassName={timeInputClass}
+              />
+            </div>
           </label>
         </div>
 

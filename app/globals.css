@@ -34,3 +34,13 @@ body {
 * {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* iOS Safari: 날짜 표시에 맞는 너비 (한 줄 폼에서 카드 전체 너비로 늘어나지 않음) */
+input[type="date"].app-date-input {
+  display: block;
+  width: auto;
+  min-width: 10.5rem;
+  max-width: min(100%, 20rem);
+  box-sizing: border-box;
+  -webkit-min-logical-width: 0;
+}

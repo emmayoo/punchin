@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
-import { BottomNav } from "@/components/layout/bottom-nav";
+import { BOTTOM_NAV_CLEARANCE, BottomNav } from "@/components/layout/bottom-nav";
 import { ProfileNameGate } from "@/components/layout/profile-name-gate";
 import { workApi } from "@/lib/api/work-api";
 
@@ -62,8 +62,9 @@ export function TabsShell({ children }: TabsShellProps) {
         className={
           hideTab
             ? "mx-auto flex w-full max-w-3xl flex-1 flex-col px-5 pb-6 pt-6 sm:px-8"
-            : "mx-auto flex w-full max-w-3xl flex-1 flex-col px-5 pb-20 pt-6 sm:px-8"
+            : "mx-auto flex w-full max-w-3xl flex-1 flex-col px-5 pt-6 sm:px-8"
         }
+        style={hideTab ? undefined : { paddingBottom: BOTTOM_NAV_CLEARANCE }}
       >
         {showContent ? children : null}
       </div>

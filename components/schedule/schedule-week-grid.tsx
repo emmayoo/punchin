@@ -95,6 +95,8 @@ export function ScheduleWeekGrid({
   scheduleGridRef,
   onShiftClick,
 }: ScheduleWeekGridProps) {
+  const todayKey = dateKey(new Date());
+
   return (
     <div className="overflow-x-auto border border-zinc-200/90 dark:border-white/10">
       <div className="relative min-w-[760px]">
@@ -103,17 +105,21 @@ export function ScheduleWeekGrid({
             <div className="px-1.5 py-1.5 text-[11px] text-zinc-600 dark:text-neutral-300">
               시간
             </div>
-            {weekDays.map((day) => (
-              <div
-                key={day.label}
-                className="border-l border-zinc-200/90 px-1.5 py-1.5 text-[11px] text-zinc-800 dark:border-white/10 dark:text-neutral-200"
-              >
-                {day.label}
-                <span className="ml-1 text-zinc-500 dark:text-neutral-500">
-                  {formatKoMonthDayNumeric(day.date)}
-                </span>
-              </div>
-            ))}
+            {weekDays.map((day) => {
+              const isToday = dateKey(day.date) === todayKey;
+              return (
+                <div
+                  key={day.label}
+                  className="border-l border-zinc-200/90 px-1.5 py-1.5 text-[11px] text-zinc-800 dark:border-white/10 dark:text-neutral-200"
+                >
+                  {day.label}
+                  <span className="ml-1 text-zinc-500 dark:text-neutral-500">
+                    {formatKoMonthDayNumeric(day.date)}
+                    {isToday && <span className="ml-1 text-rose-500 font-bold">TODAY</span>}
+                  </span>
+                </div>
+              );
+            })}
           </div>
 
           <div className="grid grid-cols-[3rem_repeat(7,minmax(0,1fr))]">

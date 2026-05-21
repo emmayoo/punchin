@@ -1,5 +1,6 @@
 "use client";
 
+import type { RangeWorkStatRow } from "@/lib/api/work-api-types";
 import { branchMemberName, readStoredBranchName } from "@/lib/branch-display-name";
 import { DEFAULT_MEMBER_COLOR } from "@/lib/constants/color";
 import {
@@ -7,7 +8,6 @@ import {
   getBranchMemberships,
   getBranchMembershipsForBranch,
   getEmployees,
-  getPunches,
 } from "@/lib/storage";
 import type {
   Branch,
@@ -21,16 +21,9 @@ import type {
   PunchRecord,
   Shift,
 } from "@/types/work";
-import type { RangeWorkStatRow } from "@/lib/api/work-api-types";
 
 export function normalizePhone(input: string): string {
   return input.replace(/\D/g, "").slice(0, 11);
-}
-
-export function wait(ms = 80): Promise<void> {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
 }
 
 export function mapBranchRole(roleStr: string): BranchRole {
@@ -191,7 +184,9 @@ export function mapBranchMemberListRow(row: Record<string, unknown>): BranchMemb
   };
 }
 
-export function mapBranchFormerMemberListRow(row: Record<string, unknown>): BranchFormerMemberListItem {
+export function mapBranchFormerMemberListRow(
+  row: Record<string, unknown>,
+): BranchFormerMemberListItem {
   const active = mapBranchMemberListRow(row);
   const endedAt = row.ended_at;
   return {
@@ -203,7 +198,10 @@ export function mapBranchFormerMemberListRow(row: Record<string, unknown>): Bran
   };
 }
 
-export function localResolveActorBranchRole(branchId: string, actorPhone: string): ActorBranchAccess {
+export function localResolveActorBranchRole(
+  branchId: string,
+  actorPhone: string,
+): ActorBranchAccess {
   const normalized = normalizePhone(actorPhone);
   const branch = getBranches().find((item) => item.id === branchId) ?? null;
   const actor = getEmployees().find((item) => item.phone === normalized) ?? null;

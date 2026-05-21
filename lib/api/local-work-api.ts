@@ -14,7 +14,6 @@ import {
   localIsOwnerAccess,
   localResolveActorBranchRole,
   normalizePhone,
-  wait,
 } from "@/lib/api/work-api-shared";
 import type {
   BranchSetupInput,
@@ -93,20 +92,17 @@ export class LocalWorkApi {
 
   async init(): Promise<void> {
     initStorage();
-    await wait();
   }
 
   async login(phone: string): Promise<Employee> {
     const employee = upsertEmployee(normalizePhone(phone));
     saveSession(employee);
-    await wait();
     return employee;
   }
 
   async getEmployeeByPhone(phone: string): Promise<Employee | null> {
     const normalized = normalizePhone(phone);
     const employee = getEmployees().find((item) => item.phone === normalized) ?? null;
-    await wait();
     return employee;
   }
 
@@ -117,17 +113,14 @@ export class LocalWorkApi {
     const employee = confirmed ?? getEmployees().find((item) => item.phone === normalized)!;
     const updated = setEmployeeCurrentBranch(employee.phone, null) ?? employee;
     saveSession(updated);
-    await wait();
     return updated;
   }
 
   async getBranches(): Promise<Branch[]> {
-    await wait();
     return getBranches();
   }
 
   async getMyBranchMemberships(phone: string): Promise<BranchMembership[]> {
-    await wait();
     return getBranchMembershipsByPhone(normalizePhone(phone));
   }
 
@@ -135,7 +128,6 @@ export class LocalWorkApi {
     const normalized = normalizePhone(phone);
     const employee = getEmployees().find((item) => item.phone === normalized) ?? null;
     if (!employee) {
-      await wait();
       return null;
     }
     const memberships = getBranchMembershipsByPhone(normalized);
@@ -148,11 +140,9 @@ export class LocalWorkApi {
           (branch.createdByPhone === normalized || branch.createdByEmployeeId === employee.id),
       );
     if (!hasAccess) {
-      await wait();
       return null;
     }
     const updated = setEmployeeCurrentBranch(normalized, branchId);
-    await wait();
     return updated;
   }
 
@@ -160,7 +150,6 @@ export class LocalWorkApi {
     const normalized = normalizePhone(phone);
     const employee = getEmployees().find((item) => item.phone === normalized) ?? null;
     if (!employee) {
-      await wait();
       return null;
     }
 
@@ -188,11 +177,9 @@ export class LocalWorkApi {
 
     const updated = setEmployeeCurrentBranch(normalized, targetBranchId);
     if (!updated) {
-      await wait();
       return null;
     }
     saveSession(updated);
-    await wait();
     return updated;
   }
 
@@ -200,11 +187,9 @@ export class LocalWorkApi {
     const normalized = normalizePhone(phone);
     const employee = getEmployees().find((item) => item.phone === normalized) ?? null;
     if (!employee) {
-      await wait();
       return false;
     }
     addBranchMembership(branchId, normalized, "staff");
-    await wait();
     return true;
   }
 
@@ -212,12 +197,10 @@ export class LocalWorkApi {
     const normalized = normalizePhone(phone);
     const employee = getEmployees().find((item) => item.phone === normalized) ?? null;
     if (!employee) {
-      await wait();
       return false;
     }
     const removed = removeBranchMembership(branchId, normalized);
     if (!removed) {
-      await wait();
       return false;
     }
     const remain = getBranchMembershipsByPhone(normalized);
@@ -228,7 +211,6 @@ export class LocalWorkApi {
         saveSession(updated);
       }
     }
-    await wait();
     return true;
   }
 
@@ -255,7 +237,6 @@ export class LocalWorkApi {
       storePhone: patch.storePhone ?? null,
       ...(profileImageUrl !== undefined ? { profileImageUrl } : {}),
     });
-    await wait();
     return updated;
   }
 
@@ -276,7 +257,6 @@ export class LocalWorkApi {
         saveSession(updated);
       }
     }
-    await wait();
     return ok;
   }
 
@@ -285,7 +265,6 @@ export class LocalWorkApi {
     const actor = getEmployees().find((item) => item.phone === normalized) ?? null;
     const branch = getBranches().find((item) => item.id === branchId) ?? null;
     if (!actor || !branch) {
-      await wait();
       return [];
     }
     const hasAccess =
@@ -293,7 +272,6 @@ export class LocalWorkApi {
       branch.createdByPhone === normalized ||
       branch.createdByEmployeeId === actor.id;
     if (!hasAccess) {
-      await wait();
       return [];
     }
     const rows = getBranchMembershipsForBranch(branchId);
@@ -314,7 +292,6 @@ export class LocalWorkApi {
         joinedAt: membership.startedAt ?? null,
       };
     });
-    await wait();
     return items;
   }
 
@@ -326,7 +303,6 @@ export class LocalWorkApi {
     const actor = getEmployees().find((item) => item.phone === normalized) ?? null;
     const branch = getBranches().find((item) => item.id === branchId) ?? null;
     if (!actor || !branch) {
-      await wait();
       return [];
     }
     const hasAccess =
@@ -334,10 +310,8 @@ export class LocalWorkApi {
       branch.createdByPhone === normalized ||
       branch.createdByEmployeeId === actor.id;
     if (!hasAccess) {
-      await wait();
       return [];
     }
-    await wait();
     return [];
   }
 
@@ -349,17 +323,14 @@ export class LocalWorkApi {
   ): Promise<boolean> {
     const access = localResolveActorBranchRole(branchId, actorPhone);
     if (!localIsManagerUp(access)) {
-      await wait();
       return false;
     }
     const rows = getBranchMembershipsForBranch(branchId);
     const target = rows.find((membership) => membership.id === membershipId);
     if (!target) {
-      await wait();
       return false;
     }
     const updated = persistBranchMemberJoinedAt(membershipId, joinedAtIso);
-    await wait();
     return Boolean(updated);
   }
 
@@ -371,36 +342,29 @@ export class LocalWorkApi {
   ): Promise<boolean> {
     const access = localResolveActorBranchRole(branchId, actorPhone);
     if (!localIsManagerUp(access)) {
-      await wait();
       return false;
     }
     const rows = getBranchMembershipsForBranch(branchId);
     const target = rows.find((membership) => membership.id === membershipId);
     if (!target) {
-      await wait();
       return false;
     }
     const actorIsOwner = localIsOwnerAccess(access);
     if (!actorIsOwner) {
       if (target.role !== "staff") {
-        await wait();
         return false;
       }
       if (newRole === "owner") {
-        await wait();
         return false;
       }
     }
     if (newRole === "owner" && !actorIsOwner) {
-      await wait();
       return false;
     }
     if (target.role === "owner" && newRole !== "owner" && localCountOwners(branchId) <= 1) {
-      await wait();
       return false;
     }
     const updated = updateBranchMembershipRole(membershipId, newRole);
-    await wait();
     return Boolean(updated);
   }
 
@@ -412,17 +376,14 @@ export class LocalWorkApi {
   ): Promise<boolean> {
     const access = localResolveActorBranchRole(branchId, actorPhone);
     if (!localIsManagerUp(access)) {
-      await wait();
       return false;
     }
     const rows = getBranchMembershipsForBranch(branchId);
     const target = rows.find((membership) => membership.id === membershipId);
     if (!target) {
-      await wait();
       return false;
     }
     const updated = updateBranchMembershipColor(membershipId, nextColor);
-    await wait();
     return Boolean(updated);
   }
 
@@ -434,13 +395,11 @@ export class LocalWorkApi {
   ): Promise<boolean> {
     const access = localResolveActorBranchRole(branchId, actorPhone);
     if (!localIsManagerUp(access)) {
-      await wait();
       return false;
     }
     const rows = getBranchMembershipsForBranch(branchId);
     const target = rows.find((membership) => membership.id === membershipId);
     if (!target) {
-      await wait();
       return false;
     }
     const emp =
@@ -452,7 +411,6 @@ export class LocalWorkApi {
       name,
       emp?.name ?? BRANCH_MEMBER_FALLBACK,
     );
-    await wait();
     return Boolean(updated);
   }
 
@@ -463,30 +421,24 @@ export class LocalWorkApi {
   ): Promise<boolean> {
     const access = localResolveActorBranchRole(branchId, actorPhone);
     if (!localIsManagerUp(access)) {
-      await wait();
       return false;
     }
     const rows = getBranchMembershipsForBranch(branchId);
     const target = rows.find((membership) => membership.id === membershipId);
     if (!target) {
-      await wait();
       return false;
     }
     const actorIsOwner = localIsOwnerAccess(access);
     if (!actorIsOwner && target.role !== "staff") {
-      await wait();
       return false;
     }
     if (target.role === "owner" && !actorIsOwner) {
-      await wait();
       return false;
     }
     if (target.role === "owner" && localCountOwners(branchId) <= 1) {
-      await wait();
       return false;
     }
     const ok = removeBranchMembership(branchId, target.employeePhone);
-    await wait();
     return ok;
   }
 
@@ -498,24 +450,20 @@ export class LocalWorkApi {
   ): Promise<boolean> {
     const access = localResolveActorBranchRole(branchId, actorPhone);
     if (!localIsManagerUp(access)) {
-      await wait();
       return false;
     }
     const normalized = normalizePhone(inviteePhone);
     if (!normalized) {
-      await wait();
       return false;
     }
     const displayTrimmed = displayName?.trim() ?? "";
     upsertEmployee(normalized, displayTrimmed === "" ? undefined : displayTrimmed);
     addBranchMembership(branchId, normalized, "staff", displayTrimmed || null);
-    await wait();
     return true;
   }
 
   async updateMyProfileName(phone: string, name: string): Promise<Employee | null> {
     const updated = updateEmployeeName(normalizePhone(phone), name);
-    await wait();
     return updated;
   }
 
@@ -524,7 +472,6 @@ export class LocalWorkApi {
     payload: { name: string; birthDate: string | null },
   ): Promise<Employee | null> {
     const updated = updateEmployeeProfile(normalizePhone(phone), payload);
-    await wait();
     return updated;
   }
 
@@ -532,18 +479,15 @@ export class LocalWorkApi {
     const normalized = normalizePhone(phone);
     const url = file === null ? null : await fileToDataUrl(file);
     const updated = updateEmployeeAvatar(normalized, url);
-    await wait();
     return updated;
   }
 
   async uploadNoticeAttachmentFiles(): Promise<string[]> {
-    await wait();
     return [];
   }
 
   async logout(): Promise<void> {
     clearSession();
-    await wait();
   }
 
   async checkInCurrent(session: Employee, branchId: string | null): Promise<void> {
@@ -554,12 +498,10 @@ export class LocalWorkApi {
             (item) => item.employeeId === session.id || item.employeePhone === session.phone,
           ) ?? null);
     checkIn({ ...session, name: membership?.name ?? session.name }, branchId);
-    await wait();
   }
 
   async checkOutCurrent(recordId: string): Promise<void> {
     checkOut(recordId);
-    await wait();
   }
 
   async updatePunchRecord(
@@ -569,11 +511,9 @@ export class LocalWorkApi {
   ): Promise<boolean> {
     const session = getSession();
     if (!session || normalizePhone(session.phone) !== normalizePhone(actorPhone)) {
-      await wait();
       return false;
     }
     const updated = updatePunchRecordTimes(recordId, next.checkedInAt, next.checkedOutAt);
-    await wait();
     return updated !== null;
   }
 
@@ -583,37 +523,30 @@ export class LocalWorkApi {
   ): Promise<PunchRecord | null> {
     const branchId = input.branchId ?? null;
     if (!branchId) {
-      await wait();
       return null;
     }
     const access = localResolveActorBranchRole(branchId, actorPhone);
     if (!localIsManagerUp(access)) {
-      await wait();
       return null;
     }
     const created = addPunchRecord(input);
-    await wait();
     return created;
   }
 
   async deletePunchRecord(recordId: string, actorPhone: string): Promise<boolean> {
     const target = getPunches().find((record) => record.id === recordId) ?? null;
     if (!target) {
-      await wait();
       return false;
     }
     const branchId = target.branchId ?? null;
     if (!branchId) {
-      await wait();
       return false;
     }
     const access = localResolveActorBranchRole(branchId, actorPhone);
     if (!localIsManagerUp(access)) {
-      await wait();
       return false;
     }
     const ok = deletePunchRecord(recordId);
-    await wait();
     return ok;
   }
 
@@ -675,7 +608,6 @@ export class LocalWorkApi {
         return sum + durationHours(record.checkedInAt, endAt);
       }, 0);
 
-      await wait();
       return {
         session,
         branches,
@@ -704,18 +636,15 @@ export class LocalWorkApi {
   }
 
   async getHistory(): Promise<PunchRecord[]> {
-    await wait();
     return getPunches();
   }
 
   async getCalendarEvents(): Promise<CalendarEvent[]> {
-    await wait();
     return getCalendarEvents();
   }
 
   async createCalendarEvent(event: Omit<CalendarEvent, "id">): Promise<CalendarEvent> {
     const created = addCalendarEvent(event);
-    await wait();
     return created;
   }
 
@@ -724,13 +653,11 @@ export class LocalWorkApi {
     payload: Partial<Pick<CalendarEvent, "title" | "color" | "branchId">>,
   ): Promise<CalendarEvent | null> {
     const updated = updateCalendarEvent(eventId, payload);
-    await wait();
     return updated;
   }
 
   async deleteCalendarEvent(eventId: string): Promise<void> {
     deleteCalendarEvent(eventId);
-    await wait();
   }
 
   async listNotices(branchId: string): Promise<Notice[]> {
@@ -742,7 +669,6 @@ export class LocalWorkApi {
       current.push(item);
       attachByNotice.set(item.noticeId, current);
     }
-    await wait();
     return notices
       .map((notice) => ({
         ...notice,
@@ -765,7 +691,6 @@ export class LocalWorkApi {
     const actor =
       getEmployees().find((employee) => employee.phone === normalizePhone(actorPhone)) ?? null;
     if (!actor) {
-      await wait();
       return null;
     }
     const created = createNoticeLocal({
@@ -777,7 +702,6 @@ export class LocalWorkApi {
       isPinned: input.isPinned,
       attachments: input.attachments,
     });
-    await wait();
     return created;
   }
 
@@ -790,7 +714,6 @@ export class LocalWorkApi {
       getEmployees().find((employee) => employee.phone === normalizePhone(actorPhone)) ?? null;
     const target = getNotices().find((notice) => notice.id === noticeId) ?? null;
     if (!actor || !target) {
-      await wait();
       return null;
     }
     const actorAccess = localResolveActorBranchRole(target.branchId, actorPhone);
@@ -800,7 +723,6 @@ export class LocalWorkApi {
     const authorRole = authorMembership?.role ?? null;
     const isAuthor = actor.id === target.authorEmployeeId;
     if (!canEditNoticeByRole(actorAccess, authorRole, isAuthor)) {
-      await wait();
       return null;
     }
     const updated = updateNoticeLocal(noticeId, {
@@ -809,7 +731,6 @@ export class LocalWorkApi {
       isPinned: input.isPinned,
       attachments: input.attachments,
     });
-    await wait();
     return updated;
   }
 
@@ -818,7 +739,6 @@ export class LocalWorkApi {
       getEmployees().find((employee) => employee.phone === normalizePhone(actorPhone)) ?? null;
     const target = getNotices().find((notice) => notice.id === noticeId) ?? null;
     if (!actor || !target) {
-      await wait();
       return false;
     }
     const actorAccess = localResolveActorBranchRole(target.branchId, actorPhone);
@@ -828,21 +748,17 @@ export class LocalWorkApi {
     const authorRole = authorMembership?.role ?? null;
     const isAuthor = actor.id === target.authorEmployeeId;
     if (!canEditNoticeByRole(actorAccess, authorRole, isAuthor)) {
-      await wait();
       return false;
     }
     const ok = deleteNoticeLocal(noticeId);
-    await wait();
     return ok;
   }
 
   async getSchedule(): Promise<Shift[]> {
-    await wait();
     return getShifts();
   }
 
   async getSchedulePeople(): Promise<SchedulePersonRecord[]> {
-    await wait();
     const branchId = getSession()?.currentBranchId ?? null;
     if (!branchId) {
       return sortSchedulePeople(getEmployees().map(schedulePersonFromEmployee));
@@ -869,7 +785,6 @@ export class LocalWorkApi {
   }): Promise<SchedulePersonRecord> {
     const phone = normalizePhone(input.employeePhone);
     const employee = upsertEmployee(phone, input.name.trim());
-    await wait();
     const legalName = employee.name.trim() || BRANCH_MEMBER_FALLBACK;
     return {
       id: employee.id,
@@ -890,11 +805,9 @@ export class LocalWorkApi {
       getEmployees().find((item) => item.phone === normalized) ??
       null;
     if (!employee) {
-      await wait();
       return null;
     }
     const updated = updateEmployeeName(employee.phone, input.name.trim());
-    await wait();
     if (!updated) {
       return null;
     }
@@ -910,7 +823,6 @@ export class LocalWorkApi {
 
   async deleteSchedulePerson(personId: string): Promise<void> {
     // local fallback keeps legacy behavior (no employee delete API yet)
-    await wait();
     void personId;
   }
 
@@ -920,7 +832,6 @@ export class LocalWorkApi {
   async getTimelineShifts(nowIso: string, shifts: Shift[]): Promise<Shift[]> {
     void nowIso;
     const today = shifts.filter((shift) => isToday(shift.startAt));
-    await wait();
     return today;
   }
 
@@ -930,7 +841,6 @@ export class LocalWorkApi {
       ...shift,
       branchId: resolvedBranchId,
     });
-    await wait();
     return created;
   }
 
@@ -942,7 +852,6 @@ export class LocalWorkApi {
         branchId: shift.branchId ?? defaultBranchId,
       })),
     );
-    await wait();
     return ids;
   }
 
@@ -956,13 +865,11 @@ export class LocalWorkApi {
     >,
   ): Promise<Shift | null> {
     const updated = updateShift(shiftId, payload);
-    await wait();
     return updated;
   }
 
   async deleteShift(shiftId: string): Promise<void> {
     deleteShift(shiftId);
-    await wait();
   }
 
   async getWeeklyStats(): Promise<{
@@ -990,7 +897,6 @@ export class LocalWorkApi {
 
     const rows = [...map.values()].sort((a, b) => b.totalHours - a.totalHours);
     const totalHours = rows.reduce((sum, row) => sum + row.totalHours, 0);
-    await wait();
     return { rows, totalHours };
   }
 
@@ -1004,16 +910,13 @@ export class LocalWorkApi {
     const start = new Date(`${startDate}T00:00:00`);
     const end = new Date(`${endDate}T23:59:59.999`);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      await wait();
       return { rows: [], totalSeconds: 0 };
     }
     if (start.getTime() > end.getTime()) {
-      await wait();
       return { rows: [], totalSeconds: 0 };
     }
 
     const built = buildRangeWorkStatsFromPunches(getPunches(), start, end);
-    await wait();
     return { rows: built.rows, totalSeconds: built.totalSeconds };
   }
 }

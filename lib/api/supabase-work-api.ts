@@ -36,7 +36,6 @@ import {
   mapPunchRow,
   mapShiftRow,
   normalizePhone,
-  wait,
 } from "@/lib/api/work-api-shared";
 import { clearSession } from "@/lib/storage";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -67,7 +66,6 @@ export class SupabaseWorkApi {
   private dashboardInFlight: Promise<DashboardData> | null = null;
 
   async init(): Promise<void> {
-    await wait();
   }
 
   private async ensureAuthUser(): Promise<void> {
@@ -325,7 +323,6 @@ export class SupabaseWorkApi {
         } as never)
         .select("*")
         .single();
-      await wait();
       return created
         ? mapEmployeeRow(created as Record<string, unknown>)
         : { id: "", phone: normalized, name: defaultName };
@@ -337,12 +334,10 @@ export class SupabaseWorkApi {
         .eq("id", String(row.id))
         .select("*")
         .single();
-      await wait();
       return revived
         ? mapEmployeeRow(revived as Record<string, unknown>)
         : mapEmployeeRow(row as Record<string, unknown>);
     }
-    await wait();
     return mapEmployeeRow(row as Record<string, unknown>);
   }
 
@@ -354,20 +349,17 @@ export class SupabaseWorkApi {
       .eq("phone", normalized)
       .is("deleted_at", null)
       .maybeSingle();
-    await wait();
     return data ? mapEmployeeRow(data as Record<string, unknown>) : null;
   }
 
   async getBranches(): Promise<Branch[]> {
     const rows = await this.getBranchesRemote();
-    await wait();
     return rows;
   }
 
   async getMyBranchMemberships(phone: string): Promise<BranchMembership[]> {
     const normalized = normalizePhone(phone);
     const rows = await this.getBranchMembershipsByPhoneRemote(normalized);
-    await wait();
     return rows;
   }
 
@@ -375,7 +367,6 @@ export class SupabaseWorkApi {
     const normalized = normalizePhone(phone);
     const employee = await this.getEmployeeByPhone(normalized);
     if (!employee) {
-      await wait();
       return null;
     }
     const [memberships, branches] = await Promise.all([
@@ -390,7 +381,6 @@ export class SupabaseWorkApi {
           (branch.createdByPhone === normalized || branch.createdByEmployeeId === employee.id),
       );
     if (!hasAccess) {
-      await wait();
       return null;
     }
     await this.supabase
@@ -398,7 +388,6 @@ export class SupabaseWorkApi {
       .update({ current_branch_id: branchId } as never)
       .eq("phone", normalized);
     const updated = await this.getEmployeeByPhone(normalized);
-    await wait();
     return updated;
   }
 
@@ -406,7 +395,6 @@ export class SupabaseWorkApi {
     const normalized = normalizePhone(phone);
     const employee = await this.getEmployeeByPhone(normalized);
     if (!employee) {
-      await wait();
       return null;
     }
 
@@ -445,7 +433,6 @@ export class SupabaseWorkApi {
       const createdBranchRow = createdBranch as Record<string, unknown> | null;
       branchId = createdBranchRow ? String(createdBranchRow.id) : "";
       if (!branchId) {
-        await wait();
         return employee;
       }
       let profileUrl: string | null = null;
@@ -480,7 +467,6 @@ export class SupabaseWorkApi {
       .update({ current_branch_id: branchId } as never)
       .eq("phone", normalized);
     const updated = await this.getEmployeeByPhone(normalized);
-    await wait();
     return updated;
   }
 
@@ -488,7 +474,6 @@ export class SupabaseWorkApi {
     const normalized = normalizePhone(phone);
     const employee = await this.getEmployeeByPhone(normalized);
     if (!employee) {
-      await wait();
       return false;
     }
     const { data: existingMembership } = await this.supabase
@@ -500,7 +485,6 @@ export class SupabaseWorkApi {
       .is("deleted_at", null)
       .maybeSingle();
     if (existingMembership) {
-      await wait();
       return true;
     }
     const { error } = await this.supabase.from("branch_memberships").insert({
@@ -509,7 +493,6 @@ export class SupabaseWorkApi {
       role: "staff",
       nickname: branchMemberName(null, employee.name),
     } as never);
-    await wait();
     return !error;
   }
 
@@ -521,7 +504,6 @@ export class SupabaseWorkApi {
   ): Promise<boolean> {
     const access = await this.resolveActorBranchAccess(branchId, actorPhone);
     if (!this.supabaseIsManagerUp(access)) {
-      await wait();
       return false;
     }
     const { data: targetRaw } = await this.supabase
@@ -533,7 +515,6 @@ export class SupabaseWorkApi {
       .is("deleted_at", null)
       .maybeSingle();
     if (!targetRaw) {
-      await wait();
       return false;
     }
     const { error } = await this.supabase
@@ -541,7 +522,6 @@ export class SupabaseWorkApi {
       .update({ color: nextColor } as never)
       .eq("id", membershipId)
       .eq("branch_id", branchId);
-    await wait();
     return !error;
   }
 
@@ -553,7 +533,6 @@ export class SupabaseWorkApi {
   ): Promise<boolean> {
     const access = await this.resolveActorBranchAccess(branchId, actorPhone);
     if (!this.supabaseIsManagerUp(access)) {
-      await wait();
       return false;
     }
     const { data: targetRaw } = await this.supabase
@@ -565,7 +544,6 @@ export class SupabaseWorkApi {
       .is("deleted_at", null)
       .maybeSingle();
     if (!targetRaw) {
-      await wait();
       return false;
     }
     const emp = (targetRaw as Record<string, unknown>).employee as
@@ -579,7 +557,6 @@ export class SupabaseWorkApi {
       .update({ nickname: stored } as never)
       .eq("id", membershipId)
       .eq("branch_id", branchId);
-    await wait();
     return !error;
   }
 
@@ -591,7 +568,6 @@ export class SupabaseWorkApi {
   ): Promise<boolean> {
     const access = await this.resolveActorBranchAccess(branchId, actorPhone);
     if (!this.supabaseIsManagerUp(access)) {
-      await wait();
       return false;
     }
     const { data: targetRaw } = await this.supabase
@@ -603,7 +579,6 @@ export class SupabaseWorkApi {
       .is("deleted_at", null)
       .maybeSingle();
     if (!targetRaw) {
-      await wait();
       return false;
     }
     const { error } = await this.supabase
@@ -611,7 +586,6 @@ export class SupabaseWorkApi {
       .update({ started_at: joinedAtIso } as never)
       .eq("id", membershipId)
       .eq("branch_id", branchId);
-    await wait();
     return !error;
   }
 
@@ -619,7 +593,6 @@ export class SupabaseWorkApi {
     const normalized = normalizePhone(phone);
     const employee = await this.getEmployeeByPhone(normalized);
     if (!employee) {
-      await wait();
       return false;
     }
     const { data: membership } = await this.supabase
@@ -631,7 +604,6 @@ export class SupabaseWorkApi {
       .is("deleted_at", null)
       .maybeSingle();
     if (!membership) {
-      await wait();
       return false;
     }
     const { error } = await this.supabase
@@ -639,7 +611,6 @@ export class SupabaseWorkApi {
       .update({ ended_at: new Date().toISOString() } as never)
       .eq("id", String((membership as Record<string, unknown>).id));
     if (error) {
-      await wait();
       return false;
     }
     if (employee.currentBranchId === branchId) {
@@ -650,7 +621,6 @@ export class SupabaseWorkApi {
         .update({ current_branch_id: nextDefault } as never)
         .eq("phone", normalized);
     }
-    await wait();
     return true;
   }
 
@@ -668,12 +638,10 @@ export class SupabaseWorkApi {
     const normalized = normalizePhone(actorPhone);
     const actor = await this.getEmployeeByPhone(normalized);
     if (!actor?.id) {
-      await wait();
       return null;
     }
     const access = await this.resolveActorBranchAccess(branchId, actorPhone);
     if (!this.supabaseIsOwnerAccess(access)) {
-      await wait();
       return null;
     }
     const { data: branchRow } = await this.supabase
@@ -683,7 +651,6 @@ export class SupabaseWorkApi {
       .is("deleted_at", null)
       .maybeSingle();
     if (!branchRow) {
-      await wait();
       return null;
     }
     const addressTrimmed = patch.address?.trim() ?? "";
@@ -711,7 +678,6 @@ export class SupabaseWorkApi {
       .eq("id", branchId)
       .select("*")
       .maybeSingle();
-    await wait();
     return updated ? mapBranchRow(updated as Record<string, unknown>, actor.phone) : null;
   }
 
@@ -719,7 +685,6 @@ export class SupabaseWorkApi {
     const normalized = normalizePhone(actorPhone);
     const access = await this.resolveActorBranchAccess(branchId, actorPhone);
     if (!this.supabaseIsOwnerAccess(access)) {
-      await wait();
       return false;
     }
     const { data: branch } = await this.supabase
@@ -729,7 +694,6 @@ export class SupabaseWorkApi {
       .is("deleted_at", null)
       .maybeSingle();
     if (!branch) {
-      await wait();
       return false;
     }
     await this.supabase
@@ -760,14 +724,12 @@ export class SupabaseWorkApi {
           .eq("id", actor.id);
       }
     }
-    await wait();
     return !error;
   }
 
   async listBranchMembers(branchId: string, actorPhone: string): Promise<BranchMemberListItem[]> {
     const access = await this.resolveActorBranchAccess(branchId, actorPhone);
     if (!access) {
-      await wait();
       return [];
     }
     const { data, error } = await this.supabase
@@ -780,10 +742,8 @@ export class SupabaseWorkApi {
       .is("deleted_at", null)
       .order("started_at", { ascending: true });
     if (error) {
-      await wait();
       return [];
     }
-    await wait();
     return (data ?? []).map((row) => mapBranchMemberListRow(row as Record<string, unknown>));
   }
 
@@ -793,7 +753,6 @@ export class SupabaseWorkApi {
   ): Promise<BranchFormerMemberListItem[]> {
     const access = await this.resolveActorBranchAccess(branchId, actorPhone);
     if (!access) {
-      await wait();
       return [];
     }
     const { data: activeRows } = await this.supabase
@@ -816,10 +775,8 @@ export class SupabaseWorkApi {
       .is("deleted_at", null)
       .order("ended_at", { ascending: false });
     if (error) {
-      await wait();
       return [];
     }
-    await wait();
     return (data ?? [])
       .map((row) => mapBranchFormerMemberListRow(row as Record<string, unknown>))
       .filter((row) => !activeEmployeeIds.has(row.employeeId));
@@ -833,7 +790,6 @@ export class SupabaseWorkApi {
   ): Promise<boolean> {
     const access = await this.resolveActorBranchAccess(branchId, actorPhone);
     if (!this.supabaseIsManagerUp(access)) {
-      await wait();
       return false;
     }
     const { data: targetRaw } = await this.supabase
@@ -845,23 +801,19 @@ export class SupabaseWorkApi {
       .is("deleted_at", null)
       .maybeSingle();
     if (!targetRaw) {
-      await wait();
       return false;
     }
     const targetRole = mapBranchRole(String((targetRaw as Record<string, unknown>).role));
     const actorIsOwner = this.supabaseIsOwnerAccess(access);
     if (!actorIsOwner) {
       if (targetRole !== "staff") {
-        await wait();
         return false;
       }
       if (newRole === "owner") {
-        await wait();
         return false;
       }
     }
     if (newRole === "owner" && !actorIsOwner) {
-      await wait();
       return false;
     }
     const { error } = await this.supabase
@@ -869,7 +821,6 @@ export class SupabaseWorkApi {
       .update({ role: newRole } as never)
       .eq("id", membershipId)
       .eq("branch_id", branchId);
-    await wait();
     return !error;
   }
 
@@ -880,7 +831,6 @@ export class SupabaseWorkApi {
   ): Promise<boolean> {
     const access = await this.resolveActorBranchAccess(branchId, actorPhone);
     if (!this.supabaseIsManagerUp(access)) {
-      await wait();
       return false;
     }
     const { data: targetRaw } = await this.supabase
@@ -892,17 +842,14 @@ export class SupabaseWorkApi {
       .is("deleted_at", null)
       .maybeSingle();
     if (!targetRaw) {
-      await wait();
       return false;
     }
     const targetRole = mapBranchRole(String((targetRaw as Record<string, unknown>).role));
     const actorIsOwner = this.supabaseIsOwnerAccess(access);
     if (!actorIsOwner && targetRole !== "staff") {
-      await wait();
       return false;
     }
     if (targetRole === "owner" && !actorIsOwner) {
-      await wait();
       return false;
     }
     const targetEmployeeId = String((targetRaw as Record<string, unknown>).employee_id);
@@ -912,7 +859,6 @@ export class SupabaseWorkApi {
       .eq("id", membershipId)
       .eq("branch_id", branchId);
     if (error) {
-      await wait();
       return false;
     }
     const { data: empRow } = await this.supabase
@@ -930,7 +876,6 @@ export class SupabaseWorkApi {
         .update({ current_branch_id: nextDefault } as never)
         .eq("id", targetEmployeeId);
     }
-    await wait();
     return true;
   }
 
@@ -942,12 +887,10 @@ export class SupabaseWorkApi {
   ): Promise<boolean> {
     const access = await this.resolveActorBranchAccess(branchId, actorPhone);
     if (!this.supabaseIsManagerUp(access)) {
-      await wait();
       return false;
     }
     const normalized = normalizePhone(inviteePhone);
     if (!normalized) {
-      await wait();
       return false;
     }
     const displayTrimmed = displayName?.trim() ?? "";
@@ -964,7 +907,6 @@ export class SupabaseWorkApi {
         .select("*")
         .single();
       if (insertError || !inserted) {
-        await wait();
         return false;
       }
       invitee = mapEmployeeRow(inserted as Record<string, unknown>);
@@ -978,7 +920,6 @@ export class SupabaseWorkApi {
       .is("deleted_at", null)
       .maybeSingle();
     if (existingMembership) {
-      await wait();
       return true;
     }
     const { data: latestEnded } = await this.supabase
@@ -1004,7 +945,6 @@ export class SupabaseWorkApi {
         } as never)
         .eq("id", String((latestEnded as Record<string, unknown>).id))
         .eq("branch_id", branchId);
-      await wait();
       return !reviveError;
     }
     const { error } = await this.supabase.from("branch_memberships").insert({
@@ -1013,7 +953,6 @@ export class SupabaseWorkApi {
       role: "staff",
       nickname: branchName,
     } as never);
-    await wait();
     return !error;
   }
 
@@ -1033,7 +972,6 @@ export class SupabaseWorkApi {
       .eq("id", employee.id);
 
     const synced = await this.getEmployeeByPhone(normalized);
-    await wait();
     return synced ?? employee;
   }
 
@@ -1051,10 +989,8 @@ export class SupabaseWorkApi {
       .maybeSingle();
     if (data) {
       const updated = mapEmployeeRow(data as Record<string, unknown>);
-      await wait();
       return updated;
     }
-    await wait();
     return null;
   }
 
@@ -1078,10 +1014,8 @@ export class SupabaseWorkApi {
       .maybeSingle();
     if (data) {
       const updated = mapEmployeeRow(data as Record<string, unknown>);
-      await wait();
       return updated;
     }
-    await wait();
     return null;
   }
 
@@ -1089,7 +1023,6 @@ export class SupabaseWorkApi {
     const normalized = normalizePhone(phone);
     const employee = await this.getEmployeeByPhone(normalized);
     if (!employee?.id) {
-      await wait();
       return null;
     }
     await this.ensureAuthUser();
@@ -1108,7 +1041,6 @@ export class SupabaseWorkApi {
       .is("deleted_at", null)
       .select("*")
       .maybeSingle();
-    await wait();
     if (error) {
       throw new Error(error.message);
     }
@@ -1133,14 +1065,12 @@ export class SupabaseWorkApi {
       const path = newNoticeAttachmentStoragePath(noticeId, file);
       urls.push(await uploadPublicImage(path, file));
     }
-    await wait();
     return urls;
   }
 
   async logout(): Promise<void> {
     await this.supabase.auth.signOut();
     clearSession();
-    await wait();
   }
 
   async checkInCurrent(session: Employee, branchId: string | null): Promise<void> {
@@ -1171,7 +1101,6 @@ export class SupabaseWorkApi {
         throw new Error(`출근 처리 실패: ${error.message}`);
       }
     }
-    await wait();
   }
 
   async checkOutCurrent(recordId: string): Promise<void> {
@@ -1183,7 +1112,6 @@ export class SupabaseWorkApi {
     if (error) {
       throw new Error(`퇴근 처리 실패: ${error.message}`);
     }
-    await wait();
   }
 
   async updatePunchRecord(
@@ -1194,7 +1122,6 @@ export class SupabaseWorkApi {
     await this.ensureAuthUser();
     const session = await this.getSessionEmployeeFromAuth();
     if (!session || normalizePhone(session.phone) !== normalizePhone(actorPhone)) {
-      await wait();
       return false;
     }
 
@@ -1205,17 +1132,14 @@ export class SupabaseWorkApi {
       .is("deleted_at", null)
       .maybeSingle();
     if (!target) {
-      await wait();
       return false;
     }
     const branchId = String((target as Record<string, unknown>).branch_id ?? "");
     if (!branchId) {
-      await wait();
       return false;
     }
     const access = await this.resolveActorBranchAccess(branchId, actorPhone);
     if (!this.supabaseIsManagerUp(access)) {
-      await wait();
       return false;
     }
 
@@ -1229,7 +1153,6 @@ export class SupabaseWorkApi {
       .is("deleted_at", null)
       .select("id")
       .maybeSingle();
-    await wait();
     return !error && data !== null;
   }
 
@@ -1239,12 +1162,10 @@ export class SupabaseWorkApi {
   ): Promise<PunchRecord | null> {
     const branchId = input.branchId ?? null;
     if (!branchId) {
-      await wait();
       return null;
     }
     const access = await this.resolveActorBranchAccess(branchId, actorPhone);
     if (!this.supabaseIsManagerUp(access)) {
-      await wait();
       return null;
     }
     const { data, error } = await this.supabase
@@ -1258,7 +1179,6 @@ export class SupabaseWorkApi {
       } as never)
       .select("*, employee:employees!employee_id(phone)")
       .maybeSingle();
-    await wait();
     return !error && data ? mapPunchRow(data as Record<string, unknown>) : null;
   }
 
@@ -1271,17 +1191,14 @@ export class SupabaseWorkApi {
       .is("deleted_at", null)
       .maybeSingle();
     if (!target) {
-      await wait();
       return false;
     }
     const branchId = String((target as Record<string, unknown>).branch_id ?? "");
     if (!branchId) {
-      await wait();
       return false;
     }
     const access = await this.resolveActorBranchAccess(branchId, actorPhone);
     if (!this.supabaseIsManagerUp(access)) {
-      await wait();
       return false;
     }
     const { error } = await this.supabase
@@ -1289,7 +1206,6 @@ export class SupabaseWorkApi {
       .update({ deleted_at: new Date().toISOString() } as never)
       .eq("id", recordId)
       .is("deleted_at", null);
-    await wait();
     return !error;
   }
 
@@ -1359,7 +1275,6 @@ export class SupabaseWorkApi {
         return sum + durationHours(record.checkedInAt, endAt);
       }, 0);
 
-      await wait();
       return {
         session,
         branches,
@@ -1389,13 +1304,11 @@ export class SupabaseWorkApi {
 
   async getHistory(): Promise<PunchRecord[]> {
     const punches = await this.getPunchesRemote();
-    await wait();
     return punches;
   }
 
   async getCalendarEvents(): Promise<CalendarEvent[]> {
     const events = await this.getCalendarEventsRemote();
-    await wait();
     return events;
   }
 
@@ -1410,7 +1323,6 @@ export class SupabaseWorkApi {
       } as never)
       .select("*")
       .single();
-    await wait();
     return data ? mapEventRow(data as Record<string, unknown>) : { id: "", ...event };
   }
 
@@ -1428,7 +1340,6 @@ export class SupabaseWorkApi {
       .eq("id", eventId)
       .select("*")
       .maybeSingle();
-    await wait();
     return data ? mapEventRow(data as Record<string, unknown>) : null;
   }
 
@@ -1437,7 +1348,6 @@ export class SupabaseWorkApi {
       .from("calendar_events")
       .update({ deleted_at: new Date().toISOString() } as never)
       .eq("id", eventId);
-    await wait();
   }
 
   async listNotices(branchId: string): Promise<Notice[]> {
@@ -1449,12 +1359,10 @@ export class SupabaseWorkApi {
       .order("is_pinned", { ascending: false })
       .order("created_at", { ascending: false });
     if (error) {
-      await wait();
       return [];
     }
     const notices = (data ?? []).map((row) => mapNoticeRow(row as Record<string, unknown>));
     if (notices.length === 0) {
-      await wait();
       return [];
     }
     const noticeIds = notices.map((notice) => notice.id);
@@ -1472,7 +1380,6 @@ export class SupabaseWorkApi {
       current.push(attachment);
       attachmentMap.set(attachment.noticeId, current);
     }
-    await wait();
     return notices.map((notice) => ({
       ...notice,
       attachments: attachmentMap.get(notice.id) ?? [],
@@ -1486,7 +1393,6 @@ export class SupabaseWorkApi {
   ): Promise<Notice | null> {
     const actor = await this.getEmployeeByPhone(normalizePhone(actorPhone));
     if (!actor?.id) {
-      await wait();
       return null;
     }
     const { data, error } = await this.supabase
@@ -1502,7 +1408,6 @@ export class SupabaseWorkApi {
       .select("*")
       .maybeSingle();
     if (error || !data) {
-      await wait();
       return null;
     }
     const notice = mapNoticeRow(data as Record<string, unknown>);
@@ -1518,7 +1423,6 @@ export class SupabaseWorkApi {
     const [created] = await this.listNotices(branchId).then((rows) =>
       rows.filter((n) => n.id === notice.id),
     );
-    await wait();
     return created ?? { ...notice, attachments: [] };
   }
 
@@ -1529,7 +1433,6 @@ export class SupabaseWorkApi {
   ): Promise<Notice | null> {
     const actor = await this.getEmployeeByPhone(normalizePhone(actorPhone));
     if (!actor?.id) {
-      await wait();
       return null;
     }
     const { data: noticeRow } = await this.supabase
@@ -1539,7 +1442,6 @@ export class SupabaseWorkApi {
       .is("deleted_at", null)
       .maybeSingle();
     if (!noticeRow) {
-      await wait();
       return null;
     }
     const noticeRec = noticeRow as Record<string, unknown>;
@@ -1559,7 +1461,6 @@ export class SupabaseWorkApi {
       ? mapBranchRole(String((authorMembership as Record<string, unknown>).role))
       : null;
     if (!canEditNoticeByRole(access, authorRole, isAuthor)) {
-      await wait();
       return null;
     }
     const { data, error } = await this.supabase
@@ -1575,7 +1476,6 @@ export class SupabaseWorkApi {
       .select("*")
       .maybeSingle();
     if (error || !data) {
-      await wait();
       return null;
     }
     await this.supabase
@@ -1595,14 +1495,12 @@ export class SupabaseWorkApi {
     const [updatedNotice] = await this.listNotices(branchId).then((rows) =>
       rows.filter((n) => n.id === noticeId),
     );
-    await wait();
     return updatedNotice ?? { ...mapNoticeRow(data as Record<string, unknown>), attachments: [] };
   }
 
   async deleteNotice(noticeId: string, actorPhone: string): Promise<boolean> {
     const actor = await this.getEmployeeByPhone(normalizePhone(actorPhone));
     if (!actor?.id) {
-      await wait();
       return false;
     }
     const { data: noticeRow } = await this.supabase
@@ -1612,7 +1510,6 @@ export class SupabaseWorkApi {
       .is("deleted_at", null)
       .maybeSingle();
     if (!noticeRow) {
-      await wait();
       return false;
     }
     const noticeRec = noticeRow as Record<string, unknown>;
@@ -1632,7 +1529,6 @@ export class SupabaseWorkApi {
       ? mapBranchRole(String((authorMembership as Record<string, unknown>).role))
       : null;
     if (!canEditNoticeByRole(access, authorRole, isAuthor)) {
-      await wait();
       return false;
     }
     const now = new Date().toISOString();
@@ -1646,13 +1542,11 @@ export class SupabaseWorkApi {
       .update({ deleted_at: now } as never)
       .eq("id", noticeId)
       .is("deleted_at", null);
-    await wait();
     return !error;
   }
 
   async getSchedule(): Promise<Shift[]> {
     const shifts = await this.getShiftsRemote();
-    await wait();
     return shifts;
   }
 
@@ -1666,7 +1560,6 @@ export class SupabaseWorkApi {
         .select("id,name,phone,birth_date")
         .is("deleted_at", null)
         .order("created_at", { ascending: false });
-      await wait();
       return sortSchedulePeople(
         (data ?? []).map((row) => schedulePersonFromEmployeeRow(row as Record<string, unknown>)),
       );
@@ -1680,7 +1573,6 @@ export class SupabaseWorkApi {
       .eq("branch_id", branchId)
       .is("ended_at", null)
       .is("deleted_at", null);
-    await wait();
 
     const rows: SchedulePersonRecord[] = [];
     for (const rowRaw of data ?? []) {
@@ -1702,7 +1594,6 @@ export class SupabaseWorkApi {
       phone: normalized,
       name: input.name.trim(),
     });
-    await wait();
     const legalName = employee.name.trim() || BRANCH_MEMBER_FALLBACK;
     return {
       id: employee.id,
@@ -1727,7 +1618,6 @@ export class SupabaseWorkApi {
       .eq("id", personId)
       .select("id,name,phone")
       .maybeSingle();
-    await wait();
     if (!data) {
       return null;
     }
@@ -1747,13 +1637,11 @@ export class SupabaseWorkApi {
       .from("employees")
       .update({ deleted_at: new Date().toISOString() } as never)
       .eq("id", personId);
-    await wait();
   }
 
   async getTimelineShifts(nowIso: string, shifts: Shift[]): Promise<Shift[]> {
     void nowIso;
     const today = shifts.filter((shift) => isToday(shift.startAt));
-    await wait();
     return today;
   }
 
@@ -1776,7 +1664,6 @@ export class SupabaseWorkApi {
       } as never)
       .select("*, employee:employees!employee_id(phone)")
       .single();
-    await wait();
     return data ? mapShiftRow(data as Record<string, unknown>) : { id: "", ...shift };
   }
 
@@ -1803,14 +1690,12 @@ export class SupabaseWorkApi {
       });
     }
     if (rows.length === 0) {
-      await wait();
       return [];
     }
     const { data } = await this.supabase
       .from("shifts")
       .insert(rows as never)
       .select("id");
-    await wait();
     return (data ?? []).map((row) => String((row as Record<string, unknown>).id));
   }
 
@@ -1846,7 +1731,6 @@ export class SupabaseWorkApi {
       .eq("id", shiftId)
       .select("*, employee:employees!employee_id(phone)")
       .maybeSingle();
-    await wait();
     return data ? mapShiftRow(data as Record<string, unknown>) : null;
   }
 
@@ -1855,7 +1739,6 @@ export class SupabaseWorkApi {
       .from("shifts")
       .update({ deleted_at: new Date().toISOString() } as never)
       .eq("id", shiftId);
-    await wait();
   }
 
   async getWeeklyStats(): Promise<{
@@ -1882,7 +1765,6 @@ export class SupabaseWorkApi {
     }
     const rows = [...map.values()].sort((a, b) => b.totalHours - a.totalHours);
     const totalHours = rows.reduce((sum, row) => sum + row.totalHours, 0);
-    await wait();
     return { rows, totalHours };
   }
 
@@ -1896,17 +1778,14 @@ export class SupabaseWorkApi {
     const start = new Date(`${startDate}T00:00:00`);
     const end = new Date(`${endDate}T23:59:59.999`);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      await wait();
       return { rows: [], totalSeconds: 0 };
     }
     if (start.getTime() > end.getTime()) {
-      await wait();
       return { rows: [], totalSeconds: 0 };
     }
 
     const punches = await this.getPunchesRemote();
     const built = buildRangeWorkStatsFromPunches(punches, start, end);
-    await wait();
     return { rows: built.rows, totalSeconds: built.totalSeconds };
   }
 }

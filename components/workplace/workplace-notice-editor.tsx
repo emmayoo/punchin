@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { canEditNotice } from "@/components/workplace/workplace-notice-access";
-import { isSupabaseBackend, workApi, type NoticeInput } from "@/lib/api/work-api";
+import { workApi } from "@/lib/api/work-api";
 import { emitWorkplaceChanged } from "@/lib/constants/dom-event";
 import { shouldUnoptimizeNextImage } from "@/lib/media/next-image";
 import { toast } from "@/lib/toast";
@@ -24,15 +24,6 @@ type WorkplaceNoticeEditorProps = {
 type AttachmentDraft =
   | { kind: "remote"; url: string }
   | { kind: "local"; file: File; previewUrl: string };
-
-function readAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
-}
 
 function mergeUploaded(drafts: AttachmentDraft[], uploadedLocals: string[]): string[] {
   let li = 0;
@@ -177,21 +168,7 @@ export function WorkplaceNoticeEditor({
 
     setSaving(true);
     try {
-      if (!isSupabaseBackend) {
-        const urls: string[] = [];
-        for (const d of attachments) {
-          urls.push(d.kind === "remote" ? d.url : await readAsDataUrl(d.file));
-        }
-        const noticePayload: NoticeInput = { ...payloadBase, attachments: urls };
-        const saved =
-          mode === "create"
-            ? await workApi.createNotice(branchId, noticePayload, actorPhone)
-            : await workApi.updateNotice(String(noticeId), noticePayload, actorPhone);
-        if (!saved) {
-          toast.error("공지 저장에 실패했습니다. 권한을 확인해 주세요.");
-          return;
-        }
-      } else if (mode === "create") {
+      if (mode === "create") {
         const created = await workApi.createNotice(
           branchId,
           { ...payloadBase, attachments: remoteUrls },

@@ -92,7 +92,6 @@ export function AuthClient() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      await workApi.init();
       if (!mounted) {
         return;
       }

@@ -2,14 +2,13 @@ export type Employee = {
   id: string;
   phone: string;
   name: string;
-  /** 프로필 사진 URL(Supabase 공개 URL 또는 로컬 data URL). */
+  /** 프로필 사진 URL (`media` 버킷 공개 URL). */
   avatarUrl?: string | null;
   /** 생년월일 (YYYY-MM-DD) */
   birthDate?: string | null;
   currentBranchId?: string | null;
   /**
-   * 본인 표시 이름 확정 시각(ISO). `null`이면 아직 임시·매장 입력 이름만 있는 상태(확인 필요).
-   * 필드 없음(undefined)은 로컬 구버전 행 → 확정으로 간주.
+   * 본인 표시 이름 확정 시각(ISO). `null`이면 확인 모달 대상(임시·매장 입력 이름만 있는 상태).
    */
   displayNameConfirmedAt?: string | null;
 };

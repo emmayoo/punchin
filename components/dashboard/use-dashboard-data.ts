@@ -45,7 +45,6 @@ export function useDashboardData(options?: UseDashboardDataOptions): {
     let cancelled = false;
 
     const load = async () => {
-      await workApi.init();
       if (cancelled) {
         return;
       }

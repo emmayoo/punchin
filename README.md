@@ -27,10 +27,43 @@
   - 직원별 실제 근무시간 집계 (`HH:MM:SS`)
   - 직원 행 토글 시 상세 근무 내역 노출
 
+## 환경 변수
+
+프로젝트 루트에 `.env.local`을 만들고 아래 값을 채웁니다. (예시는 `.env.example` 참고)
+
+| 변수 | 용도 |
+|------|------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase 프로젝트 URL (브라우저·앱) |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | anon(public) 키 (브라우저·앱) |
+| `SUPABASE_SERVICE_ROLE_KEY` | 서비스 롤 키 (`pnpm storage:empty` 등 스크립트용, **클라이언트에 노출 금지**) |
+
+두 `NEXT_PUBLIC_*` 값이 없으면 앱 화면 대신 Supabase 설정 안내가 표시됩니다.
+
+## Supabase DB·Storage 초기 설정
+
+스키마는 `supabase/` SQL 파일이 단일 소스입니다. Supabase 대시보드 **SQL Editor**에서 순서대로 실행합니다.
+
+| 순서 | 파일 | 설명 |
+|------|------|------|
+| 1 (선택) | `reset.sql` | `public` 테이블 전부 DROP — **기존 데이터 전부 삭제** |
+| 2 | `schema.sql` | 테이블·인덱스·RLS·트리거 |
+| 3 | `storage.sql` | `media` 버킷·Storage 정책 |
+
+Storage 파일까지 비우려면 스키마 반영 전후로:
+
+```bash
+pnpm storage:empty
+```
+
+(`.env.local`에 `SUPABASE_SERVICE_ROLE_KEY` 필요)
+
+데이터만 비우고 구조는 유지할 때는 `truncate.sql`을 사용합니다.
+
 ## 로컬 실행
 
 ```bash
 pnpm install
+cp .env.example .env.local   # 값을 채운 뒤
 pnpm dev
 ```
 
@@ -42,11 +75,11 @@ pnpm dev
 - `pnpm build` - 프로덕션 빌드
 - `pnpm start` - 빌드 결과 실행
 - `pnpm lint` - 린트 실행
+- `pnpm storage:empty` - `media` 버킷 객체 전부 삭제 (서비스 롤 키 필요)
 
-## 현재 데이터 저장 방식
+## 데이터 저장 방식
 
-현재는 브라우저 `localStorage` 기반으로 동작합니다.  
-다음 단계로 Supabase 연동 및 실제 배포 환경 전환을 계획하고 있습니다.
+앱 데이터는 **Supabase**(PostgreSQL + Auth + Storage)에 저장됩니다.
 
 ## 배포
 

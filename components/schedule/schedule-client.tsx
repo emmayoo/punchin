@@ -101,7 +101,6 @@ export function ScheduleClient() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      await workApi.init();
       const [scheduleList, peopleList] = await Promise.all([
         workApi.getSchedule(),
         workApi.getSchedulePeople(),

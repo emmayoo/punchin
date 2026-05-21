@@ -67,7 +67,6 @@ export function StatsClient() {
 
   const loadStats = useCallback(
     async (mountedRef?: { current: boolean }) => {
-      await workApi.init();
       if (startDate > endDate) {
         if (!mountedRef || mountedRef.current) {
           setRows([]);

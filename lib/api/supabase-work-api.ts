@@ -1,30 +1,14 @@
 "use client";
 
-import {
-  BRANCH_MEMBER_FALLBACK,
-  branchMemberName,
-  readStoredBranchName,
-} from "@/lib/branch-display-name";
-import { DEFAULT_MEMBER_COLOR } from "@/lib/constants/color";
-import { todayCalendarEvents } from "@/lib/calendar/events";
 import { mapEmployeeRow } from "@/lib/api/employee-map";
 import {
   schedulePersonFromEmployeeRow,
   schedulePersonFromMembershipRow,
   sortSchedulePeople,
 } from "@/lib/api/schedule-person-map";
-import type {
-  BranchSetupInput,
-  DashboardData,
-  NoticeInput,
-  RangeWorkStatRow,
-  WeeklyStatRow,
-} from "@/lib/api/work-api-types";
 import {
-  type ActorBranchAccess,
   buildRangeWorkStatsFromPunches,
   canEditNoticeByRole,
-  embeddedEmployeeFromRow,
   mapBranchFormerMemberListRow,
   mapBranchMemberListRow,
   mapBranchMembershipRow,
@@ -36,8 +20,18 @@ import {
   mapPunchRow,
   mapShiftRow,
   normalizePhone,
+  type ActorBranchAccess,
 } from "@/lib/api/work-api-shared";
-import { clearSession } from "@/lib/storage";
+import type {
+  BranchSetupInput,
+  DashboardData,
+  NoticeInput,
+  RangeWorkStatRow,
+  WeeklyStatRow,
+} from "@/lib/api/work-api-types";
+import { BRANCH_MEMBER_FALLBACK, branchMemberName } from "@/lib/branch-display-name";
+import { todayCalendarEvents } from "@/lib/calendar/events";
+import { clearSession } from "@/lib/session-storage";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import {
   newAvatarStoragePath,
@@ -64,9 +58,6 @@ import type {
 export class SupabaseWorkApi {
   private supabase = getSupabaseBrowserClient();
   private dashboardInFlight: Promise<DashboardData> | null = null;
-
-  async init(): Promise<void> {
-  }
 
   private async ensureAuthUser(): Promise<void> {
     const {
@@ -435,20 +426,11 @@ export class SupabaseWorkApi {
       if (!branchId) {
         return employee;
       }
-      let profileUrl: string | null = null;
       if (input.profileImageFile) {
         await this.ensureAuthUser();
         await this.setAuthPhone(normalized);
         const path = newBranchProfileStoragePath(branchId, input.profileImageFile);
-        profileUrl = await uploadPublicImage(path, input.profileImageFile);
-      } else if (
-        input.profileImageUrl &&
-        !input.profileImageUrl.startsWith("data:") &&
-        input.profileImageUrl.trim() !== ""
-      ) {
-        profileUrl = input.profileImageUrl.trim();
-      }
-      if (profileUrl !== null) {
+        const profileUrl = await uploadPublicImage(path, input.profileImageFile);
         await this.supabase
           .from("branches")
           .update({ profile_image_url: profileUrl } as never)

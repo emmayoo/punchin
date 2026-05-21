@@ -3,12 +3,6 @@
 import type { RangeWorkStatRow } from "@/lib/api/work-api-types";
 import { branchMemberName, readStoredBranchName } from "@/lib/branch-display-name";
 import { DEFAULT_MEMBER_COLOR } from "@/lib/constants/color";
-import {
-  getBranches,
-  getBranchMemberships,
-  getBranchMembershipsForBranch,
-  getEmployees,
-} from "@/lib/storage";
 import type {
   Branch,
   BranchFormerMemberListItem,
@@ -42,15 +36,6 @@ export function embeddedEmployeePhone(row: Record<string, unknown>): string {
     return String(raw.phone ?? "");
   }
   return "";
-}
-
-export async function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ""));
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
 }
 
 export function mapShiftRow(row: Record<string, unknown>): Shift {
@@ -198,36 +183,6 @@ export function mapBranchFormerMemberListRow(
   };
 }
 
-export function localResolveActorBranchRole(
-  branchId: string,
-  actorPhone: string,
-): ActorBranchAccess {
-  const normalized = normalizePhone(actorPhone);
-  const branch = getBranches().find((item) => item.id === branchId) ?? null;
-  const actor = getEmployees().find((item) => item.phone === normalized) ?? null;
-  if (!branch || !actor) {
-    return null;
-  }
-  const membership = getBranchMemberships().find(
-    (item) => item.branchId === branchId && item.employeePhone === normalized,
-  );
-  if (membership) {
-    return { role: membership.role };
-  }
-  if (branch.createdByPhone === normalized || branch.createdByEmployeeId === actor.id) {
-    return "creator";
-  }
-  return null;
-}
-
-export function localIsOwnerAccess(access: ActorBranchAccess): boolean {
-  return access === "creator" || access?.role === "owner";
-}
-
-export function localIsManagerUp(access: ActorBranchAccess): boolean {
-  return access === "creator" || access?.role === "owner" || access?.role === "manager";
-}
-
 export function canEditNoticeByRole(
   actorAccess: ActorBranchAccess,
   authorRole: BranchRole | null,
@@ -245,10 +200,6 @@ export function canEditNoticeByRole(
     return authorRole === "staff" || authorRole === null;
   }
   return false;
-}
-
-export function localCountOwners(branchId: string): number {
-  return getBranchMembershipsForBranch(branchId).filter((item) => item.role === "owner").length;
 }
 
 /** 조회 구간과 겹치는 근무를 집계. 퇴근 전(`checkedOutAt` 없음)은 현재 시각까지 clip 해 그리드와 맞춘다. */

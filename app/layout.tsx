@@ -4,6 +4,7 @@ import Script from "next/script";
 
 import { AppThemeProvider } from "@/components/providers/app-theme-provider";
 import { AppToaster } from "@/components/providers/app-toaster";
+import { SupabaseRequiredGate } from "@/components/providers/supabase-required-gate";
 import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 import { buildThemeInitScriptBody } from "@/lib/theme";
 
@@ -58,7 +59,7 @@ export default function RootLayout({
         <AppThemeProvider>
           <AppToaster />
           <ServiceWorkerRegister />
-          {children}
+          <SupabaseRequiredGate>{children}</SupabaseRequiredGate>
         </AppThemeProvider>
       </body>
     </html>

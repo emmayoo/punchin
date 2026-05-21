@@ -1,7 +1,7 @@
 "use client";
 
-import { LocalWorkApi } from "@/lib/api/local-work-api";
 import { SupabaseWorkApi } from "@/lib/api/supabase-work-api";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export type {
   BranchSetupInput,
@@ -13,11 +13,25 @@ export type {
   WeeklyStatRow,
 } from "@/lib/api/work-api-types";
 
-const hasSupabaseEnv =
-  Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) &&
-  Boolean(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY);
+let workApiInstance: SupabaseWorkApi | undefined;
 
-/** UI에서 업로드 플로우 분기용 (예: 공지 첨부 Storage 업로드). */
-export const isSupabaseBackend = hasSupabaseEnv;
+export function getWorkApi(): SupabaseWorkApi {
+  if (!isSupabaseConfigured()) {
+    throw new Error(
+      "Supabase 환경 변수가 설정되지 않았습니다. NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY를 확인하세요.",
+    );
+  }
+  workApiInstance ??= new SupabaseWorkApi();
+  return workApiInstance;
+}
 
-export const workApi = hasSupabaseEnv ? new SupabaseWorkApi() : new LocalWorkApi();
+export const workApi = new Proxy({} as SupabaseWorkApi, {
+  get(_target, prop) {
+    const api = getWorkApi();
+    const value = api[prop as keyof SupabaseWorkApi];
+    if (typeof value === "function") {
+      return (value as (...args: unknown[]) => unknown).bind(api);
+    }
+    return value;
+  },
+});

@@ -34,7 +34,6 @@ export function useCalendarPageData(viewYear: number) {
   useEffect(() => {
     let mounted = true;
     void (async () => {
-      await workApi.init();
       await reload();
       if (mounted) {
         setLoading(false);

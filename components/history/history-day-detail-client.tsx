@@ -58,7 +58,6 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      await workApi.init();
       await load();
       if (!mounted) {
         return;

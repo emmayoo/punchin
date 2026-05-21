@@ -48,8 +48,6 @@ export type BranchSetupInput =
       mode: "create";
       branchName: string;
       businessNumber: string;
-      /** 로컬 모드용(data URL). Supabase에서는 `profileImageFile` 권장. */
-      profileImageUrl?: string | null;
       profileImageFile?: File | null;
       address?: string | null;
       storePhone?: string | null;

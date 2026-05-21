@@ -114,7 +114,6 @@ export function BranchSelectClient() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      await workApi.init();
       if (!mounted) {
         return;
       }

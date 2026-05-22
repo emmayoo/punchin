@@ -174,7 +174,15 @@ export function HistoryDayDetailClient({ date }: HistoryDayDetailClientProps) {
     }
     setPunchSaving(true);
     try {
-      const ok = await workApi.updatePunchRecord(editingPunch.id, next, actorPhone);
+      const ok = await workApi.updatePunchRecord(
+        editingPunch.id,
+        {
+          ...next,
+          employeeId: editingPunch.employeeId,
+          employeeName: editingPunch.employeeName,
+        },
+        actorPhone,
+      );
       if (!ok) {
         toast.error("근무 시간을 수정하지 못했습니다. 권한을 확인해 주세요.");
         return;

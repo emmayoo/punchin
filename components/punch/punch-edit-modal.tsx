@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { FullscreenModal } from "@/components/overlay/fullscreen-modal";
 import { ScheduleTimePicker24 } from "@/components/schedule/schedule-time-picker-24";
@@ -8,8 +8,8 @@ import { StaffPersonSelect } from "@/components/staff/staff-person-select";
 import { buildWorkDayTimeIso, dateKey } from "@/components/schedule/schedule-utils";
 import { DateFieldInput } from "@/components/forms/date-field-input";
 import { formStackClass } from "@/lib/forms/input-classes";
+import { DEFAULT_MEMBER_COLOR } from "@/lib/constants/color";
 import { branchMemberToStaffOption } from "@/lib/staff-person-options";
-import { formatDateTime, formatWorkRecordDateTime } from "@/lib/time";
 import { toast } from "@/lib/toast";
 import type { BranchMemberListItem, PunchRecord } from "@/types/work";
 
@@ -17,6 +17,14 @@ const timeInputClass =
   "min-h-10 w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2 font-mono text-sm tabular-nums text-zinc-900 outline-none focus:border-zinc-400 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400 dark:border-white/15 dark:bg-neutral-900 dark:text-neutral-100 dark:focus:border-white/35 dark:disabled:bg-neutral-800 dark:disabled:text-neutral-500";
 
 const MS_PER_24H = 24 * 60 * 60 * 1000;
+
+export type PunchRecordSaveInput = {
+  checkedInAt: string;
+  checkedOutAt: string | null;
+  employeeId: string;
+  employeeName: string;
+  employeePhone: string;
+};
 
 export type PunchEditModalProps = {
   mode: "create" | "edit";
@@ -27,7 +35,7 @@ export type PunchEditModalProps = {
   canEdit: boolean;
   members: BranchMemberListItem[];
   onClose: () => void;
-  onSave: (next: { checkedInAt: string; checkedOutAt: string | null }) => void;
+  onSave: (next: PunchRecordSaveInput) => void;
   onCreate: (input: Omit<PunchRecord, "id" | "branchId">) => void;
   onDelete: () => void;
 };
@@ -39,6 +47,28 @@ function hhmm(iso: string): string {
 
 function toDateKey(iso: string): string {
   return dateKey(new Date(iso));
+}
+
+function initialFormState(record: PunchRecord | null, members: BranchMemberListItem[]) {
+  const today = dateKey(new Date());
+  if (!record) {
+    return {
+      startDate: today,
+      startTime: "09:00",
+      endDate: today,
+      endTime: "18:00",
+      ongoing: false,
+      selectedEmployeeId: members[0]?.employeeId ?? "",
+    };
+  }
+  return {
+    startDate: toDateKey(record.checkedInAt),
+    startTime: hhmm(record.checkedInAt),
+    endDate: record.checkedOutAt ? toDateKey(record.checkedOutAt) : toDateKey(record.checkedInAt),
+    endTime: record.checkedOutAt ? hhmm(record.checkedOutAt) : "18:00",
+    ongoing: record.checkedOutAt === null,
+    selectedEmployeeId: record.employeeId,
+  };
 }
 
 function resolvePunchTimes(
@@ -78,6 +108,40 @@ function resolvePunchTimes(
   return { ok: true, checkedInAt, checkedOutAt };
 }
 
+function resolveSelectedEmployee(
+  members: BranchMemberListItem[],
+  selectedEmployeeId: string,
+  record: PunchRecord | null,
+): { employeeId: string; employeeName: string; employeePhone: string } | null {
+  const member = members.find((item) => item.employeeId === selectedEmployeeId);
+  if (member) {
+    return {
+      employeeId: member.employeeId,
+      employeeName: member.name,
+      employeePhone: member.phone,
+    };
+  }
+  if (record?.employeeId === selectedEmployeeId) {
+    return {
+      employeeId: record.employeeId,
+      employeeName: record.employeeName,
+      employeePhone: record.employeePhone,
+    };
+  }
+  return null;
+}
+
+function buildStaffOptions(members: BranchMemberListItem[], record: PunchRecord | null) {
+  const base = members.map(branchMemberToStaffOption);
+  if (record && !base.some((option) => option.id === record.employeeId)) {
+    return [
+      { id: record.employeeId, label: record.employeeName, color: DEFAULT_MEMBER_COLOR },
+      ...base,
+    ];
+  }
+  return base;
+}
+
 export function PunchEditModal({
   mode,
   open,
@@ -91,39 +155,27 @@ export function PunchEditModal({
   onCreate,
   onDelete,
 }: PunchEditModalProps) {
-  const [startDate, setStartDate] = useState(() =>
-    record ? toDateKey(record.checkedInAt) : dateKey(new Date()),
-  );
-  const [startTime, setStartTime] = useState(() => (record ? hhmm(record.checkedInAt) : "09:00"));
-  const [endDate, setEndDate] = useState(() =>
-    record && record.checkedOutAt ? toDateKey(record.checkedOutAt) : dateKey(new Date()),
-  );
-  const [endTime, setEndTime] = useState(() =>
-    record && record.checkedOutAt ? hhmm(record.checkedOutAt) : "18:00",
-  );
-  const [ongoing, setOngoing] = useState(() => record?.checkedOutAt === null);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState(() =>
-    record?.employeeId ? record.employeeId : (members[0]?.employeeId ?? ""),
-  );
+  const initial = initialFormState(record, members);
+  const [startDate, setStartDate] = useState(initial.startDate);
+  const [startTime, setStartTime] = useState(initial.startTime);
+  const [endDate, setEndDate] = useState(initial.endDate);
+  const [endTime, setEndTime] = useState(initial.endTime);
+  const [ongoing, setOngoing] = useState(initial.ongoing);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState(initial.selectedEmployeeId);
 
-  const staffOptions = useMemo(() => members.map(branchMemberToStaffOption), [members]);
+  useEffect(() => {
+    if (open && mode === "create" && !selectedEmployeeId && members[0]) {
+      setSelectedEmployeeId(members[0].employeeId);
+    }
+  }, [open, mode, members, selectedEmployeeId]);
+
+  const staffOptions = useMemo(() => buildStaffOptions(members, record), [members, record]);
 
   if (!open) {
     return null;
   }
 
-  const selectedMember =
-    mode === "create"
-      ? (members.find((member) => member.employeeId === selectedEmployeeId) ?? null)
-      : null;
-
-  const editWorkDay = record ? toDateKey(record.checkedInAt) : "";
-  const editSummary =
-    record && record.checkedOutAt
-      ? `${formatDateTime(record.checkedInAt)} ~ ${formatWorkRecordDateTime(record.checkedOutAt, editWorkDay)}`
-      : record
-        ? `${formatDateTime(record.checkedInAt)} ~ 근무 중`
-        : null;
+  const formDisabled = saving || deleting || !canEdit;
 
   return (
     <FullscreenModal open={open}>
@@ -131,28 +183,21 @@ export function PunchEditModal({
         <h2 className="text-base font-semibold text-zinc-900 dark:text-white">
           {mode === "create" ? "실제 근무 추가" : "실제 근무 시간 수정"}
         </h2>
-        {record ? (
-          <p className="text-sm text-zinc-600 dark:text-neutral-400">
-            {record.employeeName}
-            {editSummary ? ` · ${editSummary}` : null}
-          </p>
-        ) : mode === "create" ? (
+        {mode === "create" ? (
           <p className="text-sm text-zinc-600 dark:text-neutral-400">
             직원과 시작/종료 시간을 입력해 실제 근무를 추가합니다.
           </p>
         ) : null}
 
-        {mode === "create" ? (
-          <label className="space-y-1">
-            <span className="text-xs text-zinc-600 dark:text-neutral-400">직원</span>
-            <StaffPersonSelect
-              value={selectedEmployeeId}
-              options={staffOptions}
-              onChange={setSelectedEmployeeId}
-              disabled={saving || deleting || !canEdit}
-            />
-          </label>
-        ) : null}
+        <label className="space-y-1">
+          <span className="text-xs text-zinc-600 dark:text-neutral-400">직원</span>
+          <StaffPersonSelect
+            value={selectedEmployeeId}
+            options={staffOptions}
+            onChange={setSelectedEmployeeId}
+            disabled={formDisabled}
+          />
+        </label>
 
         <div className={formStackClass}>
           <label className="flex min-w-0 flex-col gap-1">
@@ -160,7 +205,7 @@ export function PunchEditModal({
             <DateFieldInput
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
-              disabled={saving || !canEdit}
+              disabled={formDisabled}
             />
           </label>
           <label className="flex min-w-0 flex-col gap-1">
@@ -169,7 +214,7 @@ export function PunchEditModal({
               <ScheduleTimePicker24
                 value={startTime}
                 onChange={setStartTime}
-                disabled={saving || !canEdit}
+                disabled={formDisabled}
                 inputClassName={timeInputClass}
               />
             </div>
@@ -180,7 +225,7 @@ export function PunchEditModal({
             <DateFieldInput
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
-              disabled={saving || deleting || !canEdit || ongoing}
+              disabled={formDisabled || ongoing}
             />
           </label>
           <label className="flex min-w-0 flex-col gap-1">
@@ -189,7 +234,7 @@ export function PunchEditModal({
               <ScheduleTimePicker24
                 value={endTime}
                 onChange={setEndTime}
-                disabled={saving || deleting || !canEdit || ongoing}
+                disabled={formDisabled || ongoing}
                 inputClassName={timeInputClass}
               />
             </div>
@@ -201,7 +246,7 @@ export function PunchEditModal({
             type="checkbox"
             checked={ongoing}
             onChange={(e) => setOngoing(e.target.checked)}
-            disabled={saving || deleting || !canEdit}
+            disabled={formDisabled}
           />
           진행 중(종료 없음)
         </label>
@@ -210,7 +255,7 @@ export function PunchEditModal({
           {mode === "edit" ? (
             <button
               type="button"
-              disabled={saving || deleting || !canEdit}
+              disabled={formDisabled}
               onClick={onDelete}
               className="rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-700 disabled:opacity-60 dark:border-red-700/60 dark:text-red-300"
             >
@@ -229,7 +274,7 @@ export function PunchEditModal({
             </button>
             <button
               type="button"
-              disabled={saving || deleting || !canEdit}
+              disabled={formDisabled}
               onClick={() => {
                 const resolved = resolvePunchTimes(
                   startDate,
@@ -242,24 +287,21 @@ export function PunchEditModal({
                   toast.error(resolved.message);
                   return;
                 }
-                if (mode === "create") {
-                  if (!selectedMember) {
-                    toast.error("직원을 선택해 주세요.");
-                    return;
-                  }
-                  onCreate({
-                    employeeId: selectedMember.employeeId,
-                    employeeName: selectedMember.name,
-                    employeePhone: selectedMember.phone,
-                    checkedInAt: resolved.checkedInAt,
-                    checkedOutAt: resolved.checkedOutAt,
-                  });
+                const employee = resolveSelectedEmployee(members, selectedEmployeeId, record);
+                if (!employee) {
+                  toast.error("직원을 선택해 주세요.");
                   return;
                 }
-                onSave({
+                const payload = {
+                  ...employee,
                   checkedInAt: resolved.checkedInAt,
                   checkedOutAt: resolved.checkedOutAt,
-                });
+                };
+                if (mode === "create") {
+                  onCreate(payload);
+                  return;
+                }
+                onSave(payload);
               }}
               className="rounded-lg bg-zinc-900 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60 dark:bg-white dark:text-neutral-950"
             >

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useDashboardData } from "@/components/dashboard/use-dashboard-data";
-import { PunchEditModal } from "@/components/punch/punch-edit-modal";
+import { PunchEditModal, type PunchRecordSaveInput } from "@/components/punch/punch-edit-modal";
 import type { SchedulePerson } from "@/components/schedule/schedule-types";
 import {
   addDays,
@@ -281,25 +281,23 @@ export function ActualWeeklyWorkGridSection({
   const [deleting, setDeleting] = useState(false);
   const [members, setMembers] = useState<BranchMemberListItem[]>([]);
   const scheduleGridRef = useRef<HTMLDivElement>(null);
+  const canLoadMembers = Boolean(currentBranchId && actorPhone && canEdit);
+  const membersForModal = canLoadMembers ? members : [];
 
   useEffect(() => {
-    let mounted = true;
-    if (!currentBranchId || !actorPhone || !canEdit) {
-      return () => {
-        mounted = false;
-      };
+    if (!canLoadMembers || !currentBranchId || !actorPhone) {
+      return;
     }
-    void (async () => {
-      const list = await workApi.listBranchMembers(currentBranchId, actorPhone);
-      if (!mounted) {
-        return;
+    let mounted = true;
+    void workApi.listBranchMembers(currentBranchId, actorPhone).then((list) => {
+      if (mounted) {
+        setMembers(list);
       }
-      setMembers(list);
-    })();
+    });
     return () => {
       mounted = false;
     };
-  }, [actorPhone, canEdit, currentBranchId]);
+  }, [actorPhone, canLoadMembers, currentBranchId]);
 
   const handleShiftClick = (shift: Shift) => {
     if (!canEdit) {
@@ -310,7 +308,7 @@ export function ActualWeeklyWorkGridSection({
     setEditing(record);
   };
 
-  const save = async (next: { checkedInAt: string; checkedOutAt: string | null }) => {
+  const save = async (next: PunchRecordSaveInput) => {
     if (!editing || !actorPhone) {
       return;
     }
@@ -321,7 +319,7 @@ export function ActualWeeklyWorkGridSection({
         toast.error("근무 시간을 수정하지 못했습니다. 권한을 확인해 주세요.");
         return;
       }
-      toast.success("근무 시간을 수정했습니다.");
+      toast.success("실제 근무를 수정했습니다.");
       setEditing(null);
       emitWorkplaceChanged();
       await refreshDashboard();
@@ -513,7 +511,7 @@ export function ActualWeeklyWorkGridSection({
         deleting={deleting}
         record={editing}
         canEdit={canEdit}
-        members={members}
+        members={membersForModal}
         onClose={() => setEditing(null)}
         onSave={save}
         onCreate={create}
@@ -528,7 +526,7 @@ export function ActualWeeklyWorkGridSection({
         deleting={false}
         record={null}
         canEdit={canEdit}
-        members={members}
+        members={membersForModal}
         onClose={() => setCreating(false)}
         onSave={save}
         onCreate={create}

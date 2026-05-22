@@ -1098,7 +1098,12 @@ export class SupabaseWorkApi {
 
   async updatePunchRecord(
     recordId: string,
-    next: { checkedInAt: string; checkedOutAt: string | null },
+    next: {
+      checkedInAt: string;
+      checkedOutAt: string | null;
+      employeeId: string;
+      employeeName: string;
+    },
     actorPhone: string,
   ): Promise<boolean> {
     await this.ensureAuthUser();
@@ -1128,6 +1133,8 @@ export class SupabaseWorkApi {
     const { data, error } = await this.supabase
       .from("punch_records")
       .update({
+        employee_id: next.employeeId,
+        employee_name: next.employeeName,
         checked_in_at: next.checkedInAt,
         checked_out_at: next.checkedOutAt,
       } as never)

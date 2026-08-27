@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useDashboardData } from "@/components/dashboard/use-dashboard-data";
+import {
+  PunchDayImportModal,
+  type PunchDayImportInput,
+} from "@/components/punch/punch-day-import-modal";
 import { PunchEditModal, type PunchRecordSaveInput } from "@/components/punch/punch-edit-modal";
 import type { SchedulePerson } from "@/components/schedule/schedule-types";
 import {
@@ -23,8 +27,8 @@ import { workApi } from "@/lib/api/work-api";
 import { DEFAULT_MEMBER_COLOR } from "@/lib/constants/color";
 import { emitWorkplaceChanged } from "@/lib/constants/dom-event";
 import { formatKoMonthDayNumeric } from "@/lib/date-format";
-import { formatSegmentTimeRangeHHMM } from "@/lib/time";
 import { normalizePhone } from "@/lib/phone";
+import { formatSegmentTimeRangeHHMM } from "@/lib/time";
 import { toast } from "@/lib/toast";
 import type { BranchMemberListItem, PunchRecord, Shift } from "@/types/work";
 
@@ -69,6 +73,8 @@ function splitPunchRecordToShifts(
 
   return segments;
 }
+
+const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 
 type DaySegment = {
   shift: Shift;
@@ -275,8 +281,28 @@ export function ActualWeeklyWorkGridSection({
     return map;
   }, [segmentShifts, colorByPhone]);
 
+  /** 보통 오늘 마지막 근무 바로 다음에 이어 붙이므로 그 종료 시각을 기본 시작값으로 쓴다. */
+  const createDefaultStart = useMemo(() => {
+    const todayKey = dateKey(new Date());
+    // "오늘"의 기준은 checkedInAt이 속한 날 — 그리드·불러오기 모달의 근무일 기준과 같다.
+    const lastEnd = punches
+      .filter((p) => p.checkedOutAt !== null && dateKey(new Date(p.checkedInAt)) === todayKey)
+      .map((p) => p.checkedOutAt as string)
+      .sort()
+      .at(-1);
+    if (!lastEnd) {
+      return null;
+    }
+    const end = new Date(lastEnd);
+    return {
+      date: dateKey(end),
+      time: `${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}`,
+    };
+  }, [punches]);
+
   const [editing, setEditing] = useState<PunchRecord | null>(null);
   const [creating, setCreating] = useState(false);
+  const [importTargetDate, setImportTargetDate] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [members, setMembers] = useState<BranchMemberListItem[]>([]);
@@ -351,6 +377,29 @@ export function ActualWeeklyWorkGridSection({
     }
   };
 
+  const importDay = async (inputs: PunchDayImportInput[]) => {
+    if (!actorPhone || !currentBranchId || inputs.length === 0) {
+      return;
+    }
+    setSaving(true);
+    try {
+      const created = await workApi.createPunchRecords(
+        inputs.map((input) => ({ ...input, branchId: currentBranchId })),
+        actorPhone,
+      );
+      if (created.length === 0) {
+        toast.error("근무를 불러오지 못했습니다. 권한을 확인해 주세요.");
+        return;
+      }
+      toast.success(`근무 ${created.length}건을 불러왔습니다.`);
+      setImportTargetDate(null);
+      emitWorkplaceChanged();
+      await refreshDashboard();
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const remove = async () => {
     if (!editing || !actorPhone) {
       return;
@@ -409,15 +458,35 @@ export function ActualWeeklyWorkGridSection({
                 <div className="border-b border-r border-zinc-200/90 bg-zinc-100/80 px-1.5 py-1.5 text-[11px] text-zinc-600 dark:border-white/10 dark:bg-white/5 dark:text-neutral-300">
                   시간
                 </div>
-                {rangeDays.map((day) => (
-                  <div
-                    key={dateKey(day)}
-                    className="border-b border-r border-zinc-200/90 bg-zinc-100/80 px-1.5 py-1.5 text-[11px] text-zinc-800 dark:border-white/10 dark:bg-white/5 dark:text-neutral-200"
-                  >
-                    {["일", "월", "화", "수", "목", "금", "토"][day.getDay()]}{" "}
-                    {formatKoMonthDayNumeric(day)}
-                  </div>
-                ))}
+                {rangeDays.map((day) => {
+                  const key = dateKey(day);
+                  const label = `${WEEKDAY_LABELS[day.getDay()]} ${formatKoMonthDayNumeric(day)}`;
+                  const headerClass =
+                    "border-b border-r border-zinc-200/90 bg-zinc-100/80 px-1.5 py-1.5 text-left text-[11px] text-zinc-800 dark:border-white/10 dark:bg-white/5 dark:text-neutral-200";
+                  // data 로딩 전에는 모든 날이 비어 보이므로 반드시 함께 확인한다.
+                  const importable =
+                    Boolean(data) && canEdit && (shiftMap.get(key)?.length ?? 0) === 0;
+                  if (!importable) {
+                    return (
+                      <div key={key} className={headerClass}>
+                        {label}
+                      </div>
+                    );
+                  }
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setImportTargetDate(key)}
+                      className={`${headerClass} hover:bg-zinc-200/80 dark:hover:bg-white/10`}
+                    >
+                      <span className="block">{label}</span>
+                      <span className="block text-[10px] text-zinc-500 dark:text-neutral-400">
+                        불러오기
+                      </span>
+                    </button>
+                  );
+                })}
 
                 <div
                   className="relative border-r border-zinc-200/90 dark:border-white/10"
@@ -527,10 +596,21 @@ export function ActualWeeklyWorkGridSection({
         record={null}
         canEdit={canEdit}
         members={membersForModal}
+        defaultStart={createDefaultStart}
         onClose={() => setCreating(false)}
         onSave={save}
         onCreate={create}
         onDelete={() => {}}
+      />
+
+      <PunchDayImportModal
+        key={importTargetDate ?? "import-close"}
+        open={Boolean(importTargetDate)}
+        targetDate={importTargetDate ?? ""}
+        records={punches}
+        saving={saving}
+        onClose={() => setImportTargetDate(null)}
+        onApply={importDay}
       />
     </>
   );

@@ -1171,6 +1171,39 @@ export class SupabaseWorkApi {
     return !error && data ? mapPunchRow(data as Record<string, unknown>) : null;
   }
 
+  /** 같은 지점의 실제 근무를 한 번에 추가한다. 권한 확인·insert 모두 1회. */
+  async createPunchRecords(
+    inputs: Omit<PunchRecord, "id">[],
+    actorPhone: string,
+  ): Promise<PunchRecord[]> {
+    if (inputs.length === 0) {
+      return [];
+    }
+    const branchId = inputs[0].branchId ?? null;
+    if (!branchId || inputs.some((input) => (input.branchId ?? null) !== branchId)) {
+      return [];
+    }
+    const access = await this.resolveActorBranchAccess(branchId, actorPhone);
+    if (!this.supabaseIsManagerUp(access)) {
+      return [];
+    }
+    const rows = inputs.map((input) => ({
+      employee_id: input.employeeId,
+      employee_name: input.employeeName,
+      branch_id: branchId,
+      checked_in_at: input.checkedInAt,
+      checked_out_at: input.checkedOutAt,
+    }));
+    const { data, error } = await this.supabase
+      .from("punch_records")
+      .insert(rows as never)
+      .select("*, employee:employees!employee_id(phone)");
+    if (error || !data) {
+      return [];
+    }
+    return data.map((row) => mapPunchRow(row as Record<string, unknown>));
+  }
+
   async deletePunchRecord(recordId: string, actorPhone: string): Promise<boolean> {
     await this.ensureAuthUser();
     const { data: target } = await this.supabase

@@ -132,6 +132,7 @@ export function ScheduleTimePicker24({
       type="text"
       disabled={disabled}
       inputMode="numeric"
+      maxLength={5}
       autoComplete="off"
       spellCheck={false}
       placeholder={placeholder}
